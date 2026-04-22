@@ -13,7 +13,7 @@
       },
       "consumer": {
         "repo": "neo-chat-uncensored-frontend",
-        "surface": "React Components / Serverless Functions"
+        "surface": "Astro Components / Vanilla JS (SSE)"
       },
       "contract": {
         "summary": "Chat interaction and subscription status validation.",
@@ -27,7 +27,7 @@
         "external": []
       },
       "evidence": [
-        "./frontend/package.json"
+        "./package.json"
       ]
     },
     {

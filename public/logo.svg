@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 140" width="100%" height="100%">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@900&amp;family=Dancing+Script:wght@700&amp;display=swap');
+      
+      .brand { 
+        font-family: 'Inter', sans-serif; 
+        font-size: 72px; 
+        font-weight: 900; 
+        fill: #ffffff; 
+        letter-spacing: -2px; 
+      }
+      
+      .badge-bg { 
+        fill: url(#violet-gradient); 
+        rx: 8px; 
+      }
+      
+      .badge-text { 
+        font-family: 'Inter', sans-serif; 
+        font-size: 20px; 
+        font-weight: 900; 
+        fill: #ffffff; 
+        letter-spacing: 3px; 
+      }
+      
+      .uncensored { 
+        font-family: 'Dancing Script', cursive; 
+        font-size: 56px; 
+        font-weight: 700; 
+        fill: #ff2a85; /* Pink neon */
+        transform-origin: 200px 100px;
+        transform: rotate(-6deg);
+        filter: drop-shadow(0 0 10px rgba(255, 42, 133, 0.4));
+      }
+
+      .slash {
+        fill: #ffffff;
+        opacity: 0.3;
+      }
+    </style>
+    
+    <linearGradient id="violet-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6" /> <!-- Violet 500 -->
+      <stop offset="100%" stop-color="#D946EF" /> <!-- Fuchsia 500 -->
+    </linearGradient>
+  </defs>
+
+  <!-- Barra inclinada de design (opcional, dá um tom tech) -->
+  <path d="M 30,110 L 50,30 L 65,30 L 45,110 Z" class="slash" />
+
+  <!-- NΞØ Protocol Text -->
+  <text x="60" y="90" class="brand">NΞØ</text>
+  
+  <!-- CHAT Badge -->
+  <!-- Posicionado logo após o NΞØ -->
+  <rect x="220" y="38" width="95" height="34" class="badge-bg" />
+  <text x="232" y="62" class="badge-text">CHAT</text>
+  
+  <!-- "uncensored" em cursiva neon pink -->
+  <!-- Colocado um pouco abaixo, sobrepondo ligeiramente o estilo -->
+  <text x="200" y="115" class="uncensored">uncensored</text>
+</svg>

@@ -1,6 +1,6 @@
 # Architecture Documentation - NΞØ
 
-Plataforma de Chat IA Soberana e Uncensored baseada no ecossistema Venice.ai, focada em privacidade absoluta e liberdade de informação.
+Plataforma de chat IA sem censura, com responsabilidade do usuário, baseada no ecossistema Venice.ai e focada em privacidade absoluta e liberdade de informação.
 
 ## System Overview
 
@@ -21,13 +21,13 @@ Usuário -> Frontend (Astro) -> API Backend (Express/JWT) -> Redis (Quotas) -> V
 
 ## Module Responsibilities
 
-- **Frontend**: Astro + React para componentes interativos.
+- **Frontend**: Astro + Vanilla JS para componentes interativos e streaming SSE.
 - **Backend API**: Express.js com autenticação JWT.
 - **Cache/State**: Redis para controle de tier e rate limit.
 
 ## Running Locally
 
 ```bash
-make init
-make start
+make install
+make dev
 ```

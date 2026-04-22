@@ -18,10 +18,10 @@ Version: v1.0.0
 Para iniciar qualquer tarefa neste repositório, carregue os arquivos
 na ordem exata de precedência abaixo:
 
-1.  **[CONTEXT.md](./CONTEXT.md)** — Domínio e Proposta de Valor.
-2.  **[CONSTRAINTS.md](./CONSTRAINTS.md)** — Limites Técnicos e Guardrails.
-3.  **[WORKSPACE.md](./WORKSPACE.md)** — Topologia Física e Contratos.
-4.  **[STYLE.md](../STYLE.md)** — Padrões Estéticos e de Código.
+1. **[CONTEXT.md](./CONTEXT.md)** — Domínio e Proposta de Valor.
+2. **[CONSTRAINTS.md](./CONSTRAINTS.md)** — Limites Técnicos e Guardrails.
+3. **[WORKSPACE.md](./WORKSPACE.md)** — Topologia Física e Contratos.
+4. **[STYLE.md](../STYLE.md)** — Padrões Estéticos e de Código.
 
 ────────────────────────────────────────
 

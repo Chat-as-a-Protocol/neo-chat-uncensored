@@ -11,14 +11,23 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-# Subir serviços
-docker-compose up --build
+# Verificar se backend/.env existe
+if [ ! -f backend/.env ]; then
+  echo "⚠️  Criando backend/.env a partir do exemplo..."
+  cp backend/.env.example backend/.env
+  echo "📝 Edite o arquivo backend/.env com suas credenciais!"
+fi
+
+# Iniciar ecossistema via Makefile
+echo "📦 Verificando dependências..."
+make install
+
+echo "🔌 Iniciando Frontend e Backend..."
+make dev
 
 echo ""
-echo "✅ Frontend: http://localhost:4321"
-echo "✅ Backend API: http://localhost:3001"
-echo ""
+echo "✅ Sistema iniciado!"
 echo "📖 Próximos passos:"
 echo "   1. Obtenha sua API key em: https://venice.ai/settings/api"
-echo "   2. Adicione ao .env: VENICE_API_KEY=sua_chave"
-echo "   3. Configure Stripe webhooks para /webhooks/stripe"
+echo "   2. Verifique seu .env: VENICE_API_KEY deve estar configurada"
+echo "   3. Docs em: README.md"
