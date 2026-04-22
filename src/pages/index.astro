@@ -4,12 +4,126 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="NEØ Uncensored Chat">
-  
-  <main class="relative z-10 h-screen flex flex-col justify-center items-center px-4 py-8">
-    <div class="mb-8 flex flex-col items-center">
-      <img src="/logo.svg" alt="NEØ CHAT uncensored" class="h-14 w-auto drop-shadow-[0_0_15px_rgba(255,42,133,0.3)] hover:scale-105 transition-transform cursor-pointer" />
+  <main class="scene-shell">
+    <div class="scene-lights" aria-hidden="true">
+      <div class="streak streak-a"></div>
+      <div class="streak streak-b"></div>
+      <div class="streak streak-c"></div>
+      <div class="grain"></div>
+      <div class="vignette"></div>
     </div>
-    
+
     <AstroChatInterface />
+
+    <footer class="scene-footer">
+      <a href="/privacy-policy" aria-label="Política de Privacidade">Privacy Policy</a>
+      <span class="dot">•</span>
+      <a href="/terms-and-conditions" aria-label="Termos e Condições">Terms & Conditions</a>
+    </footer>
   </main>
 </Layout>
+
+<style>
+  .scene-shell {
+    position: relative;
+    isolation: isolate;
+    min-height: 100svh;
+    padding: clamp(14px, 2.2vw, 28px);
+    display: grid;
+    grid-template-rows: 1fr auto;
+    row-gap: clamp(14px, 2.8vh, 30px);
+    justify-items: center;
+    overflow: hidden;
+  }
+
+  .scene-lights {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(circle at 80% 24%, rgba(224, 202, 172, 0.46), transparent 40%),
+      radial-gradient(circle at 12% 22%, rgba(211, 211, 215, 0.48), transparent 48%),
+      linear-gradient(180deg, #3a3a3f 0%, #292a30 46%, #0f1016 100%);
+  }
+
+  .streak {
+    position: absolute;
+    top: -4%;
+    bottom: -10%;
+    width: min(22vw, 230px);
+    filter: blur(3px);
+    mix-blend-mode: screen;
+    opacity: 0.34;
+  }
+
+  .streak-a {
+    left: min(24vw, 320px);
+    background: linear-gradient(90deg, rgba(252, 250, 244, 0), rgba(252, 250, 244, 0.66), rgba(252, 250, 244, 0));
+  }
+
+  .streak-b {
+    left: min(49vw, 640px);
+    width: min(20vw, 210px);
+    opacity: 0.26;
+    background: linear-gradient(90deg, rgba(247, 239, 227, 0), rgba(247, 239, 227, 0.55), rgba(247, 239, 227, 0));
+  }
+
+  .streak-c {
+    left: min(67vw, 860px);
+    width: min(18vw, 180px);
+    opacity: 0.2;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0));
+  }
+
+  .grain {
+    position: absolute;
+    inset: 0;
+    opacity: 0.08;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.6) 0.6px, transparent 0);
+    background-size: 3px 3px;
+    mix-blend-mode: soft-light;
+  }
+
+  .vignette {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.82) 100%);
+  }
+
+  .scene-footer {
+    width: 100%;
+    text-align: center;
+    color: rgba(236, 236, 236, 0.44);
+    font-size: clamp(14px, 1.9vw, 22px);
+    line-height: 1.35;
+    padding-bottom: clamp(12px, 1.8vw, 22px);
+  }
+
+  .scene-footer a {
+    opacity: 0.78;
+  }
+
+  .scene-footer .dot {
+    display: inline-block;
+    margin: 0 14px;
+    opacity: 0.42;
+  }
+
+  @media (max-width: 820px) {
+    .scene-shell {
+      padding-top: calc(env(safe-area-inset-top) + 8px);
+      padding-right: max(8px, env(safe-area-inset-right));
+      padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
+      padding-left: max(8px, env(safe-area-inset-left));
+    }
+
+    .scene-footer {
+      font-size: 14px;
+      padding-bottom: calc(env(safe-area-inset-bottom) + 4px);
+    }
+
+    .scene-footer .dot {
+      margin: 0 10px;
+    }
+  }
+</style>

@@ -75,6 +75,10 @@ clean:
 # --- BUILD & DEPLOY ---
 build:
 	@echo "🏗️  Building production assets..."
+	@echo "📦 Ensuring dependencies are installed..."
+	$(PNPM) install --frozen-lockfile
+	@echo "🧹 Resetting Astro build cache..."
+	rm -rf dist .astro
 	$(PNPM) run build
 
 push:
