@@ -1,0 +1,13 @@
+---
+import ChatInterface from '../components/ChatInterface.jsx';
+import ParticleBackground from '../components/ParticleBackground.astro';
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="NEØ Uncensored Chat">
+  <ParticleBackground />
+  
+  <main class="relative z-10 h-screen">
+    <ChatInterface client:load />
+  </main>
+</Layout>

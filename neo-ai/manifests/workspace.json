@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "2026-04-12",
+  "workspaceName": "neo-chat-uncensored-workspace",
+  "organization": "neomello",
+  "workspaceRoot": "/Users/nettomello/CODIGOS/neo-chat-uncensored",
+  "operationalMode": "control-plane",
+  "localPackageManager": "pnpm",
+  "localNode": {
+    "recommended": "22.x",
+    "minimum": "18.x"
+  },
+  "tracks": [
+    "repos",
+    "integrations",
+    "operational-standards",
+    "cross-repo-docs"
+  ],
+  "topologyMaps": [
+    "domains",
+    "ports",
+    "webhooks",
+    "dependencies"
+  ],
+  "explicitNonGoals": [
+    "monorepo-de-produto",
+    "capturar-codigo-dos-filhos",
+    "backlog-paralelo",
+    "inventar-contratos-na-doc"
+  ],
+  "fillInstructions": {
+    "notes": [
+      "Substitua todos os campos __FILL__.",
+      "Se existir token canônico, adicione um manifest próprio em manifests/tokens/ e referencie aqui."
+    ]
+  }
+}

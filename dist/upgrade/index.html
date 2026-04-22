@@ -1,0 +1,74 @@
+<!DOCTYPE html><html lang="pt-BR"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v5.18.1"><title>Upgrade - Sua Marca IA</title><meta name="description" content="Chat AI uncensored - Privado e sem filtros"><link rel="stylesheet" href="/_astro/index.BCySrHM9.css"></head> <body class="bg-slate-950 text-white overflow-hidden">  <div class="min-h-screen flex items-center justify-center relative overflow-hidden"> <!-- Efeitos de fundo --> <div class="absolute inset-0 bg-slate-950"> <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl animate-pulse"></div> <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-fuchsia-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div> </div> <div class="relative z-10 max-w-4xl w-full mx-4"> <div class="text-center mb-12"> <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+Liberte o Potencial Total
+</h1> <p class="text-xl text-slate-400">Acesso ilimitado a modelos uncensored premium</p> </div> <div class="grid md:grid-cols-2 gap-8"> <!-- Free Plan --> <div class="p-8 rounded-2xl bg-slate-900/50 border border-white/10 backdrop-blur"> <h3 class="text-2xl font-bold text-white mb-2">Free</h3> <p class="text-4xl font-bold text-white mb-6">R$ 0<span class="text-lg text-slate-400">/mês</span></p> <ul class="space-y-3 mb-8"> <li class="flex items-center gap-2 text-slate-300"> <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+100 mensagens/dia
+</li> <li class="flex items-center gap-2 text-slate-300"> <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+Modelo Venice Uncensored
+</li> </ul> <button class="w-full py-3 rounded-xl border border-white/20 text-white font-medium">
+Plano Atual
+</button> </div> <!-- Pro Plan --> <div class="p-8 rounded-2xl bg-gradient-to-br from-violet-900/20 to-fuchsia-900/20 border border-violet-500/30 backdrop-blur relative"> <div class="absolute -top-4 right-8 px-4 py-1 bg-violet-600 text-white text-xs font-bold rounded-full uppercase tracking-widest">
+Recomendado
+</div> <h3 class="text-2xl font-bold text-white mb-2">Pro</h3> <p class="text-4xl font-bold text-white mb-6">R$ 49<span class="text-lg text-slate-400">/mês</span></p> <ul class="space-y-3 mb-8"> <li class="flex items-center gap-2 text-white"> <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+Mensagens ilimitadas
+</li> <li class="flex items-center gap-2 text-white"> <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+Todos os modelos incluindo Role Play
+</li> <li class="flex items-center gap-2 text-white"> <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+Web search integrado
+</li> <li class="flex items-center gap-2 text-white"> <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+Suporte prioritário
+</li> </ul> <button onclick="handleCheckout()" class="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-bold hover:opacity-90 transition shadow-lg shadow-violet-500/25">
+Fazer Upgrade
+</button> </div> </div> <!-- Web3 Option --> <div class="mt-8 text-center"> <p class="text-slate-400 text-sm mb-3">Ou pague com crypto</p> <button onclick="connectWallet()" class="px-6 py-2 rounded-full bg-white/5 border border-white/10 text-white text-sm hover:bg-white/10 transition flex items-center gap-2 mx-auto"> <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+Conectar Wallet
+</button> </div> </div> </div> <script>
+    async function handleCheckout() {
+      const token = localStorage.getItem('token');
+      // No Astro, variáveis públicas podem ser acessadas via import.meta.env
+      // mas no cliente (script is:inline) precisamos de outra estratégia ou injetar no build.
+      // Aqui usaremos o fallback para localhost ou uma variável global se disponível.
+      const apiUrl = window.PUBLIC_API_URL || 'http://localhost:3001';
+      
+      if (!token) {
+        alert('Por favor, faça login para realizar o upgrade.');
+        window.location.href = '/login';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${apiUrl}/stripe/create-checkout`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Erro ao iniciar checkout');
+        }
+
+        if (data.url) {
+          window.location.href = data.url;
+        }
+      } catch (error) {
+        console.error('Checkout error:', error);
+        alert('Erro: ' + error.message);
+      }
+    }
+
+    async function connectWallet() {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          console.log('Connected Wallet:', accounts[0]);
+          alert('Wallet conectada: ' + accounts[0]);
+        } catch (err) {
+          console.error('Wallet error:', err);
+        }
+      } else {
+        alert('Nenhuma wallet compatível detectada.');
+      }
+    }
+  </script>  </body></html>

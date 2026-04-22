@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+
+def sh(args: list[str], cwd: Path) -> str:
+    return subprocess.check_output(args, cwd=str(cwd), text=True).strip()
+
+
+def main() -> int:
+    root = Path(__file__).resolve().parents[1]
+    repos_path = root / "manifests" / "repos.json"
+    data = json.loads(repos_path.read_text())
+    repos = data.get("repositories", [])
+
+    print("workspace-doctor (seed)")
+    print(f"root: {root}")
+    print()
+
+    header = f"{'repo':<26} {'repo-status':<11} {'branch':<8} {'state':<6} origin"
+    print(header)
+    print("-" * len(header))
+
+    ok = True
+    for repo in repos:
+        name = repo.get("name", "<missing>")
+        local_path = repo.get("localPath", "")
+        repo_dir = (root / local_path).resolve()
+
+        if not repo_dir.exists():
+            ok = False
+            print(f"{name:<26} {'missing':<11} {'-':<8} {'-':<6} -")
+            continue
+
+        if not (repo_dir / ".git").exists():
+            ok = False
+            print(f"{name:<26} {'not-git':<11} {'-':<8} {'-':<6} -")
+            continue
+
+        branch = sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_dir)
+        porcelain = sh(["git", "status", "--porcelain"], cwd=repo_dir)
+        state = "dirty" if porcelain else "clean"
+        origin = "-"
+        try:
+            origin = sh(["git", "remote", "get-url", "origin"], cwd=repo_dir)
+        except Exception:
+            origin = "-"
+
+        print(f"{name:<26} {'git-ok':<11} {branch:<8} {state:<6} {origin}")
+
+    print()
+    print("workspace-doctor:", "ok" if ok else "failed")
+    return 0 if ok else 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
