@@ -195,7 +195,7 @@ const trackRevenue = async (tenantId, amount) => {
 
 O que você está construindo é o **portfolio**, não o produto:
 
-```
+```tree
 "Implementação de IA White-Label"
 ├── Discovery: R$ 1.500
 ├── Desenvolvimento: R$ 8.000 - 25.000
@@ -268,7 +268,7 @@ Excelente estratégia! Separar **marketing/suporte** do **produto principal** é
 
 ## **Arquitetura Final Recomendada**
 
-```
+```box
 ┌──────────────────────────────────────────────────────────────┐
 │ AZURE STATIC WEB APPS (GRÁTIS)                               │
 │ ├── / (Landing Page de Vendas)                                │

@@ -1,0 +1,297 @@
+  <!-- Header with Model Selector -->
+  <div class="flex justify-between items-center px-2 pb-2 border-b border-white/5 mb-2">
+    <div class="flex items-center gap-2">
+      <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+      <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest">System Online</span>
+    </div>
+    
+    <div class="relative group">
+      <select id="model-selector" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer hover:bg-white/10 transition-all pr-8">
+        <option value="">Carregando modelos...</option>
+      </select>
+      <div class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Messages Container -->
+  <div id="messages-container" class="flex-1 overflow-y-auto flex flex-col gap-4 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+    <!-- Welcome screen / empty state -->
+    <div id="empty-state" class="flex flex-col gap-4 items-center h-full justify-center text-center">
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center border border-white/10 mb-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="url(#violet-gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 15 4 4 4-4"/><path d="M12 4v15"/><path d="m15 8-4-4-4 4"/></svg>
+      </div>
+      <h1 class="text-3xl font-bold text-white tracking-tight">Como posso ajudar hoje?</h1>
+      <p class="text-slate-400 text-sm max-w-md">Pergunte qualquer coisa. Sem filtros. Total privacidade com o NΞØ Protocol.</p>
+      
+      <div class="flex gap-2 flex-wrap justify-center mt-6">
+        <button class="suggestion-btn px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 hover:border-violet-500/30 text-sm text-slate-300 transition-all border border-white/5">Escrever um email</button>
+        <button class="suggestion-btn px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 hover:border-violet-500/30 text-sm text-slate-300 transition-all border border-white/5">Explicar buracos negros</button>
+        <button class="suggestion-btn px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 hover:border-violet-500/30 text-sm text-slate-300 transition-all border border-white/5">Gerar um script</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading indicator (hidden by default) -->
+  <div id="loading-indicator" class="hidden flex justify-start mb-2">
+    <div class="bg-white/5 border border-white/5 rounded-2xl px-5 py-4">
+      <div class="flex gap-1.5 items-center">
+        <div class="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
+        <div class="w-2 h-2 bg-violet-400 rounded-full animate-pulse" style="animation-delay: 0.15s"></div>
+        <div class="w-2 h-2 bg-violet-400 rounded-full animate-pulse" style="animation-delay: 0.3s"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Section -->
+  <div class="flex w-full flex-col gap-3 relative mt-auto pt-2">
+    <form id="chat-form" class="relative flex items-end bg-black/40 border border-white/10 rounded-2xl focus-within:border-violet-500/50 focus-within:ring-1 focus-within:ring-violet-500/50 transition-all">
+      <textarea
+        id="chat-input"
+        placeholder="Digite sua mensagem sem censura..."
+        rows="1"
+        class="w-full bg-transparent px-5 py-4 pr-14 text-sm text-white placeholder-slate-500 focus:outline-none resize-none overflow-hidden"
+        style="min-height: 52px; max-height: 150px;"
+      ></textarea>
+      <button
+        type="submit"
+        id="send-button"
+        class="absolute right-2 bottom-2 p-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-80 text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:grayscale"
+        disabled
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+      </button>
+    </form>
+    <p class="text-center text-[11px] text-slate-500">IA pode cometer erros. Verifique informações críticas.</p>
+  </div>
+</div>
+
+<script>
+  const form = document.getElementById('chat-form') as HTMLFormElement;
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement;
+  const sendBtn = document.getElementById('send-button') as HTMLButtonElement;
+  const messagesContainer = document.getElementById('messages-container') as HTMLDivElement;
+  const emptyState = document.getElementById('empty-state') as HTMLDivElement;
+  const loadingIndicator = document.getElementById('loading-indicator') as HTMLDivElement;
+  const modelSelector = document.getElementById('model-selector') as HTMLSelectElement;
+  
+  const apiUrl = (window as any).PUBLIC_API_URL || 'http://localhost:3001';
+  let selectedModel = '';
+
+  // Load Models
+  async function initModels() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/api/models`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      modelSelector.innerHTML = '';
+      data.available.forEach((modelId: string) => {
+        const option = document.createElement('option');
+        option.value = modelId;
+        option.textContent = modelId;
+        if (modelId === data.defaultModel) {
+          option.selected = true;
+          selectedModel = modelId;
+        }
+        modelSelector.appendChild(option);
+      });
+      
+      if (!selectedModel && data.available.length > 0) {
+        selectedModel = data.available[0];
+      }
+    } catch (e) {
+      console.error('Erro ao carregar modelos', e);
+      modelSelector.innerHTML = '<option value="llama-3.3-70b">Llama 3.3 70b (Fallback)</option>';
+      selectedModel = 'llama-3.3-70b';
+    }
+  }
+
+  modelSelector.addEventListener('change', () => {
+    selectedModel = modelSelector.value;
+    console.log('🎯 [Chat] Modelo alterado para:', selectedModel);
+  });
+
+  initModels();
+
+  // Auto-resize textarea
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+    sendBtn.disabled = input.value.trim() === '';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (input.value.trim()) {
+        form.dispatchEvent(new Event('submit'));
+      }
+    }
+  });
+
+  // Suggestion buttons
+  document.querySelectorAll('.suggestion-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const text = (e.target as HTMLButtonElement).textContent;
+      if (text) {
+        input.value = text;
+        sendBtn.disabled = false;
+        form.dispatchEvent(new Event('submit'));
+      }
+    });
+  });
+
+  let messages: {role: string, content: string}[] = [];
+
+  function appendMessage(role: string, content: string, id: string = '') {
+    emptyState.style.display = 'none';
+    
+    const wrapper = document.createElement('div');
+    wrapper.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} w-full mb-2`;
+    wrapper.id = id || `msg-${Date.now()}`;
+    
+    const bubble = document.createElement('div');
+    bubble.className = `max-w-[85%] rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed shadow-sm ${
+      role === 'user' 
+        ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white rounded-br-sm' 
+        : 'bg-white/5 border border-white/5 text-slate-200 rounded-bl-sm'
+    }`;
+    
+    bubble.innerHTML = formatContent(content);
+    wrapper.appendChild(bubble);
+    messagesContainer.appendChild(wrapper);
+    scrollToBottom();
+    return bubble;
+  }
+
+  function updateMessage(id: string, newContent: string) {
+    const el = document.getElementById(id);
+    if (el) {
+      const bubble = el.querySelector('div');
+      if (bubble) bubble.innerHTML = formatContent(newContent);
+      scrollToBottom();
+    }
+  }
+
+  function formatContent(text: string) {
+    let formatted = text.replace(/```([\s\S]*?)```/g, '<pre class="bg-black/50 p-4 rounded-xl my-3 overflow-x-auto text-[13px] font-mono border border-white/10 text-emerald-400"><code>$1</code></pre>');
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+    return formatted.replace(/\n/g, '<br/>');
+  }
+
+  function scrollToBottom() {
+    messagesContainer.scrollTo({
+      top: messagesContainer.scrollHeight,
+      behavior: 'smooth'
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userMessage = input.value.trim();
+    if (!userMessage) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+    sendBtn.disabled = true;
+
+    appendMessage('user', userMessage);
+    messages.push({ role: 'user', content: userMessage });
+
+    loadingIndicator.classList.remove('hidden');
+    scrollToBottom();
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      console.log('🚀 [Chat] Iniciando requisição para:', `${apiUrl}/api/chat`);
+      console.log('📦 [Chat] Payload:', { messages, model: selectedModel, stream: true });
+
+      const response = await fetch(`${apiUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          messages,
+          model: selectedModel,
+          stream: true
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error('❌ [Chat] Erro na API. Status:', response.status, 'Body:', errText);
+        throw new Error('API Error');
+      }
+
+      console.log('✅ [Chat] Requisição aceita! Aguardando o stream...');
+
+      loadingIndicator.classList.add('hidden');
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      const assistantId = `msg-ast-${Date.now()}`;
+      
+      let assistantContent = '';
+      let isFirst = true;
+      let buffer = '';
+
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log('🏁 [Chat] Stream finalizado com sucesso.');
+          break;
+        }
+
+        const decodedChunk = decoder.decode(value, { stream: true });
+        console.log('📥 [Chat] Chunk bruto recebido:', decodedChunk);
+
+        buffer += decodedChunk;
+        const lines = buffer.split('\n');
+        
+        // A última linha pode estar incompleta, mantemos no buffer
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6);
+            if (dataStr.trim() === '[DONE]') {
+              console.log('🛑 [Chat] Sinal [DONE] recebido da Venice API.');
+              continue;
+            }
+            
+            try {
+              const data = JSON.parse(dataStr);
+              const textChunk = data.choices?.[0]?.delta?.content || '';
+              
+              if (textChunk) {
+                assistantContent += textChunk;
+                if (isFirst) {
+                  appendMessage('assistant', assistantContent, assistantId);
+                  isFirst = false;
+                } else {
+                  updateMessage(assistantId, assistantContent);
+                }
+              }
+            } catch(e) {
+              console.error('⚠️ [Chat] Falha no JSON.parse() desta linha:', dataStr, 'Erro:', e);
+            }
+          }
+        }
+      }
+      
+      messages.push({ role: 'assistant', content: assistantContent });
+
+    } catch (err) {
+      loadingIndicator.classList.add('hidden');
+      appendMessage('assistant', '⚠️ Erro ao processar a mensagem. Tente novamente.');
+    }
+  });
+</script>
+

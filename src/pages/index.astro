@@ -1,13 +1,15 @@
 ---
-import ChatInterface from '../components/ChatInterface.jsx';
-import ParticleBackground from '../components/ParticleBackground.astro';
+import AstroChatInterface from '../components/AstroChatInterface.astro';
 import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="NEØ Uncensored Chat">
-  <ParticleBackground />
   
-  <main class="relative z-10 h-screen">
-    <ChatInterface client:load />
+  <main class="relative z-10 h-screen flex flex-col justify-center items-center px-4 py-8">
+    <div class="mb-8 flex flex-col items-center">
+      <img src="/logo.svg" alt="NEØ CHAT uncensored" class="h-14 w-auto drop-shadow-[0_0_15px_rgba(255,42,133,0.3)] hover:scale-105 transition-transform cursor-pointer" />
+    </div>
+    
+    <AstroChatInterface />
   </main>
 </Layout>

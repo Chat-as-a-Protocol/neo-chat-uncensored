@@ -5,7 +5,7 @@
   "repositories": [
     {
       "name": "neo-chat-uncensored-frontend",
-      "localPath": "./frontend",
+      "localPath": ".",
       "remote": "https://github.com/neomello/neo-chat-uncensored-frontend.git",
       "role": "Landing Page & Sales Funnel",
       "runtime": {

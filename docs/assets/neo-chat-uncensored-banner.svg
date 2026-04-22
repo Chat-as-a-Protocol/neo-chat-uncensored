@@ -1,0 +1,47 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="420" fill="#020617"/>
+  
+  <!-- Decorative Grid -->
+  <path d="M0 40H1200M0 80H1200M0 120H1200M0 160H1200M0 200H1200M0 240H1200M0 280H1200M0 320H1200M0 360H1200M0 400H1200" stroke="#1E293B" stroke-opacity="0.2"/>
+  <path d="M40 0V420M80 0V420M120 0V420M160 0V420M200 0V420M240 0V420M280 0V420M320 0V420M360 0V420M400 0V420M440 0V420M480 0V420M520 0V420M560 0V420M600 0V420M640 0V420M680 0V420M720 0V420M760 0V420M800 0V420M840 0V420M880 0V420M920 0V420M960 0V420M1000 0V420M1040 0V420M1080 0V420M1120 0V420M1160 0V420" stroke="#1E293B" stroke-opacity="0.2"/>
+
+  <!-- Logo Section -->
+  <g transform="translate(60, 60)">
+    <text x="0" y="40" fill="white" font-family="monospace" font-size="64" font-weight="bold">NΞØ CHAT</text>
+    <rect x="0" y="60" width="340" height="4" fill="url(#grad1)"/>
+    <text x="0" y="100" fill="#94A3B8" font-family="monospace" font-size="24">UNCENSORED AI SYSTEM</text>
+  </g>
+
+  <!-- Function Cards -->
+  <g transform="translate(60, 180)">
+    <!-- Card 1 -->
+    <rect x="0" y="0" width="340" height="160" rx="12" fill="#0F172A" stroke="#1E293B"/>
+    <text x="20" y="40" fill="#8B5CF6" font-family="monospace" font-size="18" font-weight="bold">⧉ PERFORMANCE</text>
+    <text x="20" y="75" fill="#CBD5E1" font-family="monospace" font-size="14">Astro 6.x / Zero Bloat</text>
+    <text x="20" y="100" fill="#CBD5E1" font-family="monospace" font-size="14">Vanilla JS Streaming</text>
+    <text x="20" y="125" fill="#CBD5E1" font-family="monospace" font-size="14">Edge Optimized</text>
+
+    <!-- Card 2 -->
+    <rect x="360" y="0" width="340" height="160" rx="12" fill="#0F172A" stroke="#1E293B"/>
+    <text x="380" y="40" fill="#EC4899" font-family="monospace" font-size="18" font-weight="bold">⨷ PRIVACY</text>
+    <text x="380" y="75" fill="#CBD5E1" font-family="monospace" font-size="14">No Tracking / Cookies</text>
+    <text x="380" y="100" fill="#CBD5E1" font-family="monospace" font-size="14">Encrypted Local Data</text>
+    <text x="380" y="125" fill="#CBD5E1" font-family="monospace" font-size="14">Sovereign Protocol</text>
+
+    <!-- Card 3 -->
+    <rect x="720" y="0" width="340" height="160" rx="12" fill="#0F172A" stroke="#1E293B"/>
+    <text x="740" y="40" fill="#10B981" font-family="monospace" font-size="18" font-weight="bold">⟠ INTEGRATION</text>
+    <text x="740" y="75" fill="#CBD5E1" font-family="monospace" font-size="14">Venice AI Proxy</text>
+    <text x="740" y="100" fill="#CBD5E1" font-family="monospace" font-size="14">Stripe Webhooks</text>
+    <text x="740" y="125" fill="#CBD5E1" font-family="monospace" font-size="14">Context Manifests</text>
+  </g>
+
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="grad1" x1="0" y1="0" x2="340" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+  </defs>
+</svg>

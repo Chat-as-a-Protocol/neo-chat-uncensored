@@ -138,7 +138,7 @@ app.post(
     try {
       const {
         messages,
-        model = "venice-uncensored-1-2",
+        model = process.env.VENICE_MODEL || "venice-uncensored-1-2",
         temperature = 0.7,
         stream = true,
       } = req.body;
@@ -271,8 +271,9 @@ app.get("/api/models", authenticateToken, async (req, res) => {
     
     res.json({
       available: allModels,
-      allModelDetails: data, // Retorna os detalhes caso o frontend queira mostrar specs
+      allModelDetails: data, 
       currentTier: userTier,
+      defaultModel: process.env.VENICE_MODEL || "venice-uncensored-1-2"
     });
   } catch (error) {
     logger.error("Models fetch error:", error);

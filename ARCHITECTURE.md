@@ -1,6 +1,6 @@
 # Architecture Documentation - NΞØ
 
-Plataforma de Chat IA Soberana e Uncensored baseada no ecossistema Venice.ai, focada em privacidade absoluta e liberdade de informação.
+Plataforma de Chat IA Sem censura e responsabilidade do user  baseada no ecossistema Venice.ai, focada em privacidade absoluta e liberdade de informação.
 
 ## System Overview
 

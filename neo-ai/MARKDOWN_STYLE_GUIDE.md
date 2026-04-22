@@ -88,7 +88,23 @@ Regras:
 - o símbolo deve criar hierarquia dura e âncora visual para humanos
 - evite títulos longos, abstratos ou literários
 
-### 4. Blocos Textuais Estruturados
+4. **Commits são assinados.** GPG + SSH via teaBASE. Não alterar `.gitconfig` sem instrução explícita do operador.
+5. **Mentalidade Web3-first.** Azure para cloud. Sem AWS.
+6. **Todo `README.md` novo ou revisado deve incluir um banner SVG** gerado conforme o padrão canônico
+   descrito em [`SVG.md`](./SVG.md). O banner vai em `docs/assets/<nome-do-projeto>-banner.svg` e é
+   referenciado próximo do título do README via:
+
+   ```markdown
+   ![<nome-do-projeto> banner](./docs/assets/<nome-do-projeto>-banner.svg)
+   ```
+
+   Seguir integralmente as especificações de `SVG.md` (viewBox 1200x420, paleta terminal escuro, tipografia
+   monoespaçada, estrutura símbolo → cartão de funções → cartão de domínio, SVG estático sem dependências
+   externas). Adaptar apenas nome, tagline, funções e conceitos ao projeto atual.
+
+---
+
+### 7. Blocos Textuais Estruturados
 
 Sempre que houver arquitetura, árvore de diretórios, mapa
 de capacidades, tabela resumida, comandos, inventário,
@@ -120,7 +136,7 @@ project/
 └─ ITEM 2
 ```
 
-### 5. Parágrafos e Comprimento de Linha (Hard Wrap)
+### 8. Parágrafos e Comprimento de Linha (Hard Wrap)
 
 O texto deve ser curto, direto e quebrado em linhas pequenas
 ao término de cada ideia lógica (Semantic Linebreaks).
@@ -151,7 +167,7 @@ Evite:
 - texto ornamental
 - linguagem institucional vazia
 
-### 6. Metadados
+### 9. Metadados
 
 Quando o documento precisar de metadados rápidos, use bloco de citação:
 
@@ -163,7 +179,7 @@ Quando o documento precisar de metadados rápidos, use bloco de citação:
 
 Use isso para versão, status, runtime, escopo ou licença.
 
-### 7. Listas e Links
+### 10. Listas e Links
 
 Use listas curtas e funcionais.
 Links devem aparecer como navegação operacional,
@@ -178,22 +194,22 @@ Exemplo:
 - [DEPLOY](./DEPLOY.md)
 ```
 
-### 8. Comandos
+### 11. Comandos
 
 Comandos devem aparecer em bloco `bash` e com comentário mínimo.
 
 Exemplo:
 
 ```bash
-npm install
-npm run compile
-npm run deploy -- --network base
+pnpm install
+pnpm run compile
+pnpm run deploy -- --network base
 ```
 
 Se houver sequência operacional, agrupe por objetivo.
 Não misture comandos aleatórios no mesmo bloco.
 
-### 9. Estilo ASCII e Composição Terminal
+### 12. Estilo ASCII e Composição Terminal
 
 A identidade visual da documentação preza por uma estética
 "terminal / cyberpunk" através do uso contido e preciso de
