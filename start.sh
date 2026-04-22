@@ -11,6 +11,13 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
+# Verificar se backend/.env existe
+if [ ! -f backend/.env ]; then
+  echo "⚠️  Criando backend/.env a partir do exemplo..."
+  cp backend/.env.example backend/.env
+  echo "📝 Edite o arquivo backend/.env com suas credenciais!"
+fi
+
 # Iniciar ecossistema via Makefile
 echo "📦 Verificando dependências..."
 make install

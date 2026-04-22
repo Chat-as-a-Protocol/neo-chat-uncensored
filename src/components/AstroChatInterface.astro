@@ -1,3 +1,4 @@
+<div class="w-full max-w-5xl h-[78vh] flex flex-col rounded-3xl border border-white/10 bg-black/30 backdrop-blur-xl shadow-[0_10px_60px_rgba(0,0,0,0.4)] p-4">
   <!-- Header with Model Selector -->
   <div class="flex justify-between items-center px-2 pb-2 border-b border-white/5 mb-2">
     <div class="flex items-center gap-2">
@@ -68,15 +69,21 @@
 </div>
 
 <script>
-  const form = document.getElementById('chat-form') as HTMLFormElement;
-  const input = document.getElementById('chat-input') as HTMLTextAreaElement;
-  const sendBtn = document.getElementById('send-button') as HTMLButtonElement;
-  const messagesContainer = document.getElementById('messages-container') as HTMLDivElement;
-  const emptyState = document.getElementById('empty-state') as HTMLDivElement;
-  const loadingIndicator = document.getElementById('loading-indicator') as HTMLDivElement;
-  const modelSelector = document.getElementById('model-selector') as HTMLSelectElement;
-  
-  const apiUrl = (window as any).PUBLIC_API_URL || 'http://localhost:3001';
+  const form = document.getElementById('chat-form');
+  const input = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('send-button');
+  const messagesContainer = document.getElementById('messages-container');
+  const emptyState = document.getElementById('empty-state');
+  const loadingIndicator = document.getElementById('loading-indicator');
+  const modelSelector = document.getElementById('model-selector');
+
+  if (!form || !input || !sendBtn || !messagesContainer || !emptyState || !loadingIndicator || !modelSelector) {
+    throw new Error('Chat interface não inicializada corretamente');
+  }
+
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const apiUrl = import.meta.env.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : window.location.origin);
+  const isDev = import.meta.env.DEV;
   let selectedModel = '';
 
   // Load Models
@@ -89,7 +96,7 @@
       const data = await response.json();
       
       modelSelector.innerHTML = '';
-      data.available.forEach((modelId: string) => {
+      data.available.forEach((modelId) => {
         const option = document.createElement('option');
         option.value = modelId;
         option.textContent = modelId;
@@ -112,7 +119,9 @@
 
   modelSelector.addEventListener('change', () => {
     selectedModel = modelSelector.value;
-    console.log('🎯 [Chat] Modelo alterado para:', selectedModel);
+    if (isDev) {
+      console.log('[Chat] Modelo alterado para:', selectedModel);
+    }
   });
 
   initModels();
@@ -134,9 +143,9 @@
   });
 
   // Suggestion buttons
-  document.querySelectorAll('.suggestion-btn').forEach(btn => {
+  document.querySelectorAll('.suggestion-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
-      const text = (e.target as HTMLButtonElement).textContent;
+      const text = e.target && 'textContent' in e.target ? e.target.textContent : '';
       if (text) {
         input.value = text;
         sendBtn.disabled = false;
@@ -145,9 +154,9 @@
     });
   });
 
-  let messages: {role: string, content: string}[] = [];
+  let messages = [];
 
-  function appendMessage(role: string, content: string, id: string = '') {
+  function appendMessage(role, content, id = '') {
     emptyState.style.display = 'none';
     
     const wrapper = document.createElement('div');
@@ -168,7 +177,7 @@
     return bubble;
   }
 
-  function updateMessage(id: string, newContent: string) {
+  function updateMessage(id, newContent) {
     const el = document.getElementById(id);
     if (el) {
       const bubble = el.querySelector('div');
@@ -177,8 +186,18 @@
     }
   }
 
-  function formatContent(text: string) {
-    let formatted = text.replace(/```([\s\S]*?)```/g, '<pre class="bg-black/50 p-4 rounded-xl my-3 overflow-x-auto text-[13px] font-mono border border-white/10 text-emerald-400"><code>$1</code></pre>');
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function formatContent(text) {
+    const safeText = escapeHtml(text);
+    let formatted = safeText.replace(/```([\s\S]*?)```/g, '<pre class="bg-black/50 p-4 rounded-xl my-3 overflow-x-auto text-[13px] font-mono border border-white/10 text-emerald-400"><code>$1</code></pre>');
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
     return formatted.replace(/\n/g, '<br/>');
   }
@@ -208,8 +227,9 @@
     try {
       const token = localStorage.getItem('token');
       
-      console.log('🚀 [Chat] Iniciando requisição para:', `${apiUrl}/api/chat`);
-      console.log('📦 [Chat] Payload:', { messages, model: selectedModel, stream: true });
+      if (isDev) {
+        console.log('[Chat] Iniciando requisição para:', `${apiUrl}/api/chat`);
+      }
 
       const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
@@ -230,7 +250,9 @@
         throw new Error('API Error');
       }
 
-      console.log('✅ [Chat] Requisição aceita! Aguardando o stream...');
+      if (isDev) {
+        console.log('[Chat] Requisição aceita! Aguardando stream...');
+      }
 
       loadingIndicator.classList.add('hidden');
       
@@ -245,12 +267,13 @@
       while (reader) {
         const { done, value } = await reader.read();
         if (done) {
-          console.log('🏁 [Chat] Stream finalizado com sucesso.');
+          if (isDev) {
+            console.log('[Chat] Stream finalizado.');
+          }
           break;
         }
 
         const decodedChunk = decoder.decode(value, { stream: true });
-        console.log('📥 [Chat] Chunk bruto recebido:', decodedChunk);
 
         buffer += decodedChunk;
         const lines = buffer.split('\n');
@@ -262,7 +285,6 @@
           if (line.startsWith('data: ')) {
             const dataStr = line.slice(6);
             if (dataStr.trim() === '[DONE]') {
-              console.log('🛑 [Chat] Sinal [DONE] recebido da Venice API.');
               continue;
             }
             
@@ -294,4 +316,3 @@
     }
   });
 </script>
-

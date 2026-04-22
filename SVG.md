@@ -12,7 +12,7 @@ Output:
 - Um único ficheiro SVG, salvo em `docs/assets/<nome-do-projeto>-banner.svg`.
 - Inserir no README, próximo do título, com:
 
-      ![<nome-do-projeto> banner](./docs/assets/<nome-do-projeto>-banner.svg>)
+      ![<nome-do-projeto> banner](./docs/assets/<nome-do-projeto>-banner.svg)
 
 Especificações fixas (não mudar):
 

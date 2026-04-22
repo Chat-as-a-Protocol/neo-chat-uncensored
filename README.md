@@ -25,7 +25,7 @@ garantindo tempo de resposta instantâneo e integridade de contexto.
 
 ## ⧉ Arquitetura
 
-O ecossistema é dividido em dois núcleos funcionais operando sob o mesmo controle plane.
+O ecossistema é dividido em dois núcleos funcionais operando sob o mesmo plano de controle.
 
 ```text
 ▓▓▓ SYSTEM TOPOLOGY
@@ -94,6 +94,6 @@ neo@neoprotocol.space
 chaos becomes protocol."
 
 Security by design.
-Explits find no refuge here.
+Exploits find no refuge here.
 ────────────────────────────────────────
 ```
