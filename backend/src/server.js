@@ -52,7 +52,10 @@ const logger = createLogger({
   ],
 });
 
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:4321" }));
+app.use(cors({ 
+  origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : "http://localhost:4321",
+  credentials: true
+}));
 app.use(express.json());
 
 // ===== AUTH MIDDLEWARE =====
@@ -60,19 +63,24 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
-  // Bypass de Dev: se o frontend não tem token (ou enviou "null")
-  if (!token || token === "null") {
-    req.user = { id: "dev_user", email: "dev@localhost", tier: "premium" };
-    return next();
+  // Bypass de Dev: apenas em ambiente de desenvolvimento
+  if (process.env.NODE_ENV !== "production") {
+    if (!token || token === "null") {
+      req.user = { id: "dev_user", email: "dev@localhost", tier: "premium" };
+      return next();
+    }
   }
 
   const secret = process.env.JWT_SECRET || "elcUiYxk9y%tJvPQmzuA2$hlKkd5uWiw";
 
   jwt.verify(token, secret, (err, user) => {
     if (err) {
-      // Falhou assinatura, mas como estamos testando local, injeta o user fake
-      req.user = { id: "dev_user", email: "dev@localhost", tier: "premium" };
-      return next();
+      if (process.env.NODE_ENV !== "production") {
+        // Falhou assinatura, mas como estamos em dev, injeta o user fake
+        req.user = { id: "dev_user", email: "dev@localhost", tier: "premium" };
+        return next();
+      }
+      return res.status(401).json({ error: "Invalid token" });
     }
     req.user = user;
     next();

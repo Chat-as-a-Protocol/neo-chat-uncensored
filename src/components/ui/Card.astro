@@ -1,0 +1,16 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div class:list={[
+  "bg-[#1c1d26]/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden",
+  className
+]}>
+  <div class="absolute -top-24 -right-24 w-48 h-48 bg-[var(--accent)] opacity-[0.03] blur-[100px] pointer-events-none"></div>
+  <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-[var(--accent)] opacity-[0.03] blur-[100px] pointer-events-none"></div>
+  <slot />
+</div>

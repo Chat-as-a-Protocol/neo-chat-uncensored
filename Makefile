@@ -45,7 +45,7 @@ stop:
 
 dev-be:
 	@echo "🔌 Starting Backend..."
-	cd backend && $(PNPM) start
+	cd backend && $(PNPM) dev
 
 dev-fe:
 	@echo "🎨 Starting Frontend..."
