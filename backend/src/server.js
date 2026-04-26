@@ -25,8 +25,16 @@ if (process.env.NODE_ENV === "production") {
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  console.warn("WARNING: JWT_SECRET is not set. Using insecure default — DO NOT use in production.");
+  if (process.env.NODE_ENV === "production") {
+    // startup validation above already handles this, but guard defensively
+    console.error("FATAL: JWT_SECRET is required in production.");
+    process.exit(1);
+  }
+  console.warn("WARNING: JWT_SECRET is not set. Using a random ephemeral secret — tokens will be invalidated on restart. DO NOT use in production.");
 }
+// Use a random ephemeral secret in development if JWT_SECRET is not configured.
+// In production this is guaranteed non-null by startup validation above.
+const effectiveJwtSecret = JWT_SECRET || crypto.randomUUID();
 
 const app = express();
 
@@ -102,7 +110,7 @@ const authenticateToken = (req, res, next) => {
     }
   }
 
-  const secret = JWT_SECRET || "elcUiYxk9y%tJvPQmzuA2$hlKkd5uWiw";
+  const secret = effectiveJwtSecret;
 
   jwt.verify(token, secret, (err, user) => {
     if (err) {
@@ -358,10 +366,9 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
   // Simplificado - em produção use bcrypt e DB real
   const userId = "user_" + Buffer.from(email).toString("base64");
 
-  const secret = JWT_SECRET || "elcUiYxk9y%tJvPQmzuA2$hlKkd5uWiw";
   const token = jwt.sign(
     { id: userId, email, tier: "free" },
-    secret,
+    effectiveJwtSecret,
     { expiresIn: "7d" },
   );
 
@@ -378,10 +385,9 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
   // Simplificado - em produção use bcrypt e DB real
   const userId = "user_" + Buffer.from(email).toString("base64");
 
-  const secret = JWT_SECRET || "elcUiYxk9y%tJvPQmzuA2$hlKkd5uWiw";
   const token = jwt.sign(
     { id: userId, email, name, tier: "free" },
-    secret,
+    effectiveJwtSecret,
     { expiresIn: "7d" },
   );
 
@@ -416,8 +422,16 @@ app.post("/stripe/create-checkout", authenticateToken, async (req, res) => {
 });
 
 // ===== STRIPE WEBHOOK =====
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.post(
   "/webhooks/stripe",
+  webhookLimiter,
   express.raw({ type: "application/json" }),
   async (req, res) => {
     const sig = req.headers["stripe-signature"];
