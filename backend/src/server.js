@@ -1,4 +1,5 @@
 import cors from "cors";
+import { randomUUID } from "node:crypto";
 import dotenv from "dotenv";
 import express from "express";
 import rateLimit from "express-rate-limit";
@@ -34,7 +35,7 @@ if (!JWT_SECRET) {
 }
 // Use a random ephemeral secret in development if JWT_SECRET is not configured.
 // In production this is guaranteed non-null by startup validation above.
-const effectiveJwtSecret = JWT_SECRET || crypto.randomUUID();
+const effectiveJwtSecret = JWT_SECRET || randomUUID();
 
 const app = express();
 
@@ -95,6 +96,65 @@ app.use(cors({
   origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : "http://localhost:4321",
   credentials: true
 }));
+// Trust the first proxy hop (Railway, etc.) so req.ip is the real client IP,
+// which is required for express-rate-limit to work correctly behind a reverse proxy.
+app.set("trust proxy", 1);
+
+// ===== STRIPE WEBHOOK =====
+// IMPORTANT: registered BEFORE express.json() so the raw request body is
+// preserved for Stripe signature verification.
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post(
+  "/webhooks/stripe",
+  webhookLimiter,
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET,
+      );
+    } catch (err) {
+      logger.warn("Stripe webhook signature verification failed:", err.message);
+      return res.status(400).send("Webhook Error: Invalid signature");
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const userId = session.client_reference_id;
+
+      // Atualizar para premium
+      await redis.setex(`tier:${userId}`, 2592000, "premium"); // 30 dias
+      await redis.setex(`limit:${userId}`, 2592000, "10000"); // 10k tokens/dia
+
+      logger.info(`User ${userId} upgraded to premium`);
+    }
+
+    if (event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object;
+      const userId = subscription.metadata?.userId;
+
+      if (userId) {
+        await redis.del(`tier:${userId}`);
+        await redis.del(`limit:${userId}`);
+        logger.info(`User ${userId} subscription cancelled, reverted to free`);
+      }
+    }
+
+    res.json({ received: true });
+  },
+);
+
 app.use(express.json());
 
 // ===== AUTH MIDDLEWARE =====
@@ -295,6 +355,9 @@ app.post(
       }
     } catch (error) {
       logger.error("Chat error:", error);
+      if (error.name === "AbortError") {
+        return res.status(504).json({ error: "AI service timed out. Please try again." });
+      }
       res.status(500).json({ error: "Internal server error" });
     }
   },
@@ -420,59 +483,6 @@ app.post("/stripe/create-checkout", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Payment failed" });
   }
 });
-
-// ===== STRIPE WEBHOOK =====
-const webhookLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minuto
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.post(
-  "/webhooks/stripe",
-  webhookLimiter,
-  express.raw({ type: "application/json" }),
-  async (req, res) => {
-    const sig = req.headers["stripe-signature"];
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET,
-      );
-    } catch (err) {
-      logger.warn("Stripe webhook signature verification failed:", err.message);
-      return res.status(400).send("Webhook Error: Invalid signature");
-    }
-
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const userId = session.client_reference_id;
-
-      // Atualizar para premium
-      await redis.setex(`tier:${userId}`, 2592000, "premium"); // 30 dias
-      await redis.setex(`limit:${userId}`, 2592000, "10000"); // 10k tokens/dia
-
-      logger.info(`User ${userId} upgraded to premium`);
-    }
-
-    if (event.type === "customer.subscription.deleted") {
-      const subscription = event.data.object;
-      const userId = subscription.metadata?.userId;
-
-      if (userId) {
-        await redis.del(`tier:${userId}`);
-        await redis.del(`limit:${userId}`);
-        logger.info(`User ${userId} subscription cancelled, reverted to free`);
-      }
-    }
-
-    res.json({ received: true });
-  },
-);
 
 // ===== USAGE STATS =====
 app.get("/api/usage", authenticateToken, async (req, res) => {
