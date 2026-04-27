@@ -1,7 +1,10 @@
+import bcrypt from "bcryptjs";
 import cors from "cors";
+import { randomUUID } from "node:crypto";
 import dotenv from "dotenv";
 import express from "express";
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import Redis from "ioredis";
 import jwt from "jsonwebtoken";
 import Stripe from "stripe";
@@ -11,6 +14,29 @@ import { z } from "zod";
 import path from "path";
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+// ===== STARTUP VALIDATION =====
+if (process.env.NODE_ENV === "production") {
+  const required = ["JWT_SECRET", "VENICE_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "FRONTEND_URL"];
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length > 0) {
+    console.error(`FATAL: Missing required environment variables: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === "production") {
+    // startup validation above already handles this, but guard defensively
+    console.error("FATAL: JWT_SECRET is required in production.");
+    process.exit(1);
+  }
+  console.warn("WARNING: JWT_SECRET is not set. Using a random ephemeral secret — tokens will be invalidated on restart. DO NOT use in production.");
+}
+// Use a random ephemeral secret in development if JWT_SECRET is not configured.
+// In production this is guaranteed non-null by startup validation above.
+const effectiveJwtSecret = JWT_SECRET || randomUUID();
 
 const app = express();
 
@@ -23,21 +49,36 @@ if (process.env.NODE_ENV === "production" || process.env.REDIS_URL?.includes("ra
 } else {
   const store = new Map();
   redis = {
-    get: async (k) => store.get(k) || null,
-    setex: async (k, sec, v) => { store.set(k, v); setTimeout(() => store.delete(k), sec * 1000); },
+    get: async (k) => store.get(k) ?? null,
+    set: async (k, v) => { store.set(k, v); return 'OK'; },
+    setex: async (k, sec, v) => { store.set(k, v); setTimeout(() => store.delete(k), sec * 1000); return 'OK'; },
     incr: async (k) => { const v = (parseInt(store.get(k)) || 0) + 1; store.set(k, v.toString()); return v; },
     incrby: async (k, a) => { const v = (parseInt(store.get(k)) || 0) + a; store.set(k, v.toString()); return v; },
+    decr: async (k) => { const v = (parseInt(store.get(k)) || 0) - 1; store.set(k, v.toString()); return v; },
     expire: async () => {},
-    del: async (k) => store.delete(k),
-    multi: () => ({
-      incr: function(k) { this._k = k; },
-      pexpire: function() {},
-      exec: async function() { 
-        const v = (parseInt(store.get(this._k)) || 0) + 1; 
-        store.set(this._k, v.toString()); 
-        return [[null, v]]; 
-      }
-    })
+    del: async (k) => { store.delete(k); return 1; },
+    multi: () => {
+      const ops = [];
+      const chain = {
+        incr: function(k) { ops.push({ op: 'incr', k }); return chain; },
+        pexpire: function(k, ms) { ops.push({ op: 'pexpire', k, ms }); return chain; },
+        exec: async function() {
+          const results = [];
+          for (const { op, k, ms } of ops) {
+            if (op === 'incr') {
+              const v = (parseInt(store.get(k)) || 0) + 1;
+              store.set(k, v.toString());
+              results.push([null, v]);
+            } else if (op === 'pexpire') {
+              setTimeout(() => store.delete(k), ms);
+              results.push([null, 1]);
+            }
+          }
+          return results;
+        }
+      };
+      return chain;
+    }
   };
 }
 
@@ -52,10 +93,70 @@ const logger = createLogger({
   ],
 });
 
+app.use(helmet());
 app.use(cors({ 
   origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : "http://localhost:4321",
   credentials: true
 }));
+// Trust the first proxy hop (Railway, etc.) so req.ip is the real client IP,
+// which is required for express-rate-limit to work correctly behind a reverse proxy.
+app.set("trust proxy", 1);
+
+// ===== STRIPE WEBHOOK =====
+// IMPORTANT: registered BEFORE express.json() so the raw request body is
+// preserved for Stripe signature verification.
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post(
+  "/webhooks/stripe",
+  webhookLimiter,
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET,
+      );
+    } catch (err) {
+      logger.warn("Stripe webhook signature verification failed:", err.message);
+      return res.status(400).send("Webhook Error: Invalid signature");
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const userId = session.client_reference_id;
+
+      // Atualizar para premium
+      await redis.setex(`tier:${userId}`, 2592000, "premium"); // 30 dias
+      await redis.setex(`limit:${userId}`, 2592000, "10000"); // 10k tokens/dia
+
+      logger.info(`User ${userId} upgraded to premium`);
+    }
+
+    if (event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object;
+      const userId = subscription.metadata?.userId;
+
+      if (userId) {
+        await redis.del(`tier:${userId}`);
+        await redis.del(`limit:${userId}`);
+        logger.info(`User ${userId} subscription cancelled, reverted to free`);
+      }
+    }
+
+    res.json({ received: true });
+  },
+);
+
 app.use(express.json());
 
 // ===== AUTH MIDDLEWARE =====
@@ -71,7 +172,7 @@ const authenticateToken = (req, res, next) => {
     }
   }
 
-  const secret = process.env.JWT_SECRET || "elcUiYxk9y%tJvPQmzuA2$hlKkd5uWiw";
+  const secret = effectiveJwtSecret;
 
   jwt.verify(token, secret, (err, user) => {
     if (err) {
@@ -168,28 +269,36 @@ app.post(
       schema.parse(req.body);
 
       // Chamar Venice API
-      const veniceResponse = await fetch(
-        "https://api.venice.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
-            "Content-Type": "application/json",
-            Accept: stream ? "text/event-stream" : "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            messages,
-            temperature,
-            stream,
-            max_tokens: 4096,
-            venice_parameters: {
-              include_venice_system_prompt: false, // Usa só seu system prompt
-              ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
+      const controller = new AbortController();
+      const veniceTimeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      let veniceResponse;
+      try {
+        veniceResponse = await fetch(
+          "https://api.venice.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
+              "Content-Type": "application/json",
+              Accept: stream ? "text/event-stream" : "application/json",
             },
-          }),
-        },
-      );
+            body: JSON.stringify({
+              model,
+              messages,
+              temperature,
+              stream,
+              max_tokens: 4096,
+              venice_parameters: {
+                include_venice_system_prompt: false, // Usa só seu system prompt
+                ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
+              },
+            }),
+            signal: controller.signal,
+          },
+        );
+      } finally {
+        clearTimeout(veniceTimeout);
+      }
 
       if (!veniceResponse.ok) {
         const error = await veniceResponse.text();
@@ -248,6 +357,9 @@ app.post(
       }
     } catch (error) {
       logger.error("Chat error:", error);
+      if (error.name === "AbortError") {
+        return res.status(504).json({ error: "AI service timed out. Please try again." });
+      }
       res.status(500).json({ error: "Internal server error" });
     }
   },
@@ -290,18 +402,78 @@ app.get("/api/models", authenticateToken, async (req, res) => {
 });
 
 // ===== AUTH ROUTES =====
-app.post("/auth/login", async (req, res) => {
-  const { email, password } = req.body;
-  // Simplificado - em produção use bcrypt e DB real
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 10,
+  message: { error: "Too many attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const loginSchema = z.object({
+  email: z.string().email().max(254),
+  password: z.string().min(1).max(128),
+});
+
+const signupSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(128),
+});
+
+app.post("/api/auth/login", authLimiter, async (req, res) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid email or password." });
+  }
+
+  const { email, password } = parsed.data;
   const userId = "user_" + Buffer.from(email).toString("base64");
+
+  const passwordHash = await redis.get(`password:${userId}`);
+  if (!passwordHash) {
+    return res.status(401).json({ error: "Invalid email or password." });
+  }
+
+  const valid = await bcrypt.compare(password, passwordHash);
+  if (!valid) {
+    return res.status(401).json({ error: "Invalid email or password." });
+  }
 
   const token = jwt.sign(
     { id: userId, email, tier: "free" },
-    process.env.JWT_SECRET,
+    effectiveJwtSecret,
     { expiresIn: "7d" },
   );
 
   res.json({ token, user: { id: userId, email, tier: "free" } });
+});
+
+app.post("/api/auth/signup", authLimiter, async (req, res) => {
+  const parsed = signupSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid signup data. Password must be at least 8 characters." });
+  }
+
+  const { email, name, password } = parsed.data;
+  const userId = "user_" + Buffer.from(email).toString("base64");
+
+  // Reject if account already exists
+  const existing = await redis.get(`password:${userId}`);
+  if (existing) {
+    return res.status(409).json({ error: "An account with this email already exists." });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  await redis.set(`password:${userId}`, passwordHash);
+
+  const token = jwt.sign(
+    { id: userId, email, name, tier: "free" },
+    effectiveJwtSecret,
+    { expiresIn: "7d" },
+  );
+
+  res.status(201).json({ token, user: { id: userId, email, name, tier: "free" } });
 });
 
 // ===== STRIPE CHECKOUT =====
@@ -330,39 +502,6 @@ app.post("/stripe/create-checkout", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Payment failed" });
   }
 });
-
-// ===== STRIPE WEBHOOK =====
-app.post(
-  "/webhooks/stripe",
-  express.raw({ type: "application/json" }),
-  async (req, res) => {
-    const sig = req.headers["stripe-signature"];
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET,
-      );
-    } catch (err) {
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const userId = session.client_reference_id;
-
-      // Atualizar para premium
-      await redis.setex(`tier:${userId}`, 2592000, "premium"); // 30 dias
-      await redis.setex(`limit:${userId}`, 2592000, "10000"); // 10k tokens/dia
-
-      logger.info(`User ${userId} upgraded to premium`);
-    }
-
-    res.json({ received: true });
-  },
-);
 
 // ===== USAGE STATS =====
 app.get("/api/usage", authenticateToken, async (req, res) => {
