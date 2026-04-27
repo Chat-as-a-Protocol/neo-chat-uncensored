@@ -80,14 +80,10 @@ import Layout from '../layouts/Layout.astro';
     </div>
   </div>
 
-  <script is:inline>
+  <script define:vars={{ apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:3001' }}>
     async function handleCheckout() {
-      const token = localStorage.getItem('token');
-      // No Astro, variáveis públicas podem ser acessadas via import.meta.env
-      // mas no cliente (script is:inline) precisamos de outra estratégia ou injetar no build.
-      // Aqui usaremos o fallback para localhost ou uma variável global se disponível.
-      const apiUrl = window.PUBLIC_API_URL || 'http://localhost:3001';
-      
+      const token = localStorage.getItem('neo_token');
+
       if (!token) {
         alert('Por favor, faça login para realizar o upgrade.');
         window.location.href = '/login';

@@ -5,6 +5,11 @@ import SceneBackground from '../components/SceneBackground.astro';
 ---
 
 <Layout title="NEØ Uncensored Chat">
+<script>
+  if (import.meta.env.PROD && !localStorage.getItem('neo_token')) {
+    window.location.replace('/login');
+  }
+</script>
   <main class="scene-shell">
     <SceneBackground />
 

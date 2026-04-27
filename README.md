@@ -6,7 +6,7 @@
 ========================================
 ```
 
-![neo-chat-uncensored banner](./docs/assets/neo-chat-uncensored-banner.svg)
+![neo-chat-uncensored banner](./public/neo-chat-uncensored-banner.svg)
 
 > **Version:** v1.1.0  
 > **Status:** observed  

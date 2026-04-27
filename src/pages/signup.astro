@@ -95,9 +95,9 @@ import Button from '../components/ui/Button.astro';
 
       const result = await response.json();
 
-      if (response.ok) {
-        alert('Conta criada com sucesso! Redirecionando para o login...');
-        window.location.href = '/login';
+      if (response.ok && result.token) {
+        localStorage.setItem('neo_token', result.token);
+        window.location.href = '/';
       } else {
         alert(result.error || 'Erro ao criar conta. Tente novamente.');
       }

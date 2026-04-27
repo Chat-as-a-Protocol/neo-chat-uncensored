@@ -204,12 +204,13 @@ const createUserRateLimit = () =>
       });
     },
     store: {
-      incr: async (key) => {
+      increment: async (key) => {
         const multi = redis.multi();
         multi.incr(key);
         multi.pexpire(key, 60000);
         const results = await multi.exec();
-        return results[0][1];
+        const totalHits = results[0][1];
+        return { totalHits, resetTime: new Date(Date.now() + 60000) };
       },
       decrement: (key) => redis.decr(key),
       resetKey: (key) => redis.del(key),

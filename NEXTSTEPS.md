@@ -1,143 +1,313 @@
-# NEXT STEPS · RUNBOOK OPERACIONAL
+<!-- markdownlint-disable MD003 MD007 MD013 MD022 MD023 MD025 MD029 MD032 MD033 MD034 -->
+========================================
+    NEXT STEPS · RUNBOOK OPERACIONAL
+========================================
 
-## 1) Estado atual do produto (hoje)
+> **Status:** PRÉ-MVP (bug fixes pendentes antes do launch)  
+> **Workspace:** Chat-as-a-Protocol / neo-chat-uncensored  
+> **Branch:** main
 
-### Entrada da aplicação
+────────────────────────────────────────
 
-- Você entra pela rota `/`.
-- Arquivo: `src/pages/index.astro`.
+## ⧉ Estado Atual
 
-### Páginas existentes
+```text
+Workspace : Chat-as-a-Protocol / neo-chat-uncensored
+Branch    : main
+Fase      : PRÉ-MVP (bug fixes pendentes antes do launch)
+```
 
-- `/` → chat principal
-- `/upgrade` → tela de upgrade (UI pronta)
-- `/privacy-policy` → política
-- `/terms-and-conditions` → termos
+────────────────────────────────────────
 
-### API existente (backend)
+## ⧉ Páginas e Rotas
 
-- `POST /api/chat` → streaming SSE
-- `GET /api/models` → modelos disponíveis
-- `GET /api/usage` → consumo
-- `POST /auth/login` → gera token (simplificado)
-- `POST /stripe/create-checkout` → inicia checkout Stripe
-- `POST /webhooks/stripe` → webhook de assinatura
+- `/` → chat principal (`src/pages/index.astro`)
+- `/login` → autenticação (`src/pages/login.astro`)
+- `/signup` → cadastro (`src/pages/signup.astro`)
+- `/success` → confirmação de pagamento (`src/pages/success.astro`)
+- `/upgrade` → planos (`src/pages/upgrade.astro`)
+- `/privacy-policy` → política (`src/pages/privacy-policy.astro`)
+- `/terms-and-conditions` → termos (`src/pages/terms-and-conditions.astro`)
 
-## 2) O que está faltando no fluxo de produto
+────────────────────────────────────────
 
-### Falta de navegação para onboarding
+## ⧉ API Backend
 
-- Não há tela de cadastro/login no frontend (`/login`, `/signup` inexistentes).
-- Hoje o chat funciona sem token via bypass dev no backend, então parece "entrar direto".
+- `POST /api/chat` → streaming SSE para Venice AI
+- `GET /api/models` → modelos disponíveis da Venice
+- `GET /api/usage` → consumo diário do usuário
+- `POST /api/auth/login` → gera JWT (bcrypt implementado)
+- `POST /api/auth/signup` → cria conta (bcrypt implementado)
+- `POST /stripe/create-checkout` → inicia checkout Stripe (a migrar para FlowPay)
+- `POST /webhooks/stripe` → webhook de assinatura (a migrar para FlowPay via Nexus)
 
-### Falta de jornada de pagamento completa
+────────────────────────────────────────
 
-- Existe `/upgrade` e endpoint Stripe, mas não há:
-  - tela de sucesso (`/success`)
-  - tela de cancelamento dedicada
-  - estado visual de plano atual no chat
+## ⟠ Checklist de Estado
 
-### Falta de autenticação real
+### Infraestrutura
 
-- `POST /auth/login` é stub (sem DB de usuários, sem bcrypt real, sem signup).
+- [x] Astro migrado para v6 com output estático
+- [x] Workspace pnpm configurado (`pnpm-workspace.yaml`)
+- [x] SceneBackground extraído como componente reutilizável
+- [x] Componentes UI reutilizáveis: `Button`, `Card`, `Input`
+- [x] Layout global com design tokens CSS (accent, glass, tipografia)
+- [x] Tailwind configurado com `@astrojs/tailwind`
 
-## 3) Ação imediata (prioridade)
+### Auth e Backend
 
-1. Criar páginas:
+- [x] Página `/login` criada com formulário e integração à API
+- [x] Página `/signup` criada com formulário e integração à API
+- [x] Página `/success` criada (retorno do checkout)
+- [x] Backend: bcrypt (custo 12) para hash de senha no signup
+- [x] Backend: verificação bcrypt no login
+- [x] Backend: JWT sem fallback hardcoded — ephemeral em dev, fatal em prod
+- [x] Backend: validação de env vars obrigatórias na inicialização de produção
+- [x] Backend: Stripe webhook com `express.raw()` antes do `express.json()`
+- [x] Backend: `trust proxy 1` para Railway + AbortError → 504
+- [x] Backend: rate limit no webhook Stripe
+- [x] Backend: Mock Redis in-memory para dev (sem Docker)
+- [x] Backend: helmet, CORS, rate limiting por usuário e por tier
+- [x] Backend: validação de input com Zod
+- [x] `backend/package-lock.json` npm removido — workspace gerenciado por pnpm
 
-- `/login`
-- `/signup`
-- `/success` (retorno Stripe)
+### Chat UI
 
-1. Ajustar navegação do app:
+- [x] Streaming SSE com cursor animado
+- [x] Typing indicator (pontos animados)
+- [x] Auto-scroll inteligente (detecta se usuário está no fundo)
+- [x] Retry em caso de erro
+- [x] Escape HTML para prevenir XSS
+- [x] Formatação básica: bold, code blocks
+- [x] Timestamp por mensagem
+- [x] Animação de send (bounce)
+- [x] Textarea auto-resize
+- [x] Enter para enviar, Shift+Enter para nova linha
 
-- Header/menu com entrada para login e upgrade.
-- Guardas simples no frontend (token no localStorage) para rotas privadas.
+────────────────────────────────────────
 
-1. Endurecer backend auth:
+## ⨷ Fase 0 · Bug Fixes
 
-- Remover bypass dev em produção.
-- Criar fluxo real de usuário (DB + senha hash).
+> **Importante:** Executar antes de qualquer deploy de produção.
 
-## 4) Deploy Railway (App + API separados)
+- [x] **[BUG] Token key inconsistente em `upgrade.astro`**
+  - Arquivo: `src/pages/upgrade.astro`
+  - Fix aplicado: `'token'` → `'neo_token'`
 
-## Serviço A: API (Node/Express)
+- [x] **[BUG] `window.PUBLIC_API_URL` não funciona no browser**
+  - Arquivo: `src/pages/upgrade.astro`
+  - Fix aplicado: `is:inline` substituído por `define:vars` com `import.meta.env.PUBLIC_API_URL`
+
+- [x] **[UX] Signup não usa o token retornado**
+  - Arquivo: `src/pages/signup.astro`
+  - Fix aplicado: salva `neo_token` no localStorage + redirect direto para `/`
+
+- [x] **[LINK] Link `/docs` em `success.astro`**
+  - Arquivo: `src/pages/success.astro`
+  - Fix aplicado: link duplicado removido (já havia botão "Ir para o Chat")
+  - `docs/` reestruturado como Knowledge Base soberana (README, ARCHITECTURE, API, PAYMENTS, DEPLOY)
+  - Banner SVG movido de `docs/assets/` para `public/` (propósito correto)
+
+- [x] **[AUTH] Auth guard no frontend para produção**
+  - Arquivo: `src/pages/index.astro`
+  - Fix aplicado: redirect para `/login` quando `neo_token` ausente em `import.meta.env.PROD`
+
+────────────────────────────────────────
+
+## ⟠ Fase 1 · MVP Completo
+
+### Persona e Experience
+
+- [ ] **System prompt / persona NØX.ai**
+  - O chat envia mensagens sem nenhum `system` prompt
+  - Impacto direto na qualidade e identidade do produto
+  - Instrução: peça o system prompt ao dono do projeto antes de implementar
+
+- [ ] **Seletor de modelo no chat UI**
+  - Endpoint `/api/models` já existe e retorna modelos da Venice
+  - Criar dropdown simples no header da interface de chat
+
+- [ ] **Indicador de quota no chat**
+  - Endpoint `/api/usage` já existe
+  - Exibir `X de Y mensagens restantes` no chat ou na navbar
+
+### Produto
+
+- [ ] **Fontes auto-hospedadas (privacidade)**
+  - Atual: Manrope e Space Grotesk via `fonts.googleapis.com`
+  - Arquivo: `Layout.astro:25`
+  - Impacto: Google rastreia IPs de quem acessa — contradiz o posicionamento
+  - Fix: baixar as fontes e servir via `/public/fonts/`
+
+────────────────────────────────────────
+
+## ⟠ Fase 2 · FlowPay
+
+> **Contexto**: este projeto faz parte do ecossistema NEO Protocol.
+> O padrão de pagamento canônico do ecossistema usa **FlowPay** como
+> único gateway, mediado pelo **Nexus** (event hub), **não Stripe**.
+> Ver `neo-ai/CONTEXT.md` para detalhes completos do padrão.
+
+### Padrão de Integração
+
+```text
+FlowPay (api.flowpay.cash)
+  → emite FLOWPAY:PAYMENT_RECEIVED para Nexus
+    → Nexus (nexus.neoprotocol.space/api/events)
+      → entrega para neo-chat-uncensored via /webhooks/flowpay
+        → backend atualiza tier do usuário no Redis
+```
+
+### Checklist de Migração Stripe → FlowPay
+
+- [ ] Declarar `neo-chat-uncensored` como nó consumidor no `ecosystem.json`
+  - Arquivo: `neobot-orchestrator/config/ecosystem.json`
+  - Adicionar `nexusEvents.subscriptions[]`
+  - Evento: `"FLOWPAY:PAYMENT_RECEIVED"`
+  - `secretEnv`: `NEO_CHAT_WEBHOOK_SECRET`
+  - `target.path`: `/webhooks/flowpay`
+
+- [ ] Criar endpoint `POST /webhooks/flowpay` no backend
+  - Validar assinatura `X-Nexus-Signature` (HMAC-SHA256)
+  - Processar `FLOWPAY:PAYMENT_RECEIVED` de forma idempotente
+  - Atualizar tier do usuário no Redis (equivalente ao atual webhook Stripe)
+
+- [ ] Substituir `POST /stripe/create-checkout` por `POST /flowpay/create-charge`
+  - API FlowPay: `POST https://api.flowpay.cash/api/create-charge`
+  - Env vars: `FLOWPAY_API_URL`, `FLOWPAY_API_KEY`
+  - Retorna URL de checkout gerenciado pela FlowPay
+
+- [ ] Atualizar `upgrade.astro` para chamar `/flowpay/create-charge`
+
+- [ ] Remover dependência do Stripe quando FlowPay estiver operacional
+
+────────────────────────────────────────
+
+## ⟠ Fase 3 · Crescimento
+
+- [ ] Banco de dados real para usuários (Turso/PostgreSQL) em vez de Redis puro
+- [ ] Histórico de conversas — local ou criptografado no server
+- [ ] Password reset flow (email via Resend ou FlowPay)
+- [ ] Personas customizáveis (system prompts pré-definidos pelo usuário)
+- [ ] Contagem real de tokens no streaming (ao invés da heurística atual)
+
+────────────────────────────────────────
+
+## ⟠ Fase 4 · Escala e Web3
+
+- [ ] Pagamento crypto: integração com FlowPay token (NEOPAY / ERC-20 na Base)
+  - Contrato: `0xD49d3Fb2C2CBBA78a1E710660a628919eE78D82A`
+- [ ] API key para desenvolvedores (Chat as a Protocol)
+- [ ] Multi-tenant: domínio próprio por cliente (white-label)
+- [ ] Rate limit por IP em `/api/auth` (além do por usuário existente)
+
+────────────────────────────────────────
+
+## ◬ Deploy Railway
+
+### Serviço A: API (Node/Express)
 
 - `Root Directory`: `backend`
 - `Build Command`: `pnpm install --frozen-lockfile`
 - `Start Command`: `pnpm start`
-- `Porta`: Railway injeta `PORT` automaticamente
+- Porta: Railway injeta `PORT` automaticamente
 
-### Variáveis obrigatórias (API)
+#### Variáveis obrigatórias (API)
 
-- `NODE_ENV=production`
-- `PORT` (Railway injeta)
-- `FRONTEND_URL=https://<seu-app-domain>`
-- `VENICE_API_KEY=...`
-- `VENICE_MODEL=venice-uncensored-1-2` (ou outro)
-- `JWT_SECRET=...`
-- `STRIPE_SECRET_KEY=...`
-- `STRIPE_WEBHOOK_SECRET=...`
-- `STRIPE_PRICE_ID_PRO=...`
-- `REDIS_URL=...` (serviço Redis Railway)
+```env
+NODE_ENV=production
+FRONTEND_URL=https://<seu-app-domain>
+VENICE_API_KEY=...
+VENICE_MODEL=venice-uncensored-1-2
+JWT_SECRET=...
+REDIS_URL=...
+FLOWPAY_API_URL=https://api.flowpay.cash
+FLOWPAY_API_KEY=...
+NEO_CHAT_WEBHOOK_SECRET=...
+STRIPE_SECRET_KEY=...
+STRIPE_WEBHOOK_SECRET=...
+STRIPE_PRICE_ID_PRO=...
+```
 
-### Webhook Stripe
+### Webhook FlowPay via Nexus
 
-- Endpoint no Stripe:
-  - `https://<api-domain>/webhooks/stripe`
+Configurar no `ecosystem.json` do NEO Protocol:
 
-## Serviço B: App (Astro)
+```json
+{
+  "id": "neo-chat-uncensored",
+  "nexusEvents": {
+    "subscriptions": [
+      {
+        "event": "FLOWPAY:PAYMENT_RECEIVED",
+        "target": {
+          "kind": "webhook",
+          "path": "/webhooks/flowpay"
+        },
+        "secretEnv": "NEO_CHAT_WEBHOOK_SECRET"
+      }
+    ]
+  }
+}
+```
 
-Projeto hoje está com `output: "static"` em `astro.config.mjs`.
-
-Você tem 2 opções:
-
-### Opção 1 (recomendada rápida): servir `dist` com Node
+### Serviço B: App (Astro estático)
 
 - `Root Directory`: `/` (raiz do repo)
 - `Build Command`: `pnpm install --frozen-lockfile && pnpm build`
 - `Start Command`: `pnpm dlx serve dist -l $PORT`
 
-### Opção 2 (mais limpa para estático): hospedar frontend em plataforma estática
+#### Variáveis obrigatórias (App)
 
-- Ex.: Vercel/Cloudflare Pages/Netlify
-- Mantém Railway só para API + Redis
+```env
+PUBLIC_API_URL=https://<api-domain>
+```
 
-### Variáveis obrigatórias (App)
+────────────────────────────────────────
 
-- `PUBLIC_API_URL=https://<api-domain>`
+## ◬ Comandos Locais
 
-## 5) Checklist de publicação
+```bash
+# Instalar dependências (workspace completo)
+pnpm install
 
-1. Subir API no Railway (`backend` root).
-2. Subir Redis no Railway e ligar `REDIS_URL`.
-3. Configurar variáveis da API.
-4. Configurar Stripe webhook para domínio da API.
-5. Subir App com `PUBLIC_API_URL` apontando para API.
-6. Testar:
+# Desenvolvimento (frontend + backend separados)
+make dev
 
-- abrir `/`
-- enviar mensagem (stream)
-- abrir `/upgrade`
-- iniciar checkout
-- confirmar webhook alterando tier
+# Build produção
+make build
+```
 
-## 6) Comandos locais úteis
+────────────────────────────────────────
 
-### Desenvolvimento
+## ⟠ Checklist de Publicação
 
-- `make install`
-- `make dev`
+1. [ ] Corrigir todos os bugs da Fase 0
+2. [ ] Subir API no Railway (`backend` root)
+3. [ ] Subir Redis no Railway e conectar `REDIS_URL`
+4. [ ] Configurar variáveis da API
+5. [ ] Subir App com `PUBLIC_API_URL` apontando para API
+6. [ ] Testar fluxo completo:
+   - [ ] abrir `/` e enviar mensagem (stream)
+   - [ ] criar conta em `/signup` e ser redirecionado para chat
+   - [ ] fazer login em `/login`
+   - [ ] abrir `/upgrade` e iniciar checkout
+   - [ ] confirmar webhook alterando tier
+7. [ ] (Fase 2) Declarar `neo-chat-uncensored` no `ecosystem.json`
+8. [ ] (Fase 2) Configurar Nexus para entregar `FLOWPAY:PAYMENT_RECEIVED`
 
-### Build produção
+────────────────────────────────────────
 
-- `make build`
+```text
+▓▓▓ NΞØ MELLØ
+────────────────────────────────────────
+Core Architect · NΞØ Protocol
+neo@neoprotocol.space
 
-## 7) Próxima sessão (quando voltar)
+"Code is law. Expand until
+chaos becomes protocol."
 
-Implementar em ordem:
-
-1. `/login` + `/signup` + persistência de token
-2. `/success` + confirmação de assinatura
-3. Remover bypass dev em produção
-4. UX final de onboarding/paywall
+Security by design.
+Explits find no refuge here.
+────────────────────────────────────────
+```
