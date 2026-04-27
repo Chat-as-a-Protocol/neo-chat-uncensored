@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import cors from "cors";
 import { randomUUID } from "node:crypto";
 import dotenv from "dotenv";
@@ -49,7 +50,8 @@ if (process.env.NODE_ENV === "production" || process.env.REDIS_URL?.includes("ra
   const store = new Map();
   redis = {
     get: async (k) => store.get(k) ?? null,
-    setex: async (k, sec, v) => { store.set(k, v); setTimeout(() => store.delete(k), sec * 1000); },
+    set: async (k, v) => { store.set(k, v); return 'OK'; },
+    setex: async (k, sec, v) => { store.set(k, v); setTimeout(() => store.delete(k), sec * 1000); return 'OK'; },
     incr: async (k) => { const v = (parseInt(store.get(k)) || 0) + 1; store.set(k, v.toString()); return v; },
     incrby: async (k, a) => { const v = (parseInt(store.get(k)) || 0) + a; store.set(k, v.toString()); return v; },
     decr: async (k) => { const v = (parseInt(store.get(k)) || 0) - 1; store.set(k, v.toString()); return v; },
@@ -426,8 +428,17 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
   }
 
   const { email, password } = parsed.data;
-  // Simplificado - em produção use bcrypt e DB real
   const userId = "user_" + Buffer.from(email).toString("base64");
+
+  const passwordHash = await redis.get(`password:${userId}`);
+  if (!passwordHash) {
+    return res.status(401).json({ error: "Invalid email or password." });
+  }
+
+  const valid = await bcrypt.compare(password, passwordHash);
+  if (!valid) {
+    return res.status(401).json({ error: "Invalid email or password." });
+  }
 
   const token = jwt.sign(
     { id: userId, email, tier: "free" },
@@ -444,9 +455,17 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
     return res.status(400).json({ error: "Invalid signup data. Password must be at least 8 characters." });
   }
 
-  const { email, name } = parsed.data;
-  // Simplificado - em produção use bcrypt e DB real
+  const { email, name, password } = parsed.data;
   const userId = "user_" + Buffer.from(email).toString("base64");
+
+  // Reject if account already exists
+  const existing = await redis.get(`password:${userId}`);
+  if (existing) {
+    return res.status(409).json({ error: "An account with this email already exists." });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  await redis.set(`password:${userId}`, passwordHash);
 
   const token = jwt.sign(
     { id: userId, email, name, tier: "free" },
