@@ -118,26 +118,26 @@ Fase      : PRÉ-MVP (bug fixes pendentes antes do launch)
 
 ### Persona e Experience
 
-- [ ] **System prompt / persona NØX.ai**
-  - O chat envia mensagens sem nenhum `system` prompt
-  - Impacto direto na qualidade e identidade do produto
-  - Instrução: peça o system prompt ao dono do projeto antes de implementar
+- [x] **System prompt / persona NØX.ai**
+  - Conteúdo em `docs/SYSTEM_PROMPT.md`
+  - Integração no `backend/src/server.js` concluída (injeção via `system` message)
 
-- [ ] **Seletor de modelo no chat UI**
-  - Endpoint `/api/models` já existe e retorna modelos da Venice
-  - Criar dropdown simples no header da interface de chat
+- [x] **Indicador de quota no chat**
+  - Exibição dinâmica de `uso/limite` integrada na Brand Pill
+  - Atualização automática após cada mensagem
 
-- [ ] **Indicador de quota no chat**
-  - Endpoint `/api/usage` já existe
-  - Exibir `X de Y mensagens restantes` no chat ou na navbar
+- [ ] **Finalizar Fontes Locais (Privacidade)**
+  - [x] Infraestrutura e CSS configurados em `Layout.astro`
+  - [ ] **Ação Requerida**: Fazer upload de `manrope-variable.ttf` e `space-grotesk-variable.ttf` para `public/fonts/`
 
-### Produto
+- [x] **Consolidação de Documentação e Limpeza**
+  - [x] Pasta `neo-ai/` eliminada; arquivos críticos movidos para `docs/`
+  - [x] Duplicatas de `ARCHITECTURE.md` e `README.md` removidas
+  - [x] Referências de estilo centralizadas no diretório pai `Chat-as-a-Protocol`
 
-- [ ] **Fontes auto-hospedadas (privacidade)**
-  - Atual: Manrope e Space Grotesk via `fonts.googleapis.com`
-  - Arquivo: `Layout.astro:25`
-  - Impacto: Google rastreia IPs de quem acessa — contradiz o posicionamento
-  - Fix: baixar as fontes e servir via `/public/fonts/`
+- [x] **Refino da Interface (UX)**
+  - [x] Revisar mensagem de abertura para alinhar 100% com NØX.ai
+  - [x] Remover logs de depuração do console em `AstroChatInterface.astro`
 
 ────────────────────────────────────────
 
@@ -146,7 +146,7 @@ Fase      : PRÉ-MVP (bug fixes pendentes antes do launch)
 > **Contexto**: este projeto faz parte do ecossistema NEO Protocol.
 > O padrão de pagamento canônico do ecossistema usa **FlowPay** como
 > único gateway, mediado pelo **Nexus** (event hub), **não Stripe**.
-> Ver `neo-ai/CONTEXT.md` para detalhes completos do padrão.
+> Ver `docs/CONTEXT.md` para detalhes completos do padrão.
 
 ### Padrão de Integração
 
@@ -167,9 +167,11 @@ FlowPay (api.flowpay.cash)
   - `secretEnv`: `NEO_CHAT_WEBHOOK_SECRET`
   - `target.path`: `/webhooks/flowpay`
 
-- [ ] Criar endpoint `POST /webhooks/flowpay` no backend
-  - Validar assinatura `X-Nexus-Signature` (HMAC-SHA256)
-  - Processar `FLOWPAY:PAYMENT_RECEIVED` de forma idempotente
+- [x] Criar endpoint `POST /webhooks/flowpay` no backend
+- [x] Remover vestígios do Stripe no backend e frontend
+- [x] Atualizar o botão "Upgrade" no frontend para apontar para o FlowPay
+- [ ] Validar assinatura `X-Nexus-Signature` (HMAC-SHA256)
+- [ ] Processar `FLOWPAY:PAYMENT_RECEIVED` de forma idempotente
   - Atualizar tier do usuário no Redis (equivalente ao atual webhook Stripe)
 
 - [ ] Substituir `POST /stripe/create-checkout` por `POST /flowpay/create-charge`

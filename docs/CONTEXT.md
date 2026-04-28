@@ -167,7 +167,7 @@ Template de declaração:
   },
   "hosting": {
     "platform": "Railway (API) + Vercel/Railway (Frontend)",
-    "adminEmail": "neo@neoprotocol.space",
+    "adminEmail": "[EMAIL_ADDRESS]",
     "healthcheck": "/health"
   }
 }

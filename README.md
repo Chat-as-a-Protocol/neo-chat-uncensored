@@ -1,31 +1,31 @@
-<!-- markdownlint-disable MD003 MD007 MD013 MD022 MD023 MD025 MD029 MD032 MD033 MD034 -->
+# Title: NØX.ai (Neo-Chat-Uncensored)
 
 ```text
 ========================================
-     NEØ CHAT · UNCENSORED SYSTEM
+     NØX.ai · PROCESSING ENGINE
 ========================================
 ```
 
 ![neo-chat-uncensored banner](./public/neo-chat-uncensored-banner.svg)
 
-> **Version:** v1.1.0  
-> **Status:** observed  
-> **Framework:** Astro 6.x  
-> **Stack:** Vanilla JS / SSE / Tailwind
+> **Version:** v2.0.0 (Processing Engine)  
+> **Status:** Operational · Blasé Persona Ativa
+> **Framework:** Astro 6.x / Node 22+
+> **Protocol:** NΞØ Nexus / FlowPay (No Stripe)
 
 ## ⟠ Objetivo
 
-Interface soberana para interação com modelos de IA sem censura via NΞØ Protocol.
-Foco em performance extrema, privacidade total e zero dependências desnecessárias.
+Interface soberana e minimalista para processamento de modelos de IA sem censura. 
+A NØX.ai opera como uma engine técnica, removendo verniz social e focando em saída bruta de dados.
 
-O sistema foi migrado de um monólito React/Next.js para uma arquitetura Astro nativa,
-garantindo tempo de resposta instantâneo e integridade de contexto.
+O sistema utiliza arquitetura Astro 6 nativa, garantindo performance instantânea, 
+integridade de contexto e comunicação via SSE (Server-Sent Events).
 
 ────────────────────────────────────────
 
 ## ⧉ Arquitetura
 
-O ecossistema é dividido em dois núcleos funcionais operando sob o mesmo plano de controle.
+O ecossistema é uma implementação canônica do NΞØ Protocol, utilizando FlowPay como gateway único e Nexus como barramento de eventos.
 
 ```text
 ▓▓▓ SYSTEM TOPOLOGY
@@ -80,7 +80,7 @@ make build
 
 - **Zero Bloat**: Removido Framer Motion, Zustand e React-Three-Fiber.
 - **Privacy First**: Chaves de API nunca tocam o cliente; processamento via proxy.
-- **Context Engineering**: Manifestos de integridade em `neo-ai/manifests/`.
+- **Context Engineering**: Manifestos de integridade em `docs/CONTEXT.md`.
 
 ────────────────────────────────────────
 

@@ -3,5 +3,7 @@ import { defineConfig } from "astro/config";
 
 export default defineConfig({
   integrations: [tailwind()],
-  output: "static",
+  devToolbar: {
+    enabled: false
+  }
 });

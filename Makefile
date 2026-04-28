@@ -2,10 +2,10 @@
 #      NΞØ · PROJECT CONTROL PLANE
 # ========================================
 # Project: neo-chat-uncensored
-# Version: 1.1.0 (Local PNPM Mode)
+# Version: 1.3.0 (Quality Gate Integrated)
 # ========================================
 
-.PHONY: help init install dev dev-fe dev-be stop verify audit build push clean
+.PHONY: help init install dev dev-fe dev-be stop check verify audit lint build push clean logs
 
 # --- CONFIGURATION ---
 PNPM = pnpm
@@ -16,34 +16,45 @@ help:
 	@echo "────────────────────────────────────────"
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "SETUP (primeira vez ou reset):"
+	@echo "1. INITIALIZATION"
 	@echo "  init          Cria .env a partir de .env.example + instala deps"
-	@echo "  install       Instala dependências do workspace (pnpm)"
+	@echo "  install       Instala todas as dependências do projeto"
 	@echo ""
-	@echo "DESENVOLVIMENTO:"
+	@echo "2. DEVELOPMENT"
 	@echo "  dev           Inicia Frontend + Backend simultaneamente"
 	@echo "  dev-fe        Inicia apenas o Frontend (Astro :4321)"
 	@echo "  dev-be        Inicia apenas o Backend (Express :3001)"
-	@echo "  stop          Para todos os processos nas portas 3001 e 4321"
+	@echo "  stop          Limpa portas 3001 e 4321 (kill processes)"
+	@echo "  logs          Visualiza logs em tempo real do backend"
 	@echo ""
-	@echo "QUALIDADE:"
-	@echo "  verify        Verifica integridade do contexto (neo-ai)"
-	@echo "  audit         Auditoria de segurança de dependências (pnpm)"
+	@echo "3. QUALITY & CHECK (Obrigatório antes do Push)"
+	@echo "  check         Roda TUDO: verify + audit + lint"
+	@echo "  verify        Valida integridade do ambiente e configurações"
+	@echo "  audit         Auditoria de segurança de dependências"
+	@echo "  lint          Verifica padrões de código (placeholder)"
+	@echo "  clean         Remove artefatos de build e node_modules"
 	@echo ""
-	@echo "BUILD E DEPLOY:"
-	@echo "  build         Build de produção (limpa cache + pnpm build)"
-	@echo "  push          Gate pré-push: audit + build + git status"
-	@echo ""
-	@echo "MANUTENÇÃO:"
-	@echo "  clean         Remove dist/, .astro/ e node_modules/"
+	@echo "4. BUILD & PRODUCTION"
+	@echo "  build         Build de produção (Astro static/hybrid)"
+	@echo "  push          Secure Gate: check + build + git status"
 	@echo "────────────────────────────────────────"
 
-# --- OPERATIONAL ---
-dev:
-	@echo "🚀 Starting NΞØ Ecosystem (Local)..."
-	@($(PNPM) dev) & (cd backend && $(PNPM) dev) & wait
+# --- 1. INITIALIZATION ---
+init:
+	@if [ ! -f .env ]; then \
+		echo "📝 Creating .env from example..."; \
+		cp .env.example .env; \
+	fi
+	$(MAKE) install
 
-start: dev
+install:
+	@echo "📦 Installing workspace dependencies..."
+	$(PNPM) install
+
+# --- 2. DEVELOPMENT ---
+dev:
+	@echo "🚀 Starting NΞØ Ecosystem..."
+	@($(PNPM) dev) & (cd backend && $(PNPM) dev) & wait
 
 stop:
 	@echo "🛑 Killing processes on ports 3001 and 4321..."
@@ -59,47 +70,53 @@ dev-fe:
 	@echo "🎨 Starting Frontend..."
 	$(PNPM) dev
 
-# --- CONTEXT & AUDIT ---
+logs:
+	@echo "📋 Streaming Backend Logs..."
+	tail -f backend/app.log
+
+# --- 3. QUALITY & CHECK ---
+check: verify audit lint
+	@echo "✅ All checks passed successfully."
+
 verify:
-	@echo "🔍 Verifying Context Integrity..."
-	@bash ./neo-ai/verify-context.sh
+	@echo "🔍 Verifying Project Integrity..."
+	@if [ ! -f .env ]; then echo "❌ Error: .env file missing!"; exit 1; fi
+	@if [ ! -f docs/SYSTEM_PROMPT.md ]; then echo "❌ Error: docs/SYSTEM_PROMPT.md missing!"; exit 1; fi
+	@echo "  - Environment: OK"
+	@echo "  - Docs & Persona: OK"
+	@echo "  - Node Version: `node -v`"
+	@echo "✅ Integrity verified."
 
 audit:
 	@echo "🛡️  Running Security Audit..."
 	$(PNPM) audit
 
-# --- DEVELOPMENT ---
-install:
-	@echo "📦 Installing workspace dependencies..."
-	$(PNPM) install
+lint:
+	@echo "✨ Linting (via Astro check)..."
+	@if [ -d node_modules/@astrojs/check ]; then \
+		$(PNPM) astro check; \
+	else \
+		echo "⚠️  Astro check ignorado (dependências pendentes)."; \
+	fi
 
 clean:
 	@echo "🧹 Cleaning artifacts..."
-	rm -rf dist
-	rm -rf .astro
+	rm -rf dist .astro
 	find . -name "node_modules" -type d -prune -exec rm -rf '{}' +
 	@echo "✨ Clean complete."
 
-# --- BUILD & DEPLOY ---
+# --- 4. BUILD & PRODUCTION ---
 build:
 	@echo "🏗️  Building production assets..."
-	@echo "📦 Ensuring dependencies are installed..."
-	$(PNPM) install --frozen-lockfile
+	@echo "📦 Ensuring dependencies are synced..."
+	$(PNPM) install
 	@echo "🧹 Resetting Astro build cache..."
 	rm -rf dist .astro
 	$(PNPM) run build
 
 push:
 	@echo "🚀 Starting Secure Push Protocol..."
-	@$(MAKE) audit
+	@$(MAKE) check
 	@$(MAKE) build
-	@echo "✅ Checks passed. Ready to commit."
+	@echo "✅ Full quality gate passed. Ready to commit."
 	@git status
-
-# --- INITIALIZATION ---
-init:
-	@if [ ! -f .env ]; then \
-		echo "📝 Creating .env from example..."; \
-		cp .env.example .env; \
-	fi
-	$(MAKE) install

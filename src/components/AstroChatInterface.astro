@@ -1,32 +1,35 @@
 <div class="chat-ui-shell">
   <header class="brand-pill" aria-label="brand">
-    <span class="brand-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9 4.9 19.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="1.7"/>
+    <span class="brand-icon">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="8"/>
+        <line x1="20" y1="80" x2="80" y2="20" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
       </svg>
     </span>
-    <span>NØX.ai</span>
+    <div class="brand-info">
+      <span>NØX.ai</span>
+      <div id="quota-indicator" class="quota-badge" title="Mensagens hoje">
+        <span class="quota-count">--/--</span>
+      </div>
+    </div>
   </header>
 
-  <section class="glass-chat" aria-label="chat panel">
-    <div
-      id="messages-container"
-      class="messages-container"
-      role="log"
-      aria-live="polite"
-      aria-relevant="additions text"
-      tabindex="0"
-    ></div>
+  <div
+    id="messages-container"
+    class="messages-container"
+    role="log"
+    aria-live="polite"
+    aria-relevant="additions text"
+    tabindex="0"
+  ></div>
 
-    <form id="chat-form" class="chat-form" autocomplete="off">
-      <label class="sr-only" for="chat-input">Mensagem</label>
-      <textarea id="chat-input" placeholder="Digite aqui..." rows="1"></textarea>
-      <button type="submit" id="send-button" disabled aria-label="Enviar mensagem">
-        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-      </button>
-    </form>
-  </section>
+  <form id="chat-form" class="chat-form" autocomplete="off">
+    <label class="sr-only" for="chat-input">Mensagem</label>
+    <textarea id="chat-input" placeholder="Digite aqui..." rows="1"></textarea>
+    <button type="submit" id="send-button" disabled aria-label="Enviar mensagem">
+      <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+    </button>
+  </form>
 </div>
 
 <script>
@@ -54,7 +57,7 @@
   const isDev = import.meta.env.DEV;
   const autoscrollThreshold = 56;
 
-  const openingAssistantMessage = 'Vai guiar a sua vida ou vai deixar ser guiada?';
+  const openingAssistantMessage = "Ouvindo.";
   const messages = [{ role: 'assistant', content: openingAssistantMessage }];
 
   let streamingBubble = null;
@@ -94,9 +97,25 @@
   }
 
   function formatContent(text) {
-    const safeText = escapeHtml(text);
-    let formatted = safeText.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    let formatted = escapeHtml(text);
+
+    // 1. Raciocínio / Pensamento (Collapsible)
+    formatted = formatted.replace(/&lt;thought&gt;([\s\S]*?)&lt;\/thought&gt;/g, (match, content) => {
+      return `
+        <details class="thought-accordion" open>
+          <summary>Raciocínio Interno</summary>
+          <div class="thought-content">${content}</div>
+        </details>
+      `;
+    });
+
+    // 2. Code Blocks
+    formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+
+    // 3. Bold
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // 4. Quebras de linha
     return formatted.replace(/\n/g, '<br/>');
   }
 
@@ -269,9 +288,6 @@
     try {
       const token = localStorage.getItem('neo_token');
 
-      if (isDev) {
-        console.log('[Chat] Iniciando requisição para:', `${apiUrl}/api/chat`);
-      }
 
       const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
@@ -351,13 +367,41 @@
     } catch (err) {
       console.error('[Chat] Falha no envio:', err);
       hideTypingIndicator();
+      if (streamingBubble) {
+        streamingBubble.classList.remove('is-streaming');
+        streamingBubble = null;
+      }
       appendErrorMessage(userMessage);
     } finally {
-      hideTypingIndicator();
-      streamingBubble = null;
       isSending = false;
+      hideTypingIndicator();
       input.focus();
       sendBtn.disabled = input.value.trim() === '';
+      updateQuota();
+    }
+  }
+
+  async function updateQuota() {
+    try {
+      const token = localStorage.getItem('neo_token');
+      const response = await fetch(`${apiUrl}/api/usage`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const indicator = document.getElementById('quota-indicator');
+        const count = indicator?.querySelector('.quota-count');
+        if (count) {
+          count.textContent = `${data.today}/${data.limit}`;
+          if (data.today >= data.limit) {
+            indicator.classList.add('is-exhausted');
+          } else {
+            indicator.classList.remove('is-exhausted');
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[Quota] Failed to fetch usage:', err);
     }
   }
 
@@ -389,22 +433,35 @@
   });
 
   appendMessage('assistant', openingAssistantMessage, { forceScroll: true, createdAt: new Date() });
+  updateQuota();
   requestAnimationFrame(() => scrollToBottom(false));
 </script>
 
 <style>
   .chat-ui-shell {
-    width: min(1320px, 100%);
-    min-height: calc(100svh - 118px);
+    width: 100%;
+    height: 100svh; /* FORÇANDO ALTURA TOTAL DO VIEWPORT */
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: clamp(14px, 3vh, 40px);
-    padding-top: clamp(8px, 1.8vh, 18px);
+    margin: 0;
+    padding: 0;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  header {
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    pointer-events: none;
   }
 
   .brand-pill {
+    pointer-events: auto;
     margin-top: 4px;
     display: inline-flex;
     align-items: center;
@@ -412,9 +469,10 @@
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.28);
     background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px); /* Adicionando o vidro que você gostou */
     color: #f2f2f4;
-    padding: 14px 24px;
-    font-size: clamp(28px, 1.4vw, 32px);
+    padding: 10px 24px;
+    font-size: clamp(24px, 1.4vw, 28px);
     font-weight: 600;
     letter-spacing: -0.01em;
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.2) inset;
@@ -422,10 +480,53 @@
     animation: fade-in 680ms ease;
   }
 
+  .brand-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1;
+  }
+
+  .quota-badge {
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .quota-badge.is-exhausted {
+    color: #ff6b6b;
+  }
+
+  .quota-badge::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .quota-badge.is-exhausted::before {
+    background: #ff6b6b;
+    box-shadow: 0 0 8px #ff6b6b;
+  }
+
   .brand-icon {
     display: inline-grid;
     place-items: center;
     color: var(--accent);
+    filter: 
+      drop-shadow(0 0 2px var(--accent))
+      drop-shadow(0 0 8px var(--accent));
+    animation: led-flicker 4s infinite alternate;
   }
 
   .brand-icon svg {
@@ -433,42 +534,39 @@
     height: 32px;
   }
 
-  .glass-chat {
-    width: 100%;
-    border-radius: 24px;
-    border: 1px solid var(--glass-border);
-    background: linear-gradient(180deg, rgba(196, 196, 198, 0.26) 0%, rgba(130, 130, 134, 0.2) 100%);
-    backdrop-filter: blur(14px);
-    padding: clamp(14px, 3.2vw, 36px);
-    color: #f3f3f5;
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 14px;
-    min-height: clamp(380px, 56svh, 680px);
-    margin-top: auto;
-    animation: rise-in 820ms ease;
+  @keyframes led-flicker {
+    0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 10px var(--accent)); }
+    92% { opacity: 0.95; filter: drop-shadow(0 0 1px var(--accent)) drop-shadow(0 0 6px var(--accent)); }
+    96% { opacity: 1; filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 10px var(--accent)); }
   }
 
   .messages-container {
+    flex: 1; /* Ocupa todo o meio */
     min-height: 0;
-    height: 100%;
     overflow-y: auto;
-    overflow-x: hidden;
-    padding-right: 4px;
+    padding: 20px;
+    padding-top: 20px;
+    padding-bottom: 120px; /* Respiro para o input */
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    touch-action: pan-y;
-    overscroll-behavior: contain;
   }
 
-  .messages-container::-webkit-scrollbar {
-    display: none;
-  }
 
   .chat-form {
-    position: relative;
-    width: min(560px, 100%);
-    transform-origin: center bottom;
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    max-width: 800px; /* Mantém o input em uma largura legível */
+    margin: 0 auto;
+    padding: 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    background: transparent; /* FUNDO REMOVIDO */
+    backdrop-filter: none;
+    border-top: none;
+    z-index: 20;
   }
 
   .chat-form.send-pressed {
@@ -478,18 +576,19 @@
   .chat-form textarea {
     width: 100%;
     resize: none;
-    border: 0;
+    border: 1px solid rgba(255, 255, 255, 0.28); /* IGUAL AO TOPO */
     outline: 0;
-    border-radius: 999px;
-    padding: 20px 66px 20px 30px;
-    min-height: 62px;
-    max-height: 170px;
-    font-size: clamp(18px, 1.35vw, 26px);
-    line-height: 1.2;
-    color: rgba(246, 246, 248, 0.95);
-    caret-color: rgba(206, 229, 92, 0.9);
-    background: rgba(240, 240, 241, 0.18);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+    border-radius: 999px; /* IGUAL AO TOPO */
+    padding: 13px 28px;
+    padding-right: 54px;
+    min-height: 48px;
+    max-height: 150px;
+    font-size: 16px;
+    line-height: 22px; /* Altura da linha fixa para centralizar melhor */
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    box-shadow: none;
   }
 
   .chat-form textarea::placeholder {
@@ -499,26 +598,20 @@
 
   .chat-form button {
     position: absolute;
-    right: 12px;
-    bottom: 12px;
-    width: 46px;
-    height: 46px;
-    border-radius: 999px;
-    border: 1px solid rgba(232, 243, 181, 0.42);
+    right: 22px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
     display: inline-grid;
     place-items: center;
-    color: #fdfdfe;
-    background:
-      radial-gradient(ellipse at 32% 24%, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0) 56%),
-      linear-gradient(180deg, rgba(196, 218, 103, 0.82) 0%, rgba(155, 178, 60, 0.78) 100%);
-    box-shadow:
-      0 3px 9px rgba(38, 45, 15, 0.28),
-      inset 0 1px 1px rgba(255, 255, 255, 0.45),
-      inset 0 -4px 8px rgba(84, 101, 27, 0.2);
-    transition: transform 160ms ease, opacity 160ms ease, filter 180ms ease, box-shadow 180ms ease, background 180ms ease;
-    isolation: isolate;
-    z-index: 2;
+    color: #000;
+    background: var(--accent);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
+
 
   .chat-form button::before {
     content: '';
@@ -573,20 +666,20 @@
     transform: scale(1.03);
   }
 
-  .message-row {
+  :global(.message-row) {
     display: flex;
     margin-bottom: 10px;
   }
 
-  .message-row.is-user {
+  :global(.message-row.is-user) {
     justify-content: flex-end;
   }
 
-  .message-row.is-assistant {
+  :global(.message-row.is-assistant) {
     justify-content: flex-start;
   }
 
-  .message-bubble {
+  :global(.message-bubble) {
     max-width: min(760px, 86%);
     font-size: clamp(18px, 1.06vw, 22px);
     line-height: 1.48;
@@ -602,22 +695,22 @@
     transition: opacity 220ms ease, transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
-  .message-bubble.is-visible {
+  :global(.message-bubble.is-visible) {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 
-  .message-bubble.from-input {
+  :global(.message-bubble.from-input) {
     transform: translate(12px, 18px) scale(0.975);
   }
 
-  .assistant-bubble {
+  :global(.assistant-bubble) {
     background:
       radial-gradient(ellipse at 14% 10%, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0) 55%),
       rgba(233, 233, 236, 0.11);
   }
 
-  .assistant-bubble.is-streaming::after {
+  :global(.assistant-bubble.is-streaming::after) {
     content: '';
     display: inline-block;
     width: 0.45em;
@@ -629,7 +722,7 @@
     animation: stream-caret 0.8s ease infinite;
   }
 
-  .user-bubble {
+  :global(.user-bubble) {
     background:
       radial-gradient(ellipse at 16% 12%, rgba(237, 248, 187, 0.15), rgba(237, 248, 187, 0) 54%),
       rgba(185, 214, 49, 0.21);
@@ -648,9 +741,15 @@
     color: rgba(242, 242, 244, 0.28);
   }
 
-  .message-time {
-    opacity: 0.45;
-    letter-spacing: 0.02em;
+  :global(.message-time) {
+    font-size: 9px !important;
+    opacity: 0.5 !important;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    margin-top: 6px;
+    display: block;
+    color: var(--accent);
+    font-family: 'Space Grotesk', monospace;
   }
 
   .typing-row {
@@ -702,6 +801,50 @@
     color: rgba(255, 233, 233, 0.92);
     background: rgba(255, 255, 255, 0.08);
     cursor: pointer;
+  }
+
+  /* Raciocínio Accordion */
+  .thought-accordion {
+    margin: 12px 0;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-left: 3px solid var(--accent);
+    overflow: hidden;
+  }
+
+  .thought-accordion summary {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.8;
+  }
+
+  .thought-accordion summary::before {
+    content: '◈';
+    font-size: 14px;
+    transition: transform 0.2s ease;
+  }
+
+  .thought-accordion[open] summary::before {
+    transform: rotate(90deg);
+  }
+
+  .thought-content {
+    padding: 12px;
+    font-family: 'Space Grotesk', monospace;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.4;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .message-bubble pre {

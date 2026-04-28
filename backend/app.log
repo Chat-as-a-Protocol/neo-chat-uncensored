@@ -15,3 +15,20 @@
 {"level":"info","message":"Server running on port 3001","timestamp":"2026-04-22T19:37:40.433Z"}
 {"level":"info","message":"Server running on port 3001","timestamp":"2026-04-22T19:48:53.572Z"}
 {"level":"info","message":"Server running on port 3001","timestamp":"2026-04-22T19:57:52.324Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-27T21:16:03.695Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-27T21:18:49.165Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T08:18:24.648Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T08:19:07.718Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T08:20:51.378Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T08:22:27.199Z"}
+{"issues":[{"code":"invalid_type","expected":"string","message":"Required","path":["model"],"received":"undefined"}],"level":"error","message":"Chat error: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"model\"\n    ],\n    \"message\": \"Required\"\n  }\n]","name":"ZodError","stack":"ZodError: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"model\"\n    ],\n    \"message\": \"Required\"\n  }\n]\n    at get error (file:///Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js:39:31)\n    at ZodObject.parse (file:///Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js:114:22)\n    at file:///Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/backend/src/server.js:271:14\n    at Layer.handle [as handle_request] (/Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)\n    at next (/Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/route.js:149:13)\n    at checkQuota (file:///Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/backend/src/server.js:239:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)","timestamp":"2026-04-28T08:22:37.795Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T08:23:49.290Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T09:01:57.868Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T09:02:57.104Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T09:03:35.183Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T09:14:55.416Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T09:15:45.644Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T09:28:32.919Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T09:52:46.551Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T09:57:14.083Z"}
+{"level":"info","message":"Server running on port 3001","timestamp":"2026-04-28T10:46:51.599Z"}

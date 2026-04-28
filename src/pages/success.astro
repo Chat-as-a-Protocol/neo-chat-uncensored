@@ -1,47 +1,145 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import SceneBackground from '../components/SceneBackground.astro';
-import Card from '../components/ui/Card.astro';
-import Button from '../components/ui/Button.astro';
 ---
 
-<Layout title="Pagamento Confirmado · NEØ">
-  <main class="scene-shell">
-    <SceneBackground />
-
-    <div class="content-container">
-      <Card class="w-full max-w-[480px] text-center py-12">
-        <div class="success-icon mb-8">
-          <div class="icon-circle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-          <div class="glow"></div>
+<Layout title="NØX.ai - Sucesso">
+  <div class="success-container">
+    <div class="success-glass">
+      <div class="success-icon-wrapper">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
         </div>
+        <div class="glow"></div>
+      </div>
 
-        <h1 class="text-4xl font-extrabold mb-4 tracking-tight">Upgrade Concluído!</h1>
-        <p class="text-[var(--text-soft)] text-lg mb-10 leading-relaxed">
-          Sua assinatura <span class="text-[var(--accent)] font-bold">PRO</span> foi ativada com sucesso. Aproveite o poder total do NEØ sem limites.
-        </p>
+      <h1 class="accent-text">Protocolo:Ativado</h1>
+      <p class="message">
+        Sua assinatura <span class="accent-text">PRO Engine</span> foi processada pelo FlowPay. 
+        O acesso total aos modelos sem censura está liberado.
+      </p>
 
-        <div class="flex flex-col gap-4">
-          <Button onclick="window.location.href='/'" class="w-full py-4 text-lg">
-            Ir para o Chat
-          </Button>
-          <a href="/" class="text-sm text-[var(--text-dim)] hover:text-white transition-colors">
-            Ir para o Chat
-          </a>
-        </div>
-      </Card>
-
-      <footer class="mt-8 text-center opacity-60">
-        <p class="text-xs text-[var(--text-dim)]">
-          Um e-mail de confirmação foi enviado para sua caixa de entrada.
-        </p>
-      </footer>
+      <div class="actions">
+        <button onclick="window.location.href='/'" class="btn-primary">Acessar Terminal</button>
+      </div>
+      
+      <p class="nexus-badge">Identidade Nexus Sincronizada</p>
     </div>
-  </main>
+  </div>
+
+  <style>
+    .success-container {
+      min-height: 100svh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #0a0a0a 100%);
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .success-glass {
+      width: 100%;
+      max-width: 500px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 60px 40px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    .success-icon-wrapper {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 30px;
+    }
+
+    .success-icon {
+      width: 100%;
+      height: 100%;
+      background: var(--accent);
+      color: #000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+      z-index: 2;
+      animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .glow {
+      position: absolute;
+      inset: -10px;
+      background: var(--accent);
+      border-radius: 50%;
+      filter: blur(20px);
+      opacity: 0.4;
+      z-index: 1;
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    .accent-text {
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(206, 229, 92, 0.3);
+      font-weight: 800;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      letter-spacing: -0.05em;
+    }
+
+    .message {
+      color: rgba(255,255,255,0.7);
+      font-size: 1.1rem;
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      border: none;
+      color: #000;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn-primary:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 20px rgba(206, 229, 92, 0.4);
+    }
+
+    .nexus-badge {
+      margin-top: 30px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.3;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.4; }
+      50% { transform: scale(1.2); opacity: 0.2; }
+      100% { transform: scale(1); opacity: 0.4; }
+    }
+  </style>
 </Layout>
 
 <style>
