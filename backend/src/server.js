@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import Redis from "ioredis";
+
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { createLogger, format, transports } from "winston";
@@ -21,6 +21,7 @@ if (process.env.NODE_ENV === "production") {
     "JWT_SECRET",
     "VENICE_API_KEY",
     "FRONTEND_URL",
+    "FLOWPAY_API_KEY",
   ];
   const missing = required.filter((k) => !process.env[k]);
   if (missing.length > 0) {
@@ -48,78 +49,9 @@ const effectiveJwtSecret = JWT_SECRET || randomUUID();
 
 const app = express();
 
-// ===== MOCK REDIS PARA DESENVOLVIMENTO (Zero Docker) =====
-// Se estiver rodando no Railway (onde existe REDIS_URL real), usa o ioredis normal.
-// Localmente, ele usa um objeto de memória para não depender de banco instalado!
-let redis;
-if (
-  process.env.NODE_ENV === "production" ||
-  process.env.REDIS_URL?.includes("railway")
-) {
-  redis = new Redis(process.env.REDIS_URL);
-} else {
-  const store = new Map();
-  redis = {
-    get: async (k) => store.get(k) ?? null,
-    set: async (k, v) => {
-      store.set(k, v);
-      return "OK";
-    },
-    setex: async (k, sec, v) => {
-      store.set(k, v);
-      setTimeout(() => store.delete(k), sec * 1000);
-      return "OK";
-    },
-    incr: async (k) => {
-      const v = (parseInt(store.get(k)) || 0) + 1;
-      store.set(k, v.toString());
-      return v;
-    },
-    incrby: async (k, a) => {
-      const v = (parseInt(store.get(k)) || 0) + a;
-      store.set(k, v.toString());
-      return v;
-    },
-    decr: async (k) => {
-      const v = (parseInt(store.get(k)) || 0) - 1;
-      store.set(k, v.toString());
-      return v;
-    },
-    expire: async () => {},
-    del: async (k) => {
-      store.delete(k);
-      return 1;
-    },
-    multi: () => {
-      const ops = [];
-      const chain = {
-        incr: function (k) {
-          ops.push({ op: "incr", k });
-          return chain;
-        },
-        pexpire: function (k, ms) {
-          ops.push({ op: "pexpire", k, ms });
-          return chain;
-        },
-        exec: async function () {
-          const results = [];
-          for (const { op, k, ms } of ops) {
-            if (op === "incr") {
-              const v = (parseInt(store.get(k)) || 0) + 1;
-              store.set(k, v.toString());
-              results.push([null, v]);
-            } else if (op === "pexpire") {
-              setTimeout(() => store.delete(k), ms);
-              results.push([null, 1]);
-            }
-          }
-          return results;
-        },
-      };
-      return chain;
-    },
-  };
-}
+import redis from "./lib/redis.js";
+import { ledgerService } from "./services/ledger.js";
+import { estimateTokensFromChunk } from "./utils/billing.js";
 
 
 // Logger
@@ -144,8 +76,6 @@ app.use(
 // which is required for express-rate-limit to work correctly behind a reverse proxy.
 app.set("trust proxy", 1);
 
-// ===== STRIPE WEBHOOK =====
-// IMPORTANT: registered BEFORE express.json() so the raw request body is
 app.use(express.json());
 
 // ===== AUTH MIDDLEWARE =====
@@ -186,7 +116,7 @@ const createUserRateLimit = () =>
       return userTier === "premium" ? 60 : 10; // 60 req/min para premium, 10 para free
     },
     keyGenerator: (req) => req.user.id,
-    handler: (req, res) => {
+    handler: (_req, res) => {
       res.status(429).json({
         error: "Rate limit exceeded",
         upgradeUrl: "/upgrade",
@@ -209,8 +139,7 @@ const createUserRateLimit = () =>
 // ===== CHECK QUOTA MIDDLEWARE =====
 const checkQuota = async (req, res, next) => {
   const today = new Date().toISOString().split("T")[0];
-  const key = `usage:${req.user.id}:${today}`;
-  const usage = parseInt((await redis.get(key)) || "0");
+  const usage = await ledgerService.getDailyUsage(req.user.id, today);
   const limit = parseInt((await redis.get(`limit:${req.user.id}`)) || "100");
 
   if (usage >= limit) {
@@ -333,16 +262,17 @@ app.post(
           const chunk = new TextDecoder().decode(value);
           res.write(chunk);
 
-          // Estimar tokens para billing (simplificado)
-          tokenCount += chunk
-            .split("\n")
-            .filter((l) => l.includes("content")).length;
+          // Estimar tokens para billing via utilitário
+          tokenCount += estimateTokensFromChunk(chunk);
         }
 
-        // Incrementar quota usada (assíncrono, não bloqueia)
-        const today = new Date().toISOString().split("T")[0];
-        redis.incr(`usage:${req.user.id}:${today}`);
-        redis.expire(`usage:${req.user.id}:${today}`, 86400);
+        // Registrar consumo no ledger (assíncrono, não bloqueia)
+        ledgerService.addEntry(
+          req.user.id,
+          -Math.max(1, tokenCount),
+          "CONSUMPTION",
+          "venice_stream_" + randomUUID()
+        ).catch(err => logger.error("Ledger error:", err));
 
         res.end();
       } else {
@@ -351,9 +281,13 @@ app.post(
 
         // Contar tokens aproximados
         const tokens = data.usage?.total_tokens || 0;
-        const today = new Date().toISOString().split("T")[0];
-        redis.incrby(`usage:${req.user.id}:${today}`, tokens);
-        redis.expire(`usage:${req.user.id}:${today}`, 86400);
+        
+        ledgerService.addEntry(
+          req.user.id,
+          -tokens,
+          "CONSUMPTION",
+          "venice_sync_" + randomUUID()
+        ).catch(err => logger.error("Ledger error:", err));
 
         res.json({
           ...data,
@@ -496,10 +430,10 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
     .json({ token, user: { id: userId, email, name, tier: "free" } });
 });
 
-// ===== USAGE STATS =====
+// ===== USAGE STATS & LEDGER =====
 app.get("/api/usage", authenticateToken, async (req, res) => {
   const today = new Date().toISOString().split("T")[0];
-  const usage = (await redis.get(`usage:${req.user.id}:${today}`)) || 0;
+  const usage = await ledgerService.getDailyUsage(req.user.id, today);
   const limit = (await redis.get(`limit:${req.user.id}`)) || 100;
   const tier = (await redis.get(`tier:${req.user.id}`)) || "free";
 
@@ -511,8 +445,58 @@ app.get("/api/usage", authenticateToken, async (req, res) => {
   });
 });
 
-app.get("/health", (req, res) => {
+app.get("/health", (_req, res) => {
   res.json({ status: "ok", uptime: process.uptime() });
+});
+
+app.get("/api/ledger", authenticateToken, async (req, res) => {
+  try {
+    const statement = await ledgerService.getStatement(req.user.id);
+    const balance = await ledgerService.getBalance(req.user.id);
+    res.json({ balance, statement });
+  } catch (error) {
+    logger.error("Ledger fetch error:", error);
+    res.status(500).json({ error: "Failed to load ledger" });
+  }
+});
+
+// ===== FLOWPAY INTEGRATION =====
+
+app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
+  try {
+    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
+    const apiKey = process.env.FLOWPAY_API_KEY;
+
+    const response = await fetch(`${flowpayUrl}/api/create-charge`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        amount: 49, // Valor fixo do Pro Engine no MVP
+        currency: "BRL",
+        orderId: `nox_${randomUUID()}`,
+        userId: req.user.id,
+        callbackUrl: `${process.env.FRONTEND_URL}/success`,
+        metadata: {
+          plan: "pro",
+        },
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      logger.error("FlowPay API error response:", data);
+      throw new Error(data.message || "Failed to create FlowPay charge");
+    }
+
+    res.json({ checkoutUrl: data.checkoutUrl });
+  } catch (error) {
+    logger.error("FlowPay create-charge error:", error);
+    res.status(500).json({ error: "Failed to initiate payment" });
+  }
 });
 
 // ===== WEBHOOKS (NΞØ Protocol) =====
@@ -523,7 +507,6 @@ app.get("/health", (req, res) => {
  */
 app.post("/webhooks/flowpay", express.raw({ type: 'application/json' }), async (req, res) => {
   const signature = req.headers["x-nexus-signature"];
-  const secret = process.env.NEO_CHAT_WEBHOOK_SECRET;
 
   logger.info("[Webhook] Received FlowPay event from Nexus");
 
@@ -538,17 +521,22 @@ app.post("/webhooks/flowpay", express.raw({ type: 'application/json' }), async (
     const { event, data } = payload;
 
     if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-      const { userId, plan } = data;
+      const { userId } = data;
       
       if (!userId) {
         throw new Error("Missing userId in payload");
       }
 
       // Atualiza o tier no Redis
-      await redis.set(`user:${userId}:tier`, "pro");
+      await redis.set(`tier:${userId}`, "pro");
       
-      // Adiciona créditos ou limpa quota se necessário
-      await redis.del(`usage:${userId}:${new Date().toISOString().split('T')[0]}`);
+      // Adiciona créditos reais no ledger (ex: 100.000 tokens para PRO)
+      await ledgerService.addEntry(
+        userId,
+        100000,
+        "PURCHASE",
+        "flowpay_" + randomUUID()
+      );
 
       logger.info(`[Webhook] User ${userId} upgraded to PRO via FlowPay`);
       return res.status(200).json({ status: "success", message: "Tier updated" });

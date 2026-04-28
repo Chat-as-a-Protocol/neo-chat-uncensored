@@ -112,6 +112,18 @@ Fase      : PRÉ-MVP (bug fixes pendentes antes do launch)
   - Arquivo: `src/pages/index.astro`
   - Fix aplicado: redirect para `/login` quando `neo_token` ausente em `import.meta.env.PROD`
 
+- [x] **[LEDGER] Implementar Sovereign Ledger (Fase 0)**
+  - Arquivo: `backend/src/server.js` (refatorado para `services/ledger.js`)
+  - Fix aplicado: Implementado `ledgerService` no Redis (estrutura de lista append-only)
+  - Substituído `usage:{userId}:{date}` por agregação dinâmica `getDailyUsage`
+  - Adicionado endpoint `GET /api/ledger` e evento `PURCHASE` no webhook FlowPay
+
+- [x] **[TESTS] Implementar Testes Unitários e Modularização**
+  - Arquivos: `backend/src/services/ledger.test.js`, `backend/src/utils/billing.test.js`
+  - Fix aplicado: Setup de testes usando o runner nativo do Node.js 20 (zero-dependency)
+  - Refatoração: Lógica de Redis, Ledger e Billing extraída para módulos independentes
+  - Automação: Integrado `make test` no pipeline de qualidade `make check`
+
 ────────────────────────────────────────
 
 ## ⟠ Fase 1 · MVP Completo
@@ -174,12 +186,12 @@ FlowPay (api.flowpay.cash)
 - [ ] Processar `FLOWPAY:PAYMENT_RECEIVED` de forma idempotente
   - Atualizar tier do usuário no Redis (equivalente ao atual webhook Stripe)
 
-- [ ] Substituir `POST /stripe/create-checkout` por `POST /flowpay/create-charge`
+- [x] Substituir `POST /stripe/create-checkout` por `POST /flowpay/create-charge`
   - API FlowPay: `POST https://api.flowpay.cash/api/create-charge`
   - Env vars: `FLOWPAY_API_URL`, `FLOWPAY_API_KEY`
   - Retorna URL de checkout gerenciado pela FlowPay
 
-- [ ] Atualizar `upgrade.astro` para chamar `/flowpay/create-charge`
+- [x] Atualizar `upgrade.astro` para chamar `/api/flowpay/create-charge`
 
 - [ ] Remover dependência do Stripe quando FlowPay estiver operacional
 

@@ -54,16 +54,27 @@
 
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const apiUrl = import.meta.env.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : window.location.origin);
-  const isDev = import.meta.env.DEV;
   const autoscrollThreshold = 56;
+
+  interface MessageOptions {
+    streaming?: boolean;
+    fromInput?: boolean;
+    createdAt?: Date;
+    id?: string;
+    forceScroll?: boolean;
+  }
+
+  interface ChatOptions {
+    isRetry?: boolean;
+  }
 
   const openingAssistantMessage = "Ouvindo.";
   const messages = [{ role: 'assistant', content: openingAssistantMessage }];
 
-  let streamingBubble = null;
-  let typingIndicatorEl = null;
+  let streamingBubble: HTMLElement | null = null;
+  let typingIndicatorEl: HTMLElement | null = null;
   let isSending = false;
-  let firingTimeout = null;
+  let firingTimeout: any = null;
 
   function formatTime(date = new Date()) {
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -87,7 +98,7 @@
     }
   }
 
-  function escapeHtml(text) {
+  function escapeHtml(text: string) {
     return text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -96,11 +107,11 @@
       .replace(/'/g, '&#39;');
   }
 
-  function formatContent(text) {
+  function formatContent(text: string) {
     let formatted = escapeHtml(text);
 
     // 1. Raciocínio / Pensamento (Collapsible)
-    formatted = formatted.replace(/&lt;thought&gt;([\s\S]*?)&lt;\/thought&gt;/g, (match, content) => {
+    formatted = formatted.replace(/&lt;thought&gt;([\s\S]*?)&lt;\/thought&gt;/g, (_match: string, content: string) => {
       return `
         <details class="thought-accordion" open>
           <summary>Raciocínio Interno</summary>
@@ -119,7 +130,7 @@
     return formatted.replace(/\n/g, '<br/>');
   }
 
-  function createMeta(role, createdAt) {
+  function createMeta(_role: string, createdAt: Date) {
     const meta = document.createElement('div');
     meta.className = 'message-meta-inline';
 
@@ -132,7 +143,7 @@
     return meta;
   }
 
-  function buildMessageNode(role, content, opts = {}) {
+  function buildMessageNode(role: string, content: string, opts: MessageOptions = {}) {
     const wrapper = document.createElement('div');
     wrapper.className = `message-row ${role === 'user' ? 'is-user' : 'is-assistant'}`;
     wrapper.dataset.role = role;
@@ -153,24 +164,20 @@
     return { wrapper, bubble, contentEl };
   }
 
-  function appendMessage(role, content, opts = {}) {
+  function appendMessage(role: string, content: string, opts: MessageOptions = {}) {
     const shouldForceScroll = opts.forceScroll === true;
-    const wasNearBottom = isUserNearBottom();
-
+    isUserNearBottom();
+    
     const { wrapper, bubble, contentEl } = buildMessageNode(role, content, opts);
     if (opts.id) wrapper.id = opts.id;
 
     messagesContainer.appendChild(wrapper);
     requestAnimationFrame(() => bubble.classList.add('is-visible'));
-
-    if (shouldForceScroll || wasNearBottom) {
-      maybeScrollToBottom(true);
-    }
-
+    maybeScrollToBottom(shouldForceScroll);
     return { wrapper, bubble, contentEl };
   }
 
-  function updateMessage(id, newContent) {
+  function updateMessage(id: string, newContent: string): void {
     const shouldStayAtBottom = isUserNearBottom();
     const wrapper = document.getElementById(id);
     if (!wrapper) return;
@@ -185,7 +192,7 @@
     }
   }
 
-  function showTypingIndicator() {
+  function showTypingIndicator(): void {
     if (typingIndicatorEl) return;
 
     const wasNearBottom = isUserNearBottom();
@@ -213,13 +220,14 @@
     }
   }
 
-  function hideTypingIndicator() {
+  function hideTypingIndicator(): void {
     if (!typingIndicatorEl) return;
     typingIndicatorEl.remove();
     typingIndicatorEl = null;
+    maybeScrollToBottom();
   }
 
-  function appendErrorMessage(failedMessage) {
+  function appendErrorMessage(failedMessage: string): void {
     const wasNearBottom = isUserNearBottom();
 
     const wrapper = document.createElement('div');
@@ -257,7 +265,7 @@
     }
   }
 
-  function animateSendInteraction() {
+  function animateSendInteraction(): void {
     form.classList.remove('send-pressed');
     void form.offsetWidth;
     form.classList.add('send-pressed');
@@ -273,7 +281,7 @@
     }, 420);
   }
 
-  async function sendMessage(userMessage, opts = {}) {
+  async function sendMessage(userMessage: string, opts: ChatOptions = {}): Promise<void> {
     if (isSending) return;
     isSending = true;
 
@@ -391,7 +399,7 @@
         const data = await response.json();
         const indicator = document.getElementById('quota-indicator');
         const count = indicator?.querySelector('.quota-count');
-        if (count) {
+        if (count && indicator) {
           count.textContent = `${data.today}/${data.limit}`;
           if (data.today >= data.limit) {
             indicator.classList.add('is-exhausted');
