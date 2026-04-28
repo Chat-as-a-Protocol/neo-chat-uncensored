@@ -7,6 +7,8 @@
 Base URL dev  : http://localhost:3001
 Base URL prod : $PUBLIC_API_URL
 Auth          : Bearer <neo_token> (JWT)
+Content-Type  : application/json
+Body limit    : 64kb
 ========================================
 ```
 
@@ -14,19 +16,18 @@ Auth          : Bearer <neo_token> (JWT)
 
 ### `POST /api/chat`
 
-Proxy para Venice AI com streaming SSE.
+Proxy para Venice AI com streaming SSE. System prompt carregado de cache.
 
 **Auth:** obrigatória  
-**Rate limit:** 10 req/min (free) · 60 req/min (premium)  
-**Quota:** verificada antes de cada request
+**Rate limit:** 10 req/min (free) · 60 req/min (premium, via Redis tier)  
+**Quota:** verificada antes de cada request (ledger diário)
 
-**Body:**
+**Body (validado com Zod):**
 
 ```json
 {
   "messages": [
-    { "role": "system", "content": "..." },
-    { "role": "user", "content": "..." }
+    { "role": "user", "content": "string (1–32000 chars)" }
   ],
   "model": "venice-uncensored-1-2",
   "stream": true,
@@ -35,8 +36,20 @@ Proxy para Venice AI com streaming SSE.
 }
 ```
 
+**Limites:** `messages` mín. 1, máx. 50 itens · `role` enum: `system|user|assistant`  
+**Timeout Venice:** 30s (configurável via `VENICE_TIMEOUT_MS`)
+
 **Resposta (stream=true):** `text/event-stream` — formato SSE padrão OpenAI  
-**Resposta (stream=false):** JSON com `{ ...veniceResponse, quota: { used, limit, remaining } }`
+**Resposta (stream=false):**
+
+```json
+{
+  "...veniceResponse",
+  "quota": { "used": 42, "limit": 100, "remaining": 58 }
+}
+```
+
+**Erros:** 400 (validação) · 401 (token) · 403 (quota) · 429 (rate limit) · 502 (Venice) · 504 (timeout)
 
 ────────────────────────────────────────
 
@@ -44,7 +57,7 @@ Proxy para Venice AI com streaming SSE.
 
 ### `GET /api/models`
 
-Lista modelos de texto disponíveis na Venice AI.
+Lista modelos de texto disponíveis na Venice AI. Timeout interno de 10s.
 
 **Auth:** obrigatória
 
@@ -61,7 +74,7 @@ Lista modelos de texto disponíveis na Venice AI.
 
 ────────────────────────────────────────
 
-## ⟠ Quota
+## ⟠ Quota e Ledger
 
 ### `GET /api/usage`
 
@@ -80,6 +93,30 @@ Consumo diário do usuário autenticado.
 }
 ```
 
+### `GET /api/ledger`
+
+Extrato completo de créditos/débitos do usuário (máx. 1000 entradas).
+
+**Auth:** obrigatória
+
+**Resposta:**
+
+```json
+{
+  "balance": 99958,
+  "statement": [
+    {
+      "id": "uuid",
+      "userId": "user_sha256",
+      "amount": -42,
+      "type": "CONSUMPTION",
+      "reference": "venice_stream_uuid",
+      "createdAt": 1714320000000
+    }
+  ]
+}
+```
+
 ────────────────────────────────────────
 
 ## ⟠ Auth
@@ -93,7 +130,7 @@ Consumo diário do usuário autenticado.
 ```json
 {
   "name": "string (1–100)",
-  "email": "string email válido",
+  "email": "email válido (máx 254)",
   "password": "string (8–128 chars)"
 }
 ```
@@ -102,18 +139,21 @@ Consumo diário do usuário autenticado.
 
 ```json
 {
-  "token": "<JWT 7d>",
-  "user": { "id", "email", "name", "tier": "free" }
+  "token": "<JWT>",
+  "user": { "id": "user_sha256", "email", "name", "tier": "free" }
 }
 ```
 
 **Erros:** 400 (validação) · 409 (email já existe)
 
+> **Nota:** O `id` retornado é um hash SHA-256 unidirecional do email — não reversível.
+
 ────────────────────────────────────────
 
 ### `POST /api/auth/login`
 
-**Rate limit:** 10 req / 15 min por IP
+**Rate limit:** 10 req / 15 min por IP  
+**Timing-safe:** bcrypt sempre executado, mesmo para emails inexistentes (previne user enumeration)
 
 **Body:**
 
@@ -128,8 +168,8 @@ Consumo diário do usuário autenticado.
 
 ```json
 {
-  "token": "<JWT 7d>",
-  "user": { "id", "email", "tier" }
+  "token": "<JWT>",
+  "user": { "id": "user_sha256", "email", "tier" }
 }
 ```
 
@@ -137,20 +177,55 @@ Consumo diário do usuário autenticado.
 
 ────────────────────────────────────────
 
-## ⟠ Pagamentos (Fase 2 — FlowPay)
+## ⟠ Pagamentos (FlowPay)
 
-### `POST /flowpay/create-charge`
+### `POST /api/flowpay/create-charge`
 
-**Auth:** obrigatória
+**Auth:** obrigatória  
+**Timeout FlowPay:** 10s
+
+**Body:**
+
+```json
+{ "plan": "pro" }
+```
 
 **Resposta:**
 
 ```json
-{ "url": "https://flowpay.cash/checkout/..." }
+{ "checkoutUrl": "https://flowpay.cash/checkout/..." }
 ```
+
+**Erros:** 400 (plano inválido) · 503 (chave não configurada) · 502 (FlowPay error) · 504 (timeout)
+
+────────────────────────────────────────
 
 ### `POST /webhooks/flowpay`
 
-Consumer interno do Nexus. Não chamado diretamente.  
-Valida `X-Nexus-Signature` (HMAC-SHA256).  
-Evento: `FLOWPAY:PAYMENT_RECEIVED`.
+Consumer interno do Nexus. **Nunca chamado diretamente pelo frontend.**
+
+**Segurança:** `X-Nexus-Signature` obrigatório — HMAC-SHA256 com `timingSafeEqual`  
+**Body limit:** 16kb  
+**Evento tratado:** `FLOWPAY:PAYMENT_RECEIVED`
+
+**Ação ao receber evento:**
+- `tier:{userId}` → `"pro"` (Redis SET)
+- `ledger:{userId}` → entrada `+100000` tipo `PURCHASE`
+
+**Resposta 200:**
+
+```json
+{ "status": "success", "message": "Tier updated." }
+```
+
+**Erros:** 400 (payload inválido) · 401 (assinatura inválida)
+
+────────────────────────────────────────
+
+## ⟠ Health
+
+### `GET /health`
+
+```json
+{ "status": "ok", "uptime": 3600.42, "timestamp": "2026-04-28T20:00:00.000Z" }
+```

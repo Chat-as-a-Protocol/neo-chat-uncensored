@@ -1,86 +1,121 @@
-# Title: NØX.ai (Neo-Chat-Uncensored)
+# NØX.ai · neo-chat-uncensored
 
 ```text
 ========================================
      NØX.ai · PROCESSING ENGINE
 ========================================
+Version  : v2.1.0
+Status   : Operational
+Framework: Astro 6.x · Node 22+ · Express
+Protocol : NΞØ Nexus / FlowPay (No Stripe)
+========================================
 ```
 
 ![neo-chat-uncensored banner](./public/neo-chat-uncensored-banner.svg)
 
-> **Version:** v2.0.0 (Processing Engine)  
-> **Status:** Operational · Blasé Persona Ativa
-> **Framework:** Astro 6.x / Node 22+
-> **Protocol:** NΞØ Nexus / FlowPay (No Stripe)
+> **Stack:** Astro 6 · Express · Redis · Venice AI · FlowPay  
+> **Auth:** JWT (bcrypt + SHA-256 userId)  
+> **Pagamentos:** FlowPay via Nexus (HMAC-SHA256 validado)  
+> **Testes:** Node:test nativo · 12/12 passando
 
 ## ⟠ Objetivo
 
-Interface soberana e minimalista para processamento de modelos de IA sem censura. 
-A NØX.ai opera como uma engine técnica, removendo verniz social e focando em saída bruta de dados.
-
-O sistema utiliza arquitetura Astro 6 nativa, garantindo performance instantânea, 
-integridade de contexto e comunicação via SSE (Server-Sent Events).
+Interface soberana e minimalista para processamento de IA sem censura.
+Arquitetura monorepo com frontend Astro 6 (static) e backend Express isolado.
+Streaming SSE nativo, ledger soberano de consumo e pagamentos via FlowPay.
 
 ────────────────────────────────────────
 
 ## ⧉ Arquitetura
 
-O ecossistema é uma implementação canônica do NΞØ Protocol, utilizando FlowPay como gateway único e Nexus como barramento de eventos.
-
 ```text
 ▓▓▓ SYSTEM TOPOLOGY
 ────────────────────────────────────────
-└─ Root (Astro 6.x)
-   ├─ src/pages/ (Static Routes)
-   ├─ src/components/ (Astro/Vanilla Components)
-   └─ public/ (Static Assets & Logo)
-
-└─ Backend (Express/Node.js)
-   ├─ src/server.js (Core Logic)
-   └─ .env (Sensitive Context)
+Root (pnpm workspace)
+├─ Frontend (Astro 6 · static output)
+│   ├─ src/pages/            → Rotas estáticas (chat, login, upgrade...)
+│   ├─ src/components/       → AstroChatInterface, etc.
+│   └─ public/               → Assets e SVG banners
+│
+└─ Backend (Express · Node 22+)
+    ├─ src/server.js          → Core API
+    ├─ src/lib/redis.js       → Redis real (prod) ou mock in-memory (dev)
+    ├─ src/services/ledger.js → Ledger soberano de tokens
+    └─ src/utils/billing.js   → Estimativa de consumo SSE
 ────────────────────────────────────────
 ```
 
-### 1. Frontend (Astro)
+### Fluxo de dados
 
-Componentização baseada em Astro e scripts Vanilla JS.
-Utiliza Server-Sent Events (SSE) para streaming de tokens em tempo real.
-Design System: Glassmorphism / Cyberpunk (Tailwind CSS puro).
+```text
+1. Usuário → POST /api/chat (JWT Bearer)
+2. authenticateToken → createUserRateLimit → checkQuota
+3. Backend proxia Venice AI com AbortController (timeout 30s)
+4. Stream SSE pipe → cliente em tempo real
+5. ledgerService.addEntry (assíncrono, não bloqueia resposta)
+```
 
-### 2. Backend (Proxy)
+### Fluxo de pagamento
 
-Gateway seguro para a Venice AI API.
-Gerenciamento de rate limiting, quotas diárias e integração com Stripe.
-Bypass de autenticação em modo desenvolvimento para agilidade operacional.
+```text
+1. Usuário → POST /api/flowpay/create-charge
+2. Backend → FlowPay API → retorna checkoutUrl
+3. Usuário completa pagamento em flowpay.cash
+4. FlowPay → Nexus → POST /webhooks/flowpay (X-Nexus-Signature)
+5. Backend: HMAC-SHA256 timingSafeEqual → tier:userId = "pro" + 100k créditos
+```
 
 ────────────────────────────────────────
 
-## ⨷ Comandos
-
-Todos os comandos devem ser executados via `pnpm` para garantir consistência do lockfile.
+## ⨷ Comandos (Makefile)
 
 ```bash
-# Inicializar ambiente e dependências
-make install
-
-# Iniciar ecossistema completo (FE + BE)
-make dev
-
-# Auditoria de segurança e integridade
-make audit
-make verify
-
-# Build de produção
-make build
+make install   # Instala todas as dependências (pnpm workspaces)
+make dev       # Inicia FE (Astro :4321) + BE (Express :3001) simultaneamente
+make dev-fe    # Apenas o frontend
+make dev-be    # Apenas o backend
+make check     # Gate completo: verify + audit + test + lint
+make build     # Build de produção (Astro static)
+make clean     # Remove dist/, .astro/ e node_modules/
+make push      # Secure Gate: check + build + git status
 ```
 
 ────────────────────────────────────────
 
 ## ⍟ Segurança
 
-- **Zero Bloat**: Removido Framer Motion, Zustand e React-Three-Fiber.
-- **Privacy First**: Chaves de API nunca tocam o cliente; processamento via proxy.
-- **Context Engineering**: Manifestos de integridade em `docs/CONTEXT.md`.
+- **HMAC-SHA256 obrigatório** em webhooks FlowPay com `timingSafeEqual`
+- **SHA-256 unidirecional** para geração de userId (sem reversibilidade)
+- **Timing-safe login** — bcrypt sempre executado (previne user enumeration)
+- **Zod validation** em todas as rotas com schemas definidos no módulo
+- **JSON body limit** de 64kb (anti-DoS)
+- **CORS validado** por origem — sem wildcard em produção
+- **CSP headers** via helmet com whitelist da Venice AI
+- **Ledger ltrim** — máx. 1000 entradas/usuário (anti-memory leak)
+- **Graceful shutdown** — SIGTERM/SIGINT tratados com fechamento ordenado
+
+────────────────────────────────────────
+
+## ◬ Variáveis de Ambiente
+
+Copie `.env.example` para `.env` e preencha:
+
+```bash
+cp .env.example .env
+```
+
+| Variável | Descrição | Obrigatória em Prod |
+|---|---|---|
+| `VENICE_API_KEY` | Chave Venice AI | ✅ |
+| `JWT_SECRET` | Secret de assinatura JWT | ✅ |
+| `FRONTEND_URL` | URL do frontend (CORS) | ✅ |
+| `FLOWPAY_API_KEY` | Chave FlowPay | ✅ |
+| `FLOWPAY_WEBHOOK_SECRET` | Secret HMAC dos webhooks | ✅ |
+| `REDIS_URL` | URL Redis (Railway auto-injeta) | ✅ |
+| `VENICE_MODEL` | Modelo padrão Venice | ➖ |
+| `VENICE_TIMEOUT_MS` | Timeout Venice (padrão: 30000) | ➖ |
+| `FLOWPAY_PLAN_AMOUNT` | Valor BRL do PRO (padrão: 49) | ➖ |
+| `PORT` | Porta do backend (padrão: 3001) | ➖ |
 
 ────────────────────────────────────────
 
