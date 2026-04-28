@@ -5,7 +5,7 @@
 # Version: 1.3.0 (Quality Gate Integrated)
 # ========================================
 
-.PHONY: help init install dev dev-fe dev-be stop check verify audit lint build push clean logs
+.PHONY: help init install dev dev-fe dev-be stop check verify audit test lint build push clean logs
 
 # --- CONFIGURATION ---
 PNPM = pnpm
@@ -28,9 +28,10 @@ help:
 	@echo "  logs          Visualiza logs em tempo real do backend"
 	@echo ""
 	@echo "3. QUALITY & CHECK (Obrigatório antes do Push)"
-	@echo "  check         Roda TUDO: verify + audit + lint"
+	@echo "  check         Roda TUDO: verify + audit + test + lint"
 	@echo "  verify        Valida integridade do ambiente e configurações"
 	@echo "  audit         Auditoria de segurança de dependências"
+	@echo "  test          Roda testes unitários do backend"
 	@echo "  lint          Verifica padrões de código (placeholder)"
 	@echo "  clean         Remove artefatos de build e node_modules"
 	@echo ""
@@ -75,7 +76,7 @@ logs:
 	tail -f backend/app.log
 
 # --- 3. QUALITY & CHECK ---
-check: verify audit lint
+check: verify audit test lint
 	@echo "✅ All checks passed successfully."
 
 verify:
@@ -90,6 +91,10 @@ verify:
 audit:
 	@echo "🛡️  Running Security Audit..."
 	$(PNPM) audit
+
+test:
+	@echo "🧪 Running Backend Tests..."
+	@cd backend && node --test src/**/*.test.js
 
 lint:
 	@echo "✨ Linting (via Astro check)..."

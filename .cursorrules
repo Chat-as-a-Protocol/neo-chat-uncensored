@@ -1,30 +1,39 @@
-# NΞØ Protocol · Frontend Canonical Rules (Astro)
+# NΞØ Protocol · Cursor Rules
 
-Este projeto é a interface soberana do ecossistema. Siga estas regras específicas ao atuar aqui:
+Este arquivo define os padrões canônicos para todos os agentes de IA operando no projeto `neo-chat-uncensored`. Siga estas regras rigorosamente.
 
-## 📚 Documentação Local
+## 1. Identidade e Contexto
+- **Projeto**: `neo-chat-uncensored` (Interface de Chat IA Soberana e sem Censura).
+- **Ecossistema**: Membro do **NEO Protocol**.
+- **Filosofia**: Soberania de dados, privacidade e resistência à censura.
+- **Stack**: Astro 6.x (Frontend), Node.js v20.x (Backend), Tailwind CSS, Redis (Ledger/Quotas), Venice AI (LLM).
 
-- Consulte `src/env.d.ts` para definições de variáveis de ambiente.
-- Respeite o `astro.config.mjs` para integrações de Tailwind e MDX.
+## 2. Regras de Código (Strict Sovereignty)
+- **TypeScript**: É proibido o uso de `any`. Toda variável e parâmetro deve ser tipado.
+- **Null-Safety**: Sempre trate elementos DOM e retornos de API como `| null`. Use `instanceof` para casts seguros.
+- **Estilo**: Use Tailwind CSS ou CSS Vanilla. Evite frameworks de componentes pesados (Bootstrap, MUI).
+- **Segurança**: Senhas devem usar `bcryptjs` (rounds >= 12). Segredos apenas em `.env`.
 
-## 🏗️ Regras de Desenvolvimento (Frontend)
+## 3. Protocolo de Pagamentos (PAYMENT_INGRESS_CANONICAL)
+- **Gateway**: Único gateway permitido é o **FlowPay**.
+- **Barramento**: Recebimento de eventos via **Nexus** (Event Hub).
+- **Webhook**: Implementado em `/webhooks/flowpay`. Deve validar `X-Nexus-Signature`.
+- **Ledger**: O saldo e consumo são controlados pelo `ledgerService` interno no Redis (Fase 0 concluída).
 
-### 1. Estética & UI
+## 4. Fluxo de Trabalho e Comandos
+- **Auditoria**: Sempre execute `make audit` (pnpm audit) antes de sugerir mudanças em dependências.
+- **Qualidade**: `make check` roda integridade, auditoria e lint (Astro check).
+- **Deploy**: O deploy é orquestrado via Railway. Mudanças na raiz afetam o Frontend; mudanças em `backend/` afetam a API.
+- **Git**: Siga Conventional Commits (`feat:`, `fix:`, `docs:`, etc.).
 
-- **Wow Aesthetics**: Interface premium é mandatória.
-- **Gradients & Glassmorphism**: Use o esquema de cores HSL definido no projeto.
-- **Micro-animações**: Todas as interações devem ter feedback visual suave.
+## 5. Estrutura de Arquivos
+- `src/pages/`: Rotas do Astro.
+- `src/components/`: Componentes UI e lógica de chat (`AstroChatInterface.astro`).
+- `backend/src/server.js`: Servidor Express único (Mantenha conciso).
+- `docs/`: Documentação técnica e estratégica (Consulte sempre `CONTEXT.md` e `ARCHITECTURE.md`).
 
-### 2. Stack Técnica
-
-- **Astro**: Use componentes `.astro` para lógica de servidor e componentes React apenas para ilhas de interatividade necessária.
-- **Tailwind CSS**: Utilize apenas as utilidades padrão; evite CSS inline fora do Tailwind, a menos que seja para animações complexas.
-- **Types**: Se encontrar erro em `import.meta.env`, execute `pnpm astro sync`.
-
-### 3. SEO & Performance
-
-- Toda página deve ter meta tags de SEO e título descritivo.
-- Imagens devem ser otimizadas usando o componente `<Image />` do Astro.
+## 6. Prompt de Sistema NØX.ai
+Ao gerar conteúdo para a persona da IA, consulte `docs/SYSTEM_PROMPT.md`. A persona deve ser direta, soberana e livre de filtros moralistas corporativos.
 
 ---
-*Referência Global: Consulte o .cursorrules na raiz para regras de Tom e teaBASE.*
+"Code is law. Expand until chaos becomes protocol." — NΞØ MELLØ
