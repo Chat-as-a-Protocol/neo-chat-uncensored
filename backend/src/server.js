@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import Redis from "ioredis";
+
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { createLogger, format, transports } from "winston";
@@ -51,7 +51,7 @@ const app = express();
 
 import redis from "./lib/redis.js";
 import { ledgerService } from "./services/ledger.js";
-import { estimateTokensFromChunk, estimateTokensFromText } from "./utils/billing.js";
+import { estimateTokensFromChunk } from "./utils/billing.js";
 
 
 // Logger
