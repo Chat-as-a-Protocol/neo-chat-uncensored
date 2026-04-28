@@ -1,0 +1,30 @@
+# NΞØ Protocol · Frontend Canonical Rules (Astro)
+
+Este projeto é a interface soberana do ecossistema. Siga estas regras específicas ao atuar aqui:
+
+## 📚 Documentação Local
+
+- Consulte `src/env.d.ts` para definições de variáveis de ambiente.
+- Respeite o `astro.config.mjs` para integrações de Tailwind e MDX.
+
+## 🏗️ Regras de Desenvolvimento (Frontend)
+
+### 1. Estética & UI
+
+- **Wow Aesthetics**: Interface premium é mandatória.
+- **Gradients & Glassmorphism**: Use o esquema de cores HSL definido no projeto.
+- **Micro-animações**: Todas as interações devem ter feedback visual suave.
+
+### 2. Stack Técnica
+
+- **Astro**: Use componentes `.astro` para lógica de servidor e componentes React apenas para ilhas de interatividade necessária.
+- **Tailwind CSS**: Utilize apenas as utilidades padrão; evite CSS inline fora do Tailwind, a menos que seja para animações complexas.
+- **Types**: Se encontrar erro em `import.meta.env`, execute `pnpm astro sync`.
+
+### 3. SEO & Performance
+
+- Toda página deve ter meta tags de SEO e título descritivo.
+- Imagens devem ser otimizadas usando o componente `<Image />` do Astro.
+
+---
+*Referência Global: Consulte o .cursorrules na raiz para regras de Tom e teaBASE.*

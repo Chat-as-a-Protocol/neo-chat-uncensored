@@ -4,29 +4,26 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  yaml: ^2.8.3
-
 importers:
 
   .:
     dependencies:
       '@astrojs/tailwind':
         specifier: ^5.1.0
-        version: 5.1.5(astro@6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@6.0.3)(yaml@2.8.3))(tailwindcss@3.4.19(yaml@2.8.3))
+        version: 5.1.5(astro@6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@5.7.3)(yaml@2.8.3))(tailwindcss@3.4.19(yaml@2.8.3))
       astro:
         specifier: ^6.1.6
-        version: 6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@6.0.3)(yaml@2.8.3)
+        version: 6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@5.7.3)(yaml@2.8.3)
       tailwindcss:
         specifier: ^3.4.1
         version: 3.4.19(yaml@2.8.3)
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.8
-        version: 0.9.8(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.8(prettier@3.8.3)(typescript@5.7.3)
       typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
+        specifier: ~5.7.3
+        version: 5.7.3
 
   backend:
     dependencies:
@@ -1818,7 +1815,7 @@ packages:
       jiti: '>=1.21.0'
       postcss: '>=8.0.9'
       tsx: ^4.8.1
-      yaml: ^2.8.3
+      yaml: ^2.4.2
     peerDependenciesMeta:
       jiti:
         optional: true
@@ -2175,8 +2172,8 @@ packages:
   typescript-auto-import-cache@0.3.6:
     resolution: {integrity: sha512-RpuHXrknHdVdK7wv/8ug3Fr0WNsNi5l5aB8MYYuXhq2UH5lnEB1htJ1smhtD5VeCsGr2p8mUDtd83LCQDFVgjQ==}
 
-  typescript@6.0.3:
-    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
+  typescript@5.7.3:
+    resolution: {integrity: sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -2332,7 +2329,7 @@ packages:
       sugarss: ^5.0.0
       terser: ^5.16.0
       tsx: ^4.8.1
-      yaml: ^2.8.3
+      yaml: ^2.4.2
     peerDependenciesMeta:
       '@types/node':
         optional: true
@@ -2491,6 +2488,11 @@ packages:
     resolution: {integrity: sha512-qhjK/bzSRZ6HtTvgeFvjNPJGWdZ0+x5NREV/9XZWFjIGezew2b4r5JPy66IfOhd5OA7KeFwk1JfmEbnTvev0cA==}
     hasBin: true
 
+  yaml@2.7.1:
+    resolution: {integrity: sha512-10ULxpnOCQXxJvBgxsn9ptjq6uviG/htZKk9veJGhlqn3w/DxQ631zFF+nlQXLwmImeS5amR2dl2U8sg6U9jsQ==}
+    engines: {node: '>= 14'}
+    hasBin: true
+
   yaml@2.8.3:
     resolution: {integrity: sha512-AvbaCLOO2Otw/lW5bmh9d/WEdcDFdQp2Z2ZUH3pX9U2ihyUY0nvLv7J6TrWowklRGPYbB/IuIMfYgxaCPg5Bpg==}
     engines: {node: '>= 14.6'}
@@ -2525,12 +2527,12 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@astrojs/check@0.9.8(prettier@3.8.3)(typescript@6.0.3)':
+  '@astrojs/check@0.9.8(prettier@3.8.3)(typescript@5.7.3)':
     dependencies:
-      '@astrojs/language-server': 2.16.6(prettier@3.8.3)(typescript@6.0.3)
+      '@astrojs/language-server': 2.16.6(prettier@3.8.3)(typescript@5.7.3)
       chokidar: 4.0.3
       kleur: 4.1.5
-      typescript: 6.0.3
+      typescript: 5.7.3
       yargs: 17.7.2
     transitivePeerDependencies:
       - prettier
@@ -2544,12 +2546,12 @@ snapshots:
     dependencies:
       picomatch: 4.0.4
 
-  '@astrojs/language-server@2.16.6(prettier@3.8.3)(typescript@6.0.3)':
+  '@astrojs/language-server@2.16.6(prettier@3.8.3)(typescript@5.7.3)':
     dependencies:
       '@astrojs/compiler': 2.13.1
       '@astrojs/yaml2ts': 0.2.3
       '@jridgewell/sourcemap-codec': 1.5.5
-      '@volar/kit': 2.4.28(typescript@6.0.3)
+      '@volar/kit': 2.4.28(typescript@5.7.3)
       '@volar/language-core': 2.4.28
       '@volar/language-server': 2.4.28
       '@volar/language-service': 2.4.28
@@ -2599,9 +2601,9 @@ snapshots:
     dependencies:
       prismjs: 1.30.0
 
-  '@astrojs/tailwind@5.1.5(astro@6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@6.0.3)(yaml@2.8.3))(tailwindcss@3.4.19(yaml@2.8.3))':
+  '@astrojs/tailwind@5.1.5(astro@6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@5.7.3)(yaml@2.8.3))(tailwindcss@3.4.19(yaml@2.8.3))':
     dependencies:
-      astro: 6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@6.0.3)(yaml@2.8.3)
+      astro: 6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@5.7.3)(yaml@2.8.3)
       autoprefixer: 10.5.0(postcss@8.5.10)
       postcss: 8.5.10
       postcss-load-config: 4.0.2(postcss@8.5.10)
@@ -3050,12 +3052,12 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@volar/kit@2.4.28(typescript@6.0.3)':
+  '@volar/kit@2.4.28(typescript@5.7.3)':
     dependencies:
       '@volar/language-service': 2.4.28
       '@volar/typescript': 2.4.28
       typesafe-path: 0.2.2
-      typescript: 6.0.3
+      typescript: 5.7.3
       vscode-languageserver-textdocument: 1.0.12
       vscode-uri: 3.1.0
 
@@ -3139,7 +3141,7 @@ snapshots:
 
   array-iterate@2.0.1: {}
 
-  astro@6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@6.0.3)(yaml@2.8.3):
+  astro@6.1.8(@types/node@25.6.0)(ioredis@5.10.1)(jiti@1.21.7)(rollup@4.60.2)(typescript@5.7.3)(yaml@2.8.3):
     dependencies:
       '@astrojs/compiler': 3.0.1
       '@astrojs/internal-helpers': 0.8.0
@@ -3184,7 +3186,7 @@ snapshots:
       tinyclip: 0.1.12
       tinyexec: 1.1.1
       tinyglobby: 0.2.16
-      tsconfck: 3.1.6(typescript@6.0.3)
+      tsconfck: 3.1.6(typescript@5.7.3)
       ultrahtml: 1.6.0
       unifont: 0.7.4
       unist-util-visit: 5.1.0
@@ -4930,9 +4932,9 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  tsconfck@3.1.6(typescript@6.0.3):
+  tsconfck@3.1.6(typescript@5.7.3):
     optionalDependencies:
-      typescript: 6.0.3
+      typescript: 5.7.3
 
   tslib@2.8.1:
     optional: true
@@ -4948,7 +4950,7 @@ snapshots:
     dependencies:
       semver: 7.7.4
 
-  typescript@6.0.3: {}
+  typescript@5.7.3: {}
 
   ufo@1.6.3: {}
 
@@ -5221,7 +5223,9 @@ snapshots:
       vscode-languageserver-textdocument: 1.0.12
       vscode-languageserver-types: 3.17.5
       vscode-uri: 3.1.0
-      yaml: 2.8.3
+      yaml: 2.7.1
+
+  yaml@2.7.1: {}
 
   yaml@2.8.3: {}
 
