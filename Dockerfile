@@ -9,6 +9,8 @@ RUN pnpm run build
 # Runtime Stage
 FROM node:22-slim
 RUN corepack enable
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
