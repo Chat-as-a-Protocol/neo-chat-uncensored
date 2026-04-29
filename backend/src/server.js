@@ -6,7 +6,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 
 import jwt from "jsonwebtoken";
-import { randomUUID } from "node:crypto";
+import crypto, { randomUUID } from "node:crypto";
 import { createLogger, format, transports } from "winston";
 import { z } from "zod";
 
@@ -71,9 +71,115 @@ app.use(
     credentials: true,
   }),
 );
+// ===== UTILS =====
+const getUserId = (email) => {
+  const emailLower = email.toLowerCase().trim();
+  return "user_" + crypto.createHash("sha256").update(emailLower).digest("hex").slice(0, 32);
+};
+
+const getLegacyUserId = (email) => {
+  return "user_" + Buffer.from(email).toString("base64");
+};
+
 // Trust the first proxy hop (Railway, etc.) so req.ip is the real client IP,
 // which is required for express-rate-limit to work correctly behind a reverse proxy.
 app.set("trust proxy", 1);
+
+// ===== WEBHOOKS (NΞØ Protocol) - MUST BE BEFORE express.json() =====
+
+/**
+ * Endpoint de Webhook para o FlowPay (via Nexus)
+ * Recebe notificações de pagamento e atualiza o tier do usuário.
+ */
+app.post(
+  "/webhooks/flowpay",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const signature = req.headers["x-nexus-signature"];
+    const secret = process.env.FLOWPAY_WEBHOOK_SECRET;
+
+    logger.info("[Webhook] Received FlowPay event from Nexus");
+
+    // Validar Assinatura HMAC-SHA256
+    if (process.env.NODE_ENV === "production" || secret) {
+      if (!signature) {
+        logger.warn("[Webhook] Missing signature");
+        return res.status(401).send("Unauthorized: Missing Signature");
+      }
+
+      if (!secret) {
+        logger.error("[Webhook] FLOWPAY_WEBHOOK_SECRET not configured");
+        return res.status(500).send("Configuration Error");
+      }
+
+      const hmac = crypto.createHmac("sha256", secret);
+      const digest = hmac.update(req.body).digest("hex");
+
+      try {
+        if (
+          !crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature))
+        ) {
+          logger.warn("[Webhook] Invalid signature");
+          return res.status(401).send("Unauthorized: Invalid Signature");
+        }
+      } catch (err) {
+        logger.error("[Webhook] Signature comparison error");
+        return res.status(401).send("Unauthorized");
+      }
+    }
+
+    try {
+      const payload = JSON.parse(req.body.toString());
+      const { event, data } = payload;
+
+      if (event === "FLOWPAY:PAYMENT_RECEIVED") {
+        const { userId, paymentId } = data;
+
+        if (!userId) {
+          throw new Error("Missing userId in payload");
+        }
+
+        const reference = paymentId || `flowpay_${Date.now()}`;
+
+        // Idempotency: check if this event was already processed
+        const lockKey = `webhook_processed:${reference}`;
+        const isNew = await redis.set(lockKey, "1", "NX", "EX", 86400); // 24h lock
+        if (!isNew) {
+          logger.info(`[Webhook] Event ${reference} already processed (Redis lock)`);
+          return res.status(200).json({ status: "success", message: "Already processed" });
+        }
+
+        // Atualiza o tier no Redis (Operação Idempotente por natureza no Redis)
+        await redis.set(`tier:${userId}`, "premium");
+
+        // Adiciona créditos no ledger (Idempotente via ledgerService.addEntry)
+        const entry = await ledgerService.addEntry(
+          userId,
+          100000, // 100k tokens para PRO
+          "PURCHASE",
+          reference,
+        );
+
+        if (!entry) {
+          logger.info(
+            `[Webhook] Event ${reference} already processed for user ${userId} in ledger`,
+          );
+          return res.status(200).json({ status: "success", message: "Already processed" });
+        }
+
+        logger.info(`[Webhook] User ${userId} upgraded to PREMIUM via FlowPay (${reference})`);
+        return res
+          .status(200)
+          .json({ status: "success", message: "Tier updated and credits added" });
+      }
+
+      res.status(200).json({ status: "ignored", message: "Event not handled" });
+    } catch (err) {
+      logger.error(`[Webhook] Error processing event: ${err.message}`);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+  },
+);
 
 app.use(express.json());
 
@@ -379,25 +485,39 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
   }
 
   const { email, password } = parsed.data;
-  const userId = "user_" + Buffer.from(email).toString("base64");
+  
+  // Try new SHA-256 scheme first
+  let userId = getUserId(email);
+  let passwordHash = await redis.get(`password:${userId}`);
 
-  const passwordHash = await redis.get(`password:${userId}`);
+  // Fallback to legacy base64 scheme
   if (!passwordHash) {
+    const legacyId = getLegacyUserId(email);
+    const legacyHash = await redis.get(`password:${legacyId}`);
+    if (legacyHash) {
+      userId = legacyId;
+      passwordHash = legacyHash;
+    }
+  }
+
+  // Timing-safe check
+  const dummyHash = "$2b$12$L7mX/vFkS5n7.n7.n7.n7.O5O5O5O5O5O5O5O5O5O5O5O5O5O5O5";
+  const actualHash = passwordHash || dummyHash;
+  const valid = await bcrypt.compare(password, actualHash);
+
+  if (!passwordHash || !valid) {
     return res.status(401).json({ error: "Invalid email or password." });
   }
 
-  const valid = await bcrypt.compare(password, passwordHash);
-  if (!valid) {
-    return res.status(401).json({ error: "Invalid email or password." });
-  }
+  const tier = (await redis.get(`tier:${userId}`)) || "free";
 
   const token = jwt.sign(
-    { id: userId, email, tier: "free" },
+    { id: userId, email, tier },
     effectiveJwtSecret,
     { expiresIn: "7d" },
   );
 
-  res.json({ token, user: { id: userId, email, tier: "free" } });
+  res.json({ token, user: { id: userId, email, tier } });
 });
 
 app.post("/api/auth/signup", authLimiter, async (req, res) => {
@@ -409,11 +529,13 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
   }
 
   const { email, name, password } = parsed.data;
-  const userId = "user_" + Buffer.from(email).toString("base64");
+  const userId = getUserId(email);
 
-  // Reject if account already exists
+  // Reject if account already exists (check both schemes to be safe)
   const existing = await redis.get(`password:${userId}`);
-  if (existing) {
+  const legacyExisting = await redis.get(`password:${getLegacyUserId(email)}`);
+  
+  if (existing || legacyExisting) {
     return res
       .status(409)
       .json({ error: "An account with this email already exists." });
@@ -471,6 +593,11 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
       process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
     const apiKey = process.env.FLOWPAY_API_KEY;
 
+    // Use a single canonical frontend URL for callbacks, even if multiple are allowed for CORS
+    const frontendBaseUrl = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(",")[0]
+      : "http://localhost:4321";
+
     const response = await fetch(`${flowpayUrl}/api/create-charge`, {
       method: "POST",
       headers: {
@@ -482,9 +609,9 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
         currency: "BRL",
         orderId: `nox_${randomUUID()}`,
         userId: req.user.id,
-        callbackUrl: `${process.env.FRONTEND_URL}/success`,
+        callbackUrl: `${frontendBaseUrl}/success`,
         metadata: {
-          plan: "pro",
+          plan: "premium",
         },
       }),
     });
@@ -503,93 +630,7 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
   }
 });
 
-// ===== WEBHOOKS (NΞØ Protocol) =====
-
-/**
- * Endpoint de Webhook para o FlowPay (via Nexus)
- * Recebe notificações de pagamento e atualiza o tier do usuário.
- */
-app.post(
-  "/webhooks/flowpay",
-  express.raw({ type: "application/json" }),
-  async (req, res) => {
-    const signature = req.headers["x-nexus-signature"];
-    const secret = process.env.FLOWPAY_WEBHOOK_SECRET;
-
-    logger.info("[Webhook] Received FlowPay event from Nexus");
-
-    // Validar Assinatura HMAC-SHA256
-    if (process.env.NODE_ENV === "production" || secret) {
-      if (!signature) {
-        logger.warn("[Webhook] Missing signature");
-        return res.status(401).send("Unauthorized: Missing Signature");
-      }
-
-      if (!secret) {
-        logger.error("[Webhook] FLOWPAY_WEBHOOK_SECRET not configured");
-        return res.status(500).send("Configuration Error");
-      }
-
-      const hmac = crypto.createHmac("sha256", secret);
-      const digest = hmac.update(req.body).digest("hex");
-
-      try {
-        if (
-          !crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature))
-        ) {
-          logger.warn("[Webhook] Invalid signature");
-          return res.status(401).send("Unauthorized: Invalid Signature");
-        }
-      } catch (err) {
-        logger.error("[Webhook] Signature comparison error");
-        return res.status(401).send("Unauthorized");
-      }
-    }
-
-    try {
-      const payload = JSON.parse(req.body.toString());
-      const { event, data } = payload;
-
-      if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-        const { userId, paymentId } = data;
-
-        if (!userId) {
-          throw new Error("Missing userId in payload");
-        }
-
-        const reference = paymentId || `flowpay_${Date.now()}`;
-
-        // Atualiza o tier no Redis (Operação Idempotente por natureza no Redis)
-        await redis.set(`tier:${userId}`, "pro");
-
-        // Adiciona créditos no ledger (Idempotente via ledgerService.addEntry)
-        const entry = await ledgerService.addEntry(
-          userId,
-          100000, // 100k tokens para PRO
-          "PURCHASE",
-          reference,
-        );
-
-        if (!entry) {
-          logger.info(
-            `[Webhook] Event ${reference} already processed for user ${userId}`,
-          );
-          return res.status(200).json({ status: "success", message: "Already processed" });
-        }
-
-        logger.info(`[Webhook] User ${userId} upgraded to PRO via FlowPay (${reference})`);
-        return res
-          .status(200)
-          .json({ status: "success", message: "Tier updated and credits added" });
-      }
-
-      res.status(200).json({ status: "ignored", message: "Event not handled" });
-    } catch (err) {
-      logger.error(`[Webhook] Error processing event: ${err.message}`);
-      res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-  },
-);
+// Webhook logic moved up before express.json() to preserve raw body for signature verification.
 
 // ===== START SERVER =====
 const PORT = process.env.PORT || 3001;

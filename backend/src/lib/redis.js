@@ -13,15 +13,30 @@ if (
   redis = new Redis(process.env.REDIS_URL);
 } else {
   const store = new Map();
+  const expiries = new Map();
+
+  const clearExpiry = (k) => {
+    if (expiries.has(k)) {
+      clearTimeout(expiries.get(k));
+      expiries.delete(k);
+    }
+  };
+
   redis = {
     get: async (k) => store.get(k) ?? null,
     set: async (k, v) => {
+      clearExpiry(k);
       store.set(k, v);
       return "OK";
     },
     setex: async (k, sec, v) => {
+      clearExpiry(k);
       store.set(k, v);
-      setTimeout(() => store.delete(k), sec * 1000);
+      const timer = setTimeout(() => {
+        store.delete(k);
+        expiries.delete(k);
+      }, sec * 1000);
+      expiries.set(k, timer);
       return "OK";
     },
     incr: async (k) => {
@@ -39,8 +54,17 @@ if (
       store.set(k, v.toString());
       return v;
     },
-    expire: async () => {},
+    expire: async (k, sec) => {
+      clearExpiry(k);
+      const timer = setTimeout(() => {
+        store.delete(k);
+        expiries.delete(k);
+      }, sec * 1000);
+      expiries.set(k, timer);
+      return 1;
+    },
     del: async (k) => {
+      clearExpiry(k);
       store.delete(k);
       return 1;
     },
@@ -63,7 +87,12 @@ if (
               store.set(k, v.toString());
               results.push([null, v]);
             } else if (op === "pexpire") {
-              setTimeout(() => store.delete(k), ms);
+              clearExpiry(k);
+              const timer = setTimeout(() => {
+                store.delete(k);
+                expiries.delete(k);
+              }, ms);
+              expiries.set(k, timer);
               results.push([null, 1]);
             }
           }
@@ -94,7 +123,11 @@ if (
       return 1;
     },
     // For testing purposes
-    _flush: () => store.clear(),
+    _flush: () => {
+      for (const timer of expiries.values()) clearTimeout(timer);
+      expiries.clear();
+      store.clear();
+    },
   };
 }
 
