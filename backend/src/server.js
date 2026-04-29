@@ -551,7 +551,7 @@ app.post(
       const { event, data } = payload;
 
       if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-        const { userId, paymentId, amount } = data;
+        const { userId, paymentId } = data;
 
         if (!userId) {
           throw new Error("Missing userId in payload");

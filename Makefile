@@ -143,3 +143,12 @@ save:
 	@echo "🚀 Enviando para o Nexus (GitHub)..."
 	@git push origin main
 	@echo "✅ Sincronização concluída com sucesso."
+
+# --- 6. UTILS ---
+seed:
+	@echo "🌱 Gerando usuário de teste..."
+	@node scripts/seed-test-user.js
+
+db-init:
+	@echo "🐘 Inicializando tabelas no PostgreSQL..."
+	@psql $(DATABASE_URL) -f backend/schema.sql

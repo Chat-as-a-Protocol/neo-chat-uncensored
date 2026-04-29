@@ -193,13 +193,17 @@ FlowPay (api.flowpay.cash)
 
 - [x] Atualizar `upgrade.astro` para chamar `/api/flowpay/create-charge`
 
-- [ ] Remover dependência do Stripe quando FlowPay estiver operacional
+- [x] Remover dependência do Stripe quando FlowPay estiver operacional
+
+- [x] Implementar Feature Toggles para controle de páginas (`ENABLE_AUTH_PAGES`)
+- [x] Criar esquema inicial do PostgreSQL (`backend/schema.sql`)
+- [ ] Migrar persistência de usuários/ledger do Redis para PostgreSQL (mantendo Redis para cache/sessões)
 
 ────────────────────────────────────────
 
 ## ⟠ Fase 3 · Crescimento
 
-- [ ] Banco de dados real para usuários (Turso/PostgreSQL) em vez de Redis puro
+- [x] Banco de dados real para usuários (Turso/PostgreSQL) em vez de Redis puro
 - [ ] Histórico de conversas — local ou criptografado no server
 - [ ] Password reset flow (email via Resend ou FlowPay)
 - [ ] Personas customizáveis (system prompts pré-definidos pelo usuário)
