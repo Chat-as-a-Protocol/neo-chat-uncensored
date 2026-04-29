@@ -8,7 +8,7 @@
 
   <!-- Logo Section -->
   <g transform="translate(60, 60)">
-    <text x="0" y="40" fill="white" font-family="monospace" font-size="64" font-weight="bold">NΞØ CHAT</text>
+    <text x="0" y="40" fill="white" font-family="monospace" font-size="64" font-weight="bold">NØX.ai</text>
     <rect x="0" y="60" width="340" height="4" fill="url(#grad1)"/>
     <text x="0" y="100" fill="#94A3B8" font-family="monospace" font-size="24">UNCENSORED AI SYSTEM</text>
   </g>
@@ -33,7 +33,7 @@
     <rect x="720" y="0" width="340" height="160" rx="12" fill="#0F172A" stroke="#1E293B"/>
     <text x="740" y="40" fill="#10B981" font-family="monospace" font-size="18" font-weight="bold">⟠ INTEGRATION</text>
     <text x="740" y="75" fill="#CBD5E1" font-family="monospace" font-size="14">Venice AI Proxy</text>
-    <text x="740" y="100" fill="#CBD5E1" font-family="monospace" font-size="14">Stripe Webhooks</text>
+    <text x="740" y="100" fill="#CBD5E1" font-family="monospace" font-size="14">FlowPay / Nexus</text>
     <text x="740" y="125" fill="#CBD5E1" font-family="monospace" font-size="14">Context Manifests</text>
   </g>
 
