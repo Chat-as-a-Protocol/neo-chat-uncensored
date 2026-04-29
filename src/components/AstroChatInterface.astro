@@ -478,10 +478,11 @@
 <style>
   .chat-ui-shell {
     width: 100%;
-    height: 100svh; /* FORÇANDO ALTURA TOTAL DO VIEWPORT */
+    max-width: 480px; /* Largura limitada para mobile-feel no desktop */
+    height: 100svh;
     display: flex;
     flex-direction: column;
-    margin: 0;
+    margin: 0 auto; /* Centraliza */
     padding: 0;
     position: relative;
     z-index: 1;
@@ -589,15 +590,15 @@
   }
 
   .messages-container {
-    flex: 1; /* Ocupa todo o meio */
+    flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 20px;
-    padding-top: 20px;
-    padding-bottom: 120px; /* Respiro para o input */
+    padding: 16px;
+    padding-top: 10px;
+    padding-bottom: 120px;
     width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
+    max-width: 100%; /* Herda do shell */
+    margin: 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
@@ -607,11 +608,11 @@
     position: sticky;
     bottom: 0;
     width: 100%;
-    max-width: 800px; /* Mantém o input em uma largura legível */
-    margin: 0 auto;
-    padding: 16px;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
-    background: transparent; /* FUNDO REMOVIDO */
+    max-width: 100%; /* Herda do shell */
+    margin: 0;
+    padding: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    background: transparent;
     backdrop-filter: none;
     border-top: none;
     z-index: 20;
@@ -730,7 +731,7 @@
   }
 
   :global(.message-bubble) {
-    max-width: min(760px, 86%);
+    max-width: 92%; /* Ajustado para largura menor da coluna */
     font-size: clamp(18px, 1.06vw, 22px);
     line-height: 1.48;
     border-radius: 16px;
