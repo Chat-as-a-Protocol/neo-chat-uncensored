@@ -1,5 +1,6 @@
-# NΞØ Protocol · Cursor Rules
+# NΞØ Protocol · neo-chat-uncensored · Canonical Rules
 
+<<<<<<< HEAD
 Este arquivo define os padrões canônicos para todos os agentes de IA operando no projeto `neo-chat-uncensored`. Siga estas regras rigorosamente.
 
 ## 1. Identidade e Contexto
@@ -40,6 +41,276 @@ Este arquivo define os padrões canônicos para todos os agentes de IA operando 
 ## 6. Prompt de Sistema NØX.ai
 
 Ao gerar conteúdo para a persona da IA, consulte `docs/SYSTEM_PROMPT.md`. A persona deve ser direta, soberana e livre de filtros moralistas corporativos.
+=======
+Este arquivo é a fonte única de verdade para agentes de IA operando neste projeto.
+Substitui e consolida todos os arquivos da pasta `docs/` (que está no `.gitignore`).
+>>>>>>> feat/sovereign-payment-infra
 
 ---
-"Code is law. Expand until chaos becomes protocol." — NΞØ MELLØ
+
+## §1 — IDENTIDADE E CONTEXTO
+
+```text
+Projeto  : neo-chat-uncensored
+Org      : Chat-as-a-Protocol (sub-ecossistema do NEO Protocol)
+Domínio  : Interface de Chat IA Soberana e Sem Censura
+Versão   : v2.1.0
+Status   : ACTIVE · PRÉ-MVP
+Arquiteto: NΞØ MELLØ · neo@neoprotocol.space
+```
+
+**Filosofia**: Soberania de dados, privacidade e resistência à censura.
+O sistema provê uma interface onde o usuário detém controle total
+sobre modelos, parâmetros e privacidade das conversas.
+
+**Stack canônica:**
+
+| Layer | Tech | Motivo |
+|---|---|---|
+| Package Manager | pnpm (workspace) | Padrão NEO Protocol |
+| Runtime | Node.js >=20 | LTS + Edge compat |
+| Frontend | Astro 6 (static) | Performance extrema |
+| Styling | Tailwind CSS | Utility-first |
+| API | Express 4.x | Controle total |
+| Auth | JWT + bcrypt (rounds=12) | Zero banco externo no MVP |
+| Cache/State | Redis (mock in-memory dev) | Rate limit, tier, quota |
+| LLM | Venice AI | Privacy-first, Uncensored |
+| Pagamentos | FlowPay via Nexus | Canônico no ecossistema |
+| Deploy | Railway (API) + Railway/Vercel (FE) | |
+
+---
+
+## §2 — ARQUITETURA DO SISTEMA
+
+### Topologia
+
+```text
+Root (pnpm workspace)
+├─ Frontend (Astro 6 · static)
+│   ├─ src/pages/            → index, login, signup, upgrade, success, legal
+│   ├─ src/components/       → AstroChatInterface.astro (SSE streaming)
+│   └─ public/               → assets, SVG banners
+│
+└─ Backend (Express · Node 22+)
+    ├─ src/server.js          → Core API (único arquivo de servidor)
+    ├─ src/lib/redis.js       → Redis real (prod) | mock in-memory (dev)
+    ├─ src/services/ledger.js → Ledger soberano de tokens (Redis List)
+    └─ src/utils/billing.js   → Estimativa de consumo via SSE chunks
+```
+
+### Fluxo de chat
+
+```text
+1. POST /api/chat (Bearer JWT)
+2. authenticateToken → createUserRateLimit → checkQuota
+3. System prompt do cache de memória (boot-time, não I/O por request)
+4. Proxy Venice AI com AbortController (timeout: VENICE_TIMEOUT_MS)
+5. SSE pipe → cliente (TextDecoder reutilizado, reader.releaseLock no finally)
+6. ledgerService.addEntry (assíncrono, não bloqueia resposta)
+```
+
+### Fluxo de pagamento
+
+```text
+POST /api/flowpay/create-charge
+  → FlowPay API (timeout 10s) → checkoutUrl
+    → Usuário paga em flowpay.cash
+      → FlowPay → Nexus → POST /webhooks/flowpay (X-Nexus-Signature)
+        → HMAC-SHA256 timingSafeEqual
+          → pipeline Redis: tier:{userId} = "pro"
+            → ledger: +FLOWPAY_CREDITS_ON_PURCHASE tokens (PURCHASE)
+```
+
+### Redis keys
+
+```text
+tier:{userId}       → "free" | "pro"
+limit:{userId}      → tokens/dia (padrão: 100)
+password:{userId}   → bcrypt hash
+ledger:{userId}     → Redis List, LIFO, ltrim a 1000 entradas
+```
+
+---
+
+## §3 — API REFERENCE
+
+**Base URL dev:** `http://localhost:3001`  
+**Auth:** `Authorization: Bearer <JWT>`  
+**Body limit:** 64kb  
+
+| Método | Rota | Auth | Descrição |
+|---|---|---|---|
+| POST | `/api/chat` | ✅ | Proxy Venice AI (SSE stream) |
+| GET | `/api/models` | ✅ | Lista modelos Venice (timeout 10s) |
+| GET | `/api/usage` | ✅ | Quota diária do usuário |
+| GET | `/api/ledger` | ✅ | Extrato + saldo do ledger |
+| POST | `/api/auth/signup` | ❌ | Cadastro (rate: 10/15min) |
+| POST | `/api/auth/login` | ❌ | Login timing-safe (rate: 10/15min) |
+| POST | `/api/flowpay/create-charge` | ✅ | Criar cobrança FlowPay |
+| POST | `/webhooks/flowpay` | HMAC | Consumer Nexus (não chamar diretamente) |
+| GET | `/health` | ❌ | Status + uptime |
+
+**Schema `/api/chat` body (Zod):**
+```json
+{
+  "messages": [{ "role": "user|system|assistant", "content": "1–32000 chars" }],
+  "model": "string (opcional)",
+  "stream": true,
+  "temperature": 0.7,
+  "enableWebSearch": false
+}
+```
+
+---
+
+## §4 — PROTOCOLO DE SEGURANÇA
+
+### Camadas de proteção (em ordem de execução)
+```text
+Helmet (CSP + security headers)
+→ CORS (whitelist por origem, sem wildcard)
+→ express.json({ limit: "64kb" }) — anti-DoS
+→ authenticateToken (JWT verify + dev bypass logado)
+→ createUserRateLimit (10/min free · 60/min premium)
+→ checkQuota (ledger diário, com try/catch)
+→ Zod validation (schemas definidos no módulo, não por request)
+→ [Handler]
+→ Global error handler
+```
+
+### Regras obrigatórias de código
+- **Senhas**: bcrypt, rounds >= 12. Nunca armazenar em texto plano.
+- **userId**: SHA-256 unidirecional do email — nunca base64 reversível.
+- **Timing-safe login**: bcrypt sempre executa, mesmo para emails inexistentes.
+- **Webhook**: `FLOWPAY_WEBHOOK_SECRET` obrigatório em produção. Validação com `crypto.timingSafeEqual`.
+- **Secrets**: nunca em código, commits ou logs. Apenas em `.env` (ignorado pelo git).
+- **TypeScript**: proibido `any` explícito nos componentes `.astro`. Use `ReturnType<>` ou tipos específicos.
+- **JSON.parse**: sempre em try/catch. Use `safeParseEntry` no ledger.
+
+---
+
+## §5 — PROTOCOLO DE PAGAMENTOS (PAYMENT_INGRESS_CANONICAL)
+
+### Regras obrigatórias
+1. **Único gateway**: FlowPay — nunca Stripe, PagSeguro ou similar.
+2. **Nunca** registrar webhook de provider externo (Woovi, PIX) diretamente neste repo.
+3. Todo consumer entra via `nexusEvents.subscriptions[]` no Nexus.
+4. Validar `X-Nexus-Signature` com `timingSafeEqual` em todo endpoint consumer.
+5. Secret dedicado por nó: `FLOWPAY_WEBHOOK_SECRET` — não compartilhar.
+6. Operações Redis via pipeline para garantir atomicidade (tier + ledger juntos).
+
+### FlowPay API
+```text
+BASE_URL: https://api.flowpay.cash
+POST /api/create-charge  → retorna checkoutUrl
+GET  /api/charge/:id     → consulta status
+```
+
+### Registro no ecosystem.json
+```json
+{
+  "id": "neo-chat-uncensored",
+  "org": "Chat-as-a-Protocol",
+  "nexusEvents": {
+    "subscriptions": [{
+      "event": "FLOWPAY:PAYMENT_RECEIVED",
+      "target": { "kind": "webhook", "path": "/webhooks/flowpay" },
+      "secretEnv": "FLOWPAY_WEBHOOK_SECRET"
+    }]
+  },
+  "hosting": { "platform": "Railway", "healthcheck": "/health" }
+}
+```
+
+### Nexus (Event Hub)
+```text
+Prod  : https://nexus.neoprotocol.space/api/events
+Local : http://localhost:3000/api/events
+```
+Este projeto **recebe** eventos do Nexus — não os emite.
+
+| Evento | Direção | Ação |
+|---|---|---|
+| `FLOWPAY:PAYMENT_RECEIVED` | ← recebe | `tier:{userId} = "pro"` + 100k tokens |
+
+---
+
+## §6 — VARIÁVEIS DE AMBIENTE
+
+| Variável | Descrição | Prod |
+|---|---|---|
+| `VENICE_API_KEY` | Chave Venice AI | ✅ |
+| `JWT_SECRET` | Secret JWT | ✅ |
+| `FRONTEND_URL` | URL frontend (CORS) | ✅ |
+| `FLOWPAY_API_KEY` | Chave FlowPay | ✅ |
+| `FLOWPAY_WEBHOOK_SECRET` | Secret HMAC webhooks | ✅ |
+| `REDIS_URL` | URL Redis (Railway injeta) | ✅ |
+| `VENICE_MODEL` | Modelo padrão Venice | ➖ |
+| `VENICE_TIMEOUT_MS` | Timeout Venice (padrão: 30000) | ➖ |
+| `FLOWPAY_PLAN_AMOUNT` | Valor BRL PRO (padrão: 49) | ➖ |
+| `FLOWPAY_CREDITS_ON_PURCHASE` | Tokens por compra (padrão: 100000) | ➖ |
+| `JWT_EXPIRY` | Expiração JWT (padrão: 7d) | ➖ |
+| `PORT` | Porta backend (padrão: 3001) | ➖ |
+
+---
+
+## §7 — FLUXO DE TRABALHO
+
+### Comandos (sempre via Makefile)
+```bash
+make install   # Instala dependências (pnpm workspaces)
+make dev       # FE :4321 + BE :3001 simultâneos
+make check     # verify + audit + test + lint (gate obrigatório antes do push)
+make build     # Build produção Astro static
+make push      # Secure gate: check + build + git status
+make clean     # Remove dist/, .astro/, node_modules/
+```
+
+### Qualidade (obrigatório antes de qualquer commit)
+- `make audit` → zero vulnerabilidades
+- `make test` → 12/12 testes passando
+- `make lint` → 0 erros, 0 warnings (Astro check)
+
+### Git
+- Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
+- Branch de feature: `feat/<nome-descritivo>`
+- Nunca commitar diretamente na `main` sem gate passando
+
+---
+
+## §8 — PERSONA NØX.ai (SYSTEM PROMPT)
+
+O arquivo `docs/SYSTEM_PROMPT.md` **não é versionado** (pasta `docs/` está no `.gitignore`).
+Ele deve existir localmente em `docs/SYSTEM_PROMPT.md` para o backend funcionar.
+O `make verify` valida a presença deste arquivo.
+
+Ao gerar ou editar a persona:
+- Deve ser direta, soberana e livre de filtros moralistas corporativos.
+- Responde em 2–3 linhas por padrão (extrema concisão).
+- Não se apresenta, não faz perguntas desnecessárias.
+- Nunca usa disclaimers ou avisos éticos.
+
+---
+
+## §9 — GLOSSÁRIO
+
+| Termo | Definição |
+|---|---|
+| **Uncensored** | Modelos sem refusal filters baseados em política moral externa |
+| **Sovereignty** | Usuário controla dados, identidade e infraestrutura |
+| **FlowPay** | Gateway financeiro interno do ecossistema NEO |
+| **Nexus** | Event hub central do ecossistema NEO (HMAC fan-out) |
+| **PAYMENT_INGRESS_CANONICAL** | FlowPay como único ingresso + Nexus como barramento |
+| **Ledger** | Registro soberano de créditos/débitos de tokens no Redis |
+| **RAG** | Retrieval-Augmented Generation — memória de longo prazo (planejado) |
+
+---
+
+```text
+▓▓▓ NΞØ MELLØ
+────────────────────────────────────────
+Core Architect · NΞØ Protocol
+"Code is law. Expand until chaos becomes protocol."
+Security by design. Exploits find no refuge here.
+────────────────────────────────────────
+```

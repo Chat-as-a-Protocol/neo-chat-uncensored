@@ -82,9 +82,12 @@ check: verify audit test lint
 verify:
 	@echo "🔍 Verifying Project Integrity..."
 	@if [ ! -f .env ]; then echo "❌ Error: .env file missing!"; exit 1; fi
-	@if [ ! -f docs/SYSTEM_PROMPT.md ]; then echo "❌ Error: docs/SYSTEM_PROMPT.md missing!"; exit 1; fi
+	@if [ ! -f docs/SYSTEM_PROMPT.md ]; then \
+		echo "⚠️  Warning: docs/SYSTEM_PROMPT.md missing (Backend will use default prompt)."; \
+	else \
+		echo "  - Docs & Persona: OK"; \
+	fi
 	@echo "  - Environment: OK"
-	@echo "  - Docs & Persona: OK"
 	@echo "  - Node Version: `node -v`"
 	@echo "✅ Integrity verified."
 

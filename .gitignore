@@ -1,3 +1,6 @@
+# Docs (context for AI agents — lives in .cursorrules, not versioned)
+docs/
+
 # Build output
 dist/
 .astro/
