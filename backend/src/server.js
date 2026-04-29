@@ -53,7 +53,6 @@ import redis from "./lib/redis.js";
 import { ledgerService } from "./services/ledger.js";
 import { estimateTokensFromChunk } from "./utils/billing.js";
 
-
 // Logger
 const logger = createLogger({
   format: format.combine(format.timestamp(), format.json()),
@@ -267,12 +266,14 @@ app.post(
         }
 
         // Registrar consumo no ledger (assíncrono, não bloqueia)
-        ledgerService.addEntry(
-          req.user.id,
-          -Math.max(1, tokenCount),
-          "CONSUMPTION",
-          "venice_stream_" + randomUUID()
-        ).catch(err => logger.error("Ledger error:", err));
+        ledgerService
+          .addEntry(
+            req.user.id,
+            -Math.max(1, tokenCount),
+            "CONSUMPTION",
+            "venice_stream_" + randomUUID(),
+          )
+          .catch((err) => logger.error("Ledger error:", err));
 
         res.end();
       } else {
@@ -281,13 +282,15 @@ app.post(
 
         // Contar tokens aproximados
         const tokens = data.usage?.total_tokens || 0;
-        
-        ledgerService.addEntry(
-          req.user.id,
-          -tokens,
-          "CONSUMPTION",
-          "venice_sync_" + randomUUID()
-        ).catch(err => logger.error("Ledger error:", err));
+
+        ledgerService
+          .addEntry(
+            req.user.id,
+            -tokens,
+            "CONSUMPTION",
+            "venice_sync_" + randomUUID(),
+          )
+          .catch((err) => logger.error("Ledger error:", err));
 
         res.json({
           ...data,
@@ -464,14 +467,15 @@ app.get("/api/ledger", authenticateToken, async (req, res) => {
 
 app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
   try {
-    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
+    const flowpayUrl =
+      process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
     const apiKey = process.env.FLOWPAY_API_KEY;
 
     const response = await fetch(`${flowpayUrl}/api/create-charge`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         amount: 49, // Valor fixo do Pro Engine no MVP
@@ -505,49 +509,55 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
  * Endpoint de Webhook para o FlowPay (via Nexus)
  * Recebe notificações de pagamento e atualiza o tier do usuário.
  */
-app.post("/webhooks/flowpay", express.raw({ type: 'application/json' }), async (req, res) => {
-  const signature = req.headers["x-nexus-signature"];
+app.post(
+  "/webhooks/flowpay",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const signature = req.headers["x-nexus-signature"];
 
-  logger.info("[Webhook] Received FlowPay event from Nexus");
+    logger.info("[Webhook] Received FlowPay event from Nexus");
 
-  // TODO: Implementar validação real de HMAC-SHA256 com o secret do Nexus
-  if (!signature && process.env.NODE_ENV === "production") {
-    logger.warn("[Webhook] Missing signature in production");
-    return res.status(401).send("Unauthorized");
-  }
-
-  try {
-    const payload = JSON.parse(req.body.toString());
-    const { event, data } = payload;
-
-    if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-      const { userId } = data;
-      
-      if (!userId) {
-        throw new Error("Missing userId in payload");
-      }
-
-      // Atualiza o tier no Redis
-      await redis.set(`tier:${userId}`, "pro");
-      
-      // Adiciona créditos reais no ledger (ex: 100.000 tokens para PRO)
-      await ledgerService.addEntry(
-        userId,
-        100000,
-        "PURCHASE",
-        "flowpay_" + randomUUID()
-      );
-
-      logger.info(`[Webhook] User ${userId} upgraded to PRO via FlowPay`);
-      return res.status(200).json({ status: "success", message: "Tier updated" });
+    // TODO: Implementar validação real de HMAC-SHA256 com o secret do Nexus
+    if (!signature && process.env.NODE_ENV === "production") {
+      logger.warn("[Webhook] Missing signature in production");
+      return res.status(401).send("Unauthorized");
     }
 
-    res.status(200).json({ status: "ignored", message: "Event not handled" });
-  } catch (err) {
-    logger.error(`[Webhook] Error processing event: ${err.message}`);
-    res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-});
+    try {
+      const payload = JSON.parse(req.body.toString());
+      const { event, data } = payload;
+
+      if (event === "FLOWPAY:PAYMENT_RECEIVED") {
+        const { userId } = data;
+
+        if (!userId) {
+          throw new Error("Missing userId in payload");
+        }
+
+        // Atualiza o tier no Redis
+        await redis.set(`tier:${userId}`, "pro");
+
+        // Adiciona créditos reais no ledger (ex: 100.000 tokens para PRO)
+        await ledgerService.addEntry(
+          userId,
+          100000,
+          "PURCHASE",
+          "flowpay_" + randomUUID(),
+        );
+
+        logger.info(`[Webhook] User ${userId} upgraded to PRO via FlowPay`);
+        return res
+          .status(200)
+          .json({ status: "success", message: "Tier updated" });
+      }
+
+      res.status(200).json({ status: "ignored", message: "Event not handled" });
+    } catch (err) {
+      logger.error(`[Webhook] Error processing event: ${err.message}`);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+  },
+);
 
 // ===== START SERVER =====
 const PORT = process.env.PORT || 3001;

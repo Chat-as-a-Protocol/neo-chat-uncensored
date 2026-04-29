@@ -3,36 +3,42 @@
 Este arquivo define os padrões canônicos para todos os agentes de IA operando no projeto `neo-chat-uncensored`. Siga estas regras rigorosamente.
 
 ## 1. Identidade e Contexto
+
 - **Projeto**: `neo-chat-uncensored` (Interface de Chat IA Soberana e sem Censura).
 - **Ecossistema**: Membro do **NEO Protocol**.
 - **Filosofia**: Soberania de dados, privacidade e resistência à censura.
 - **Stack**: Astro 6.x (Frontend), Node.js v20.x (Backend), Tailwind CSS, Redis (Ledger/Quotas), Venice AI (LLM).
 
 ## 2. Regras de Código (Strict Sovereignty)
+
 - **TypeScript**: É proibido o uso de `any`. Toda variável e parâmetro deve ser tipado.
 - **Null-Safety**: Sempre trate elementos DOM e retornos de API como `| null`. Use `instanceof` para casts seguros.
 - **Estilo**: Use Tailwind CSS ou CSS Vanilla. Evite frameworks de componentes pesados (Bootstrap, MUI).
 - **Segurança**: Senhas devem usar `bcryptjs` (rounds >= 12). Segredos apenas em `.env`.
 
 ## 3. Protocolo de Pagamentos (PAYMENT_INGRESS_CANONICAL)
+
 - **Gateway**: Único gateway permitido é o **FlowPay**.
 - **Barramento**: Recebimento de eventos via **Nexus** (Event Hub).
 - **Webhook**: Implementado em `/webhooks/flowpay`. Deve validar `X-Nexus-Signature`.
 - **Ledger**: O saldo e consumo são controlados pelo `ledgerService` interno no Redis (Fase 0 concluída).
 
 ## 4. Fluxo de Trabalho e Comandos
+
 - **Auditoria**: Sempre execute `make audit` (pnpm audit) antes de sugerir mudanças em dependências.
 - **Qualidade**: `make check` roda integridade, auditoria e lint (Astro check).
 - **Deploy**: O deploy é orquestrado via Railway. Mudanças na raiz afetam o Frontend; mudanças em `backend/` afetam a API.
 - **Git**: Siga Conventional Commits (`feat:`, `fix:`, `docs:`, etc.).
 
 ## 5. Estrutura de Arquivos
+
 - `src/pages/`: Rotas do Astro.
 - `src/components/`: Componentes UI e lógica de chat (`AstroChatInterface.astro`).
 - `backend/src/server.js`: Servidor Express único (Mantenha conciso).
 - `docs/`: Documentação técnica e estratégica (Consulte sempre `CONTEXT.md` e `ARCHITECTURE.md`).
 
 ## 6. Prompt de Sistema NØX.ai
+
 Ao gerar conteúdo para a persona da IA, consulte `docs/SYSTEM_PROMPT.md`. A persona deve ser direta, soberana e livre de filtros moralistas corporativos.
 
 ---
