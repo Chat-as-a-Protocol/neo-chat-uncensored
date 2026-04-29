@@ -182,8 +182,8 @@ FlowPay (api.flowpay.cash)
 - [x] Criar endpoint `POST /webhooks/flowpay` no backend
 - [x] Remover vestígios do Stripe no backend e frontend
 - [x] Atualizar o botão "Upgrade" no frontend para apontar para o FlowPay
-- [ ] Validar assinatura `X-Nexus-Signature` (HMAC-SHA256)
-- [ ] Processar `FLOWPAY:PAYMENT_RECEIVED` de forma idempotente
+- [x] Validar assinatura `X-Nexus-Signature` (HMAC-SHA256)
+- [x] Processar `FLOWPAY:PAYMENT_RECEIVED` de forma idempotente
   - Atualizar tier do usuário no Redis (equivalente ao atual webhook Stripe)
 
 - [x] Substituir `POST /stripe/create-checkout` por `POST /flowpay/create-charge`

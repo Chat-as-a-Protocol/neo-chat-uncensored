@@ -50,4 +50,20 @@ test('Ledger Service - Integration Tests', async (t) => {
     assert.strictEqual(balance1, 800);
     assert.strictEqual(balance2, 500);
   });
+
+  await t.test('should be idempotent (ignore duplicate references)', async () => {
+    const user3 = 'idempotent_user';
+    const ref = 'unique_payment_id';
+    
+    // First try
+    const first = await ledgerService.addEntry(user3, 100, 'PURCHASE', ref);
+    assert.notStrictEqual(first, null);
+    
+    // Second try with same reference
+    const second = await ledgerService.addEntry(user3, 100, 'PURCHASE', ref);
+    assert.strictEqual(second, null);
+    
+    const balance = await ledgerService.getBalance(user3);
+    assert.strictEqual(balance, 100); // Should only have counted once
+  });
 });

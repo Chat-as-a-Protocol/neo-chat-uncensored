@@ -514,13 +514,36 @@ app.post(
   express.raw({ type: "application/json" }),
   async (req, res) => {
     const signature = req.headers["x-nexus-signature"];
+    const secret = process.env.FLOWPAY_WEBHOOK_SECRET;
 
     logger.info("[Webhook] Received FlowPay event from Nexus");
 
-    // TODO: Implementar validação real de HMAC-SHA256 com o secret do Nexus
-    if (!signature && process.env.NODE_ENV === "production") {
-      logger.warn("[Webhook] Missing signature in production");
-      return res.status(401).send("Unauthorized");
+    // Validar Assinatura HMAC-SHA256
+    if (process.env.NODE_ENV === "production" || secret) {
+      if (!signature) {
+        logger.warn("[Webhook] Missing signature");
+        return res.status(401).send("Unauthorized: Missing Signature");
+      }
+
+      if (!secret) {
+        logger.error("[Webhook] FLOWPAY_WEBHOOK_SECRET not configured");
+        return res.status(500).send("Configuration Error");
+      }
+
+      const hmac = crypto.createHmac("sha256", secret);
+      const digest = hmac.update(req.body).digest("hex");
+
+      try {
+        if (
+          !crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature))
+        ) {
+          logger.warn("[Webhook] Invalid signature");
+          return res.status(401).send("Unauthorized: Invalid Signature");
+        }
+      } catch (err) {
+        logger.error("[Webhook] Signature comparison error");
+        return res.status(401).send("Unauthorized");
+      }
     }
 
     try {
@@ -528,27 +551,36 @@ app.post(
       const { event, data } = payload;
 
       if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-        const { userId } = data;
+        const { userId, paymentId, amount } = data;
 
         if (!userId) {
           throw new Error("Missing userId in payload");
         }
 
-        // Atualiza o tier no Redis
+        const reference = paymentId || `flowpay_${Date.now()}`;
+
+        // Atualiza o tier no Redis (Operação Idempotente por natureza no Redis)
         await redis.set(`tier:${userId}`, "pro");
 
-        // Adiciona créditos reais no ledger (ex: 100.000 tokens para PRO)
-        await ledgerService.addEntry(
+        // Adiciona créditos no ledger (Idempotente via ledgerService.addEntry)
+        const entry = await ledgerService.addEntry(
           userId,
-          100000,
+          100000, // 100k tokens para PRO
           "PURCHASE",
-          "flowpay_" + randomUUID(),
+          reference,
         );
 
-        logger.info(`[Webhook] User ${userId} upgraded to PRO via FlowPay`);
+        if (!entry) {
+          logger.info(
+            `[Webhook] Event ${reference} already processed for user ${userId}`,
+          );
+          return res.status(200).json({ status: "success", message: "Already processed" });
+        }
+
+        logger.info(`[Webhook] User ${userId} upgraded to PRO via FlowPay (${reference})`);
         return res
           .status(200)
-          .json({ status: "success", message: "Tier updated" });
+          .json({ status: "success", message: "Tier updated and credits added" });
       }
 
       res.status(200).json({ status: "ignored", message: "Event not handled" });

@@ -3,6 +3,14 @@ import redis from "../lib/redis.js";
 
 export const ledgerService = {
   async addEntry(userId, amount, type, reference) {
+    // Verificação de Idempotência: Se a referência já existir, ignora
+    if (reference) {
+      const exists = await redis.sadd(`processed_refs:${userId}`, reference);
+      if (exists === 0) {
+        return null; // Já processado
+      }
+    }
+
     const entry = {
       id: randomUUID(),
       userId,

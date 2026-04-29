@@ -83,6 +83,16 @@ if (
       const e = end === -1 ? arr.length : end + 1;
       return arr.slice(start, e);
     },
+    sadd: async (k, v) => {
+      let set = store.get(k);
+      if (!(set instanceof Set)) {
+        set = new Set();
+        store.set(k, set);
+      }
+      if (set.has(v)) return 0;
+      set.add(v);
+      return 1;
+    },
     // For testing purposes
     _flush: () => store.clear(),
   };

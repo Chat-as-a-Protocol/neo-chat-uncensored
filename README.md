@@ -11,14 +11,14 @@
 > **Version:** v2.0.0 (Processing Engine)  
 > **Status:** Operational · Blasé Persona Ativa
 > **Framework:** Astro 6.x / Node 22+
-> **Protocol:** NΞØ Nexus / FlowPay (No Stripe)
+> **Protocol:** NΞØ Nexus / FlowPay
 
 ## ⟠ Objetivo
 
-Interface soberana e minimalista para processamento de modelos de IA sem censura. 
+Interface soberana e minimalista para processamento de modelos de IA sem censura.
 A NØX.ai opera como uma engine técnica, removendo verniz social e focando em saída bruta de dados.
 
-O sistema utiliza arquitetura Astro 6 nativa, garantindo performance instantânea, 
+O sistema utiliza arquitetura Astro 6 nativa, garantindo performance instantânea,
 integridade de contexto e comunicação via SSE (Server-Sent Events).
 
 ────────────────────────────────────────

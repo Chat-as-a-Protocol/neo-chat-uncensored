@@ -125,3 +125,21 @@ push:
 	@$(MAKE) build
 	@echo "✅ Full quality gate passed. Ready to commit."
 	@git status
+
+# --- 5. GIT AUTOMATION ---
+# Uso: make save MSG="feat: minha mensagem"
+save:
+	@echo "🚀 Iniciando Protocolo de Sincronização Soberana..."
+	@$(MAKE) check
+	@$(MAKE) build
+	@echo "💾 Staging changes..."
+	@git add .
+	@if [ -z "$(MSG)" ]; then \
+		echo "⚠️  Aviso: Nenhuma mensagem (MSG) fornecida. Usando padrão."; \
+		git commit -m "chore: NΞØ Protocol automated synchronization"; \
+	else \
+		git commit -m "$(MSG)"; \
+	fi
+	@echo "🚀 Enviando para o Nexus (GitHub)..."
+	@git push origin main
+	@echo "✅ Sincronização concluída com sucesso."
