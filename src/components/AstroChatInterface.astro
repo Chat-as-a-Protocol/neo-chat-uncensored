@@ -70,7 +70,7 @@
     isRetry?: boolean;
   }
 
-  const openingAssistantMessage = "Ouvindo.";
+  const openingAssistantMessage = "Como posso te ajudar hoje?";
   let messages: { role: string; content: string }[] = [];
 
   // 1. Persistência: Tentar carregar do localStorage
@@ -422,24 +422,26 @@
   async function updateQuota() {
     try {
       const token = localStorage.getItem('neo_token');
+      if (!token) return;
       const response = await fetch(`${apiUrl}/api/usage`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (response.ok) {
-        const data = await response.json();
-        const indicator = document.getElementById('quota-indicator');
-        const count = indicator?.querySelector('.quota-count');
-        if (count && indicator) {
-          count.textContent = `${data.today}/${data.limit}`;
-          if (data.today >= data.limit) {
-            indicator.classList.add('is-exhausted');
-          } else {
-            indicator.classList.remove('is-exhausted');
-          }
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const indicator = document.getElementById('quota-indicator');
+      const count = indicator?.querySelector('.quota-count');
+      if (count && indicator) {
+        count.textContent = `${data.today}/${data.limit}`;
+        if (data.today >= data.limit) {
+          indicator.classList.add('is-exhausted');
+        } else {
+          indicator.classList.remove('is-exhausted');
         }
       }
     } catch (err) {
-      console.error('[Quota] Failed to fetch usage:', err);
+      // Network/CORS failures should not break chat UX.
+      console.warn('[Quota] usage unavailable');
     }
   }
 
@@ -470,16 +472,16 @@
     await sendMessage(userMessage);
   });
 
-  appendMessage('assistant', openingAssistantMessage, { forceScroll: true, createdAt: new Date() });
   updateQuota();
   requestAnimationFrame(() => scrollToBottom(false));
 </script>
 
 <style>
   .chat-ui-shell {
-    width: 100%;
-    max-width: 480px; /* Largura limitada para mobile-feel no desktop */
-    height: 100svh;
+    width: min(100%, 480px);
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
     margin: 0 auto; /* Centraliza */
@@ -1011,7 +1013,8 @@
 
   @media (max-width: 980px) {
     .chat-ui-shell {
-      min-height: calc(100svh - 106px);
+      min-height: calc(100dvh - 106px);
+      max-height: calc(100dvh - 106px);
       gap: 12px;
       width: 100%;
     }
@@ -1026,10 +1029,14 @@
     .messages-container {
       min-height: 0;
       height: 100%;
+      padding-left: 12px;
+      padding-right: 12px;
     }
 
     .chat-form {
       width: 100%;
+      padding-left: 10px;
+      padding-right: 10px;
     }
 
     .chat-form textarea {
