@@ -5,6 +5,9 @@
       <div id="quota-indicator" class="quota-badge" title="Mensagens hoje">
         <span class="quota-count">--/--</span>
       </div>
+      <div class="upgrade-prompt" id="upgrade-prompt" style="display: none;">
+        <button onclick="window.location='/upgrade'">PRO</button>
+      </div>
       <div class="noise-overlay"></div>
     </div>
   </header>
@@ -64,7 +67,7 @@
     isRetry?: boolean;
   }
 
-  const openingAssistantMessage = "Como posso te ajudar hoje?";
+  const openingAssistantMessage = "Terminal NØX ativo. Envie seu comando.";
   let messages: { role: string; content: string }[] = [];
 
   // 1. Persistência: Tentar carregar do localStorage
@@ -427,6 +430,13 @@
       const count = indicator?.querySelector('.quota-count');
       if (count && indicator) {
         count.textContent = `${data.today}/${data.limit}`;
+        const upgradePrompt = document.getElementById('upgrade-prompt');
+        if (data.today >= data.limit * 0.8) {
+          if (upgradePrompt) upgradePrompt.style.display = 'block';
+        } else {
+          if (upgradePrompt) upgradePrompt.style.display = 'none';
+        }
+
         if (data.today >= data.limit) {
           indicator.classList.add('is-exhausted');
         } else {
@@ -543,6 +553,29 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    margin-right: 12px;
+  }
+
+  .upgrade-prompt button {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(185, 214, 49, 0.4);
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .upgrade-prompt button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px rgba(185, 214, 49, 0.6);
+    filter: brightness(1.1);
   }
 
   .quota-badge.is-exhausted {

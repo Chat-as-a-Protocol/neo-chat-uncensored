@@ -51,7 +51,7 @@ const app = express();
 
 import redis from "./lib/redis.js";
 import { ledgerService } from "./services/ledger.js";
-import { estimateTokensFromChunk } from "./utils/billing.js";
+import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
 
 // Logger
@@ -436,7 +436,7 @@ app.post(
         res.setHeader("Connection", "keep-alive");
 
         const reader = veniceResponse.body.getReader();
-        let tokenCount = 0;
+        let assistantContent = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -445,19 +445,36 @@ app.post(
           const chunk = new TextDecoder().decode(value);
           res.write(chunk);
 
-          // Estimar tokens para billing via utilitário
-          tokenCount += estimateTokensFromChunk(chunk);
+          // Acumular conteúdo para billing preciso
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataStr = line.replace("data: ", "").trim();
+              if (dataStr === "[DONE]") continue;
+              try {
+                const data = JSON.parse(dataStr);
+                assistantContent += data.choices?.[0]?.delta?.content || "";
+              } catch (e) {
+                // Ignore incomplete chunks
+              }
+            }
+          }
         }
 
-        // Registrar consumo no ledger (assíncrono, não bloqueia)
-        ledgerService
-          .addEntry(
-            req.user.id,
-            -Math.max(1, tokenCount),
-            "CONSUMPTION",
-            "venice_stream_" + randomUUID(),
-          )
-          .catch((err) => logger.error("Ledger error:", err));
+        // Registrar consumo no ledger (Síncrono conforme solicitado)
+        const tokens = countTokensFromText(assistantContent);
+        if (tokens > 0) {
+          try {
+            await ledgerService.addEntry(
+              req.user.id,
+              -tokens,
+              "CONSUMPTION",
+              "chat_" + Date.now()
+            );
+          } catch (err) {
+            logger.error("Ledger error:", err);
+          }
+        }
 
         res.end();
       } else {
@@ -502,21 +519,30 @@ app.get("/api/models", authenticateToken, async (req, res) => {
   try {
     const userTier = (await redis.get(`tier:${req.user.id}`)) || "free";
 
-    // Puxa os modelos reais da API da Venice (somente text)
-    const veniceResponse = await fetch(
-      "https://api.venice.ai/api/v1/models?type=text",
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
+    const cachedModels = await redis.get('models_cache');
+    let data;
+    if (cachedModels) {
+      data = JSON.parse(cachedModels);
+    } else {
+      // Puxa os modelos reais da API da Venice (somente text)
+      const veniceResponse = await fetch(
+        "https://api.venice.ai/api/v1/models?type=text",
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
+          },
         },
-      },
-    );
+      );
 
-    if (!veniceResponse.ok) {
-      throw new Error("Failed to fetch models from Venice API");
+      if (!veniceResponse.ok) {
+        throw new Error("Failed to fetch models from Venice API");
+      }
+
+      const json = await veniceResponse.json();
+      data = json.data;
+      await redis.setex('models_cache', 3600, JSON.stringify(data));
     }
 
-    const { data } = await veniceResponse.json();
     const allModels = data.map((model) => model.id);
 
     // Lógica de Tier (exemplo: premium vê tudo, free vê um subconjunto ou todos)
