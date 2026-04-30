@@ -1,13 +1,21 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { getEntry, render } from 'astro:content';
+
+const entry = await getEntry('legal', 'terms-and-conditions');
+if (!entry) {
+  return Astro.redirect('/');
+}
+const { Content } = await render(entry);
 ---
 
-<Layout title="Termos e Condições | NØX.ai">
+<Layout title={`${entry.data.title} | NØX.AI`}>
   <main class="legal-shell">
     <article class="legal-card">
-      <h1>Termos e Condições</h1>
-      <p>Ao usar esta interface, você concorda em utilizar o serviço de forma legal e responsável, sem violar direitos de terceiros.</p>
-      <p>As respostas podem conter imprecisões. Sempre valide decisões críticas antes de executar ações em produção ou ambientes sensíveis.</p>
+      <h1>{entry.data.title}</h1>
+      <div class="prose">
+        <Content />
+      </div>
       <a href="/">Voltar</a>
     </article>
   </main>
@@ -36,12 +44,27 @@ import Layout from '../layouts/Layout.astro';
 
   h1 {
     font-size: clamp(28px, 4vw, 42px);
+    margin-bottom: 8px;
   }
 
-  p {
-    margin: 0;
-    line-height: 1.5;
+  .prose :global(p) {
+    margin: 0 0 16px 0;
+    line-height: 1.6;
     color: rgba(245, 245, 248, 0.82);
+  }
+
+  .prose :global(ol) {
+    color: rgba(245, 245, 248, 0.82);
+    padding-left: 20px;
+  }
+
+  .prose :global(li) {
+    margin-bottom: 8px;
+  }
+
+  .prose :global(strong) {
+    color: #fff;
+    font-weight: 600;
   }
 
   a {

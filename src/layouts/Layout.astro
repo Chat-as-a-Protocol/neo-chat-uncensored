@@ -20,7 +20,9 @@ const { title } = Astro.props;
     <ClientRouter />
   </head>
   <body>
-    <slot />
+    <div class="app-container">
+      <slot />
+    </div>
   </body>
 </html>
 
@@ -43,12 +45,37 @@ const { title } = Astro.props;
   html,
   body {
     margin: 0;
-    min-height: 100%;
-    background: var(--bg-dark);
+    min-height: 100vh;
+    background: var(--bg-dark); /* No mobile, o fundo é o padrão */
     color: var(--text-strong);
     font-family: 'Manrope', 'Segoe UI', sans-serif;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+  }
+
+  .app-container {
+    width: 100%;
+    height: 100%;
+    min-height: 100dvh;
+    position: relative;
+  }
+
+  /* Força a proporção 9:16 e as bordas curvas em telas grandes (Desktop/Tablet) */
+  @media (min-width: 768px) {
+    body {
+      background: #050505; /* Fundo absoluto escuro fora do celular */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .app-container {
+      max-width: 430px;
+      height: 90vh; /* Deixa um espaço no topo e embaixo */
+      border-radius: 40px; /* Bordas imitando o iPhone */
+      box-shadow: 0 0 0 8px #111, 0 0 0 10px rgba(255, 255, 255, 0.1), 0 30px 80px rgba(0,0,0,0.8);
+      overflow: hidden;
+    }
   }
 
   h1,
