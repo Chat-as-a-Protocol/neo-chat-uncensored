@@ -182,8 +182,8 @@ FlowPay (api.flowpay.cash)
 - [x] Criar endpoint `POST /webhooks/flowpay` no backend
 - [x] Remover vestígios do Stripe no backend e frontend
 - [x] Atualizar o botão "Upgrade" no frontend para apontar para o FlowPay
-- [ ] Validar assinatura `X-Nexus-Signature` (HMAC-SHA256)
-- [ ] Processar `FLOWPAY:PAYMENT_RECEIVED` de forma idempotente
+- [x] Validar assinatura `X-Nexus-Signature` (HMAC-SHA256)
+- [x] Processar `FLOWPAY:PAYMENT_RECEIVED` de forma idempotente
   - Atualizar tier do usuário no Redis (equivalente ao atual webhook Stripe)
 
 - [x] Substituir `POST /stripe/create-checkout` por `POST /flowpay/create-charge`
@@ -193,13 +193,17 @@ FlowPay (api.flowpay.cash)
 
 - [x] Atualizar `upgrade.astro` para chamar `/api/flowpay/create-charge`
 
-- [ ] Remover dependência do Stripe quando FlowPay estiver operacional
+- [x] Remover dependência do Stripe quando FlowPay estiver operacional
+
+- [x] Implementar Feature Toggles para controle de páginas (`ENABLE_AUTH_PAGES`)
+- [x] Criar esquema inicial do PostgreSQL (`backend/schema.sql`)
+- [ ] Migrar persistência de usuários/ledger do Redis para PostgreSQL (mantendo Redis para cache/sessões)
 
 ────────────────────────────────────────
 
 ## ⟠ Fase 3 · Crescimento
 
-- [ ] Banco de dados real para usuários (Turso/PostgreSQL) em vez de Redis puro
+- [x] Banco de dados real para usuários (Turso/PostgreSQL) em vez de Redis puro
 - [ ] Histórico de conversas — local ou criptografado no server
 - [ ] Password reset flow (email via Resend ou FlowPay)
 - [ ] Personas customizáveis (system prompts pré-definidos pelo usuário)

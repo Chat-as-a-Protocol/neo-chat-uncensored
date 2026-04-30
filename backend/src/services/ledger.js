@@ -1,81 +1,54 @@
 import { randomUUID } from "node:crypto";
 import redis from "../lib/redis.js";
 
-// FIX: sem limite de entradas por usuário — um único usuário poderia acumular
-// infinitas entradas no Redis, causando leak de memória e lentidão em lrange
-const MAX_LEDGER_ENTRIES = 1000;
-
-// FIX: JSON.parse sem try/catch — uma entrada corrompida derrubava toda a chamada
-const safeParseEntry = (str) => {
-  try {
-    return JSON.parse(str);
-  } catch {
-    return null;
-  }
-};
-
 export const ledgerService = {
-  /**
-   * Adiciona uma entrada no ledger do usuário.
-   * @param {string} userId
-   * @param {number} amount - positivo = crédito, negativo = débito
-   * @param {'PURCHASE'|'CONSUMPTION'|'REFUND'|'TOPUP'} type
-   * @param {string} reference
-   */
   async addEntry(userId, amount, type, reference) {
-    if (!userId || typeof amount !== "number" || !type || !reference) {
-      throw new Error("[Ledger] Invalid entry parameters.");
+    // Verificação de Idempotência: Se a referência já existir, ignora
+    if (reference) {
+      const exists = await redis.sadd(`processed_refs:${userId}`, reference);
+      if (exists === 0) {
+        return null; // Já processado
+      }
     }
 
     const entry = {
       id: randomUUID(),
       userId,
-      amount,
-      type,
+      amount, // positivo = crédito, negativo = débito
+      type, // 'PURCHASE' | 'CONSUMPTION' | 'REFUND' | 'TOPUP'
       reference,
       createdAt: Date.now(),
     };
-
-    const key = `ledger:${userId}`;
-    await redis.lpush(key, JSON.stringify(entry));
-
-    // FIX: sem ltrim — ledger crescia infinitamente
-    // Mantém apenas as N entradas mais recentes para evitar memory leak
-    await redis.ltrim(key, 0, MAX_LEDGER_ENTRIES - 1);
-
+    await redis.lpush(`ledger:${userId}`, JSON.stringify(entry));
     return entry;
   },
 
   async getBalance(userId) {
     const entriesStr = await redis.lrange(`ledger:${userId}`, 0, -1);
-    return entriesStr
-      .map(safeParseEntry)
-      .filter(Boolean)
-      .reduce((acc, e) => acc + (e.amount || 0), 0);
+    const entries = entriesStr.map((e) => JSON.parse(e));
+    return entries.reduce((acc, e) => acc + e.amount, 0);
   },
 
   async getDailyUsage(userId, dateStr) {
-    // FIX: new Date(dateStr) com string tipo "2026-04-28" é interpretado como UTC
-    // mas Date.now() é local. Ambos agora normalizados em UTC explicitamente.
-    const startOfDay = Date.UTC(
-      ...dateStr.split("-").map((n, i) => i === 1 ? parseInt(n) - 1 : parseInt(n))
-    );
-    const endOfDay = startOfDay + 86_400_000;
-
     const entriesStr = await redis.lrange(`ledger:${userId}`, 0, -1);
+    const entries = entriesStr.map((e) => JSON.parse(e));
+    const startOfDay = new Date(dateStr).getTime();
+    const endOfDay = startOfDay + 86400000;
 
-    return entriesStr
-      .map(safeParseEntry)
-      .filter(Boolean)
-      .filter((e) => e.type === "CONSUMPTION" && e.createdAt >= startOfDay && e.createdAt < endOfDay)
-      .reduce((acc, e) => acc + Math.abs(e.amount || 0), 0);
+    const usage = entries
+      .filter(
+        (e) =>
+          e.type === "CONSUMPTION" &&
+          e.createdAt >= startOfDay &&
+          e.createdAt < endOfDay,
+      )
+      .reduce((acc, e) => acc + Math.abs(e.amount), 0);
+
+    return usage;
   },
 
   async getStatement(userId) {
     const entriesStr = await redis.lrange(`ledger:${userId}`, 0, -1);
-    return entriesStr
-      .map(safeParseEntry)
-      .filter(Boolean)
-      .sort((a, b) => b.createdAt - a.createdAt);
+    return entriesStr.map((e) => JSON.parse(e)).sort((a, b) => b.createdAt - a.createdAt);
   },
 };

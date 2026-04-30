@@ -4,6 +4,10 @@ import SceneBackground from '../components/SceneBackground.astro';
 import Card from '../components/ui/Card.astro';
 import Input from '../components/ui/Input.astro';
 import Button from '../components/ui/Button.astro';
+
+if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
+  return Astro.redirect('/');
+}
 ---
 
 <Layout title="Cadastro · NEØ">
@@ -11,7 +15,7 @@ import Button from '../components/ui/Button.astro';
     <SceneBackground />
 
     <div class="content-container">
-      <Card class="w-full max-w-[440px]">
+      <Card class="w-full max-w-[440px]" textured>
         <div class="text-center mb-8">
           <h1 class="text-3xl font-bold mb-2 tracking-tight">Criar Conta</h1>
           <p class="text-[var(--text-soft)]">Junte-se à revolução do chat sem censura</p>

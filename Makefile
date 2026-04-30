@@ -82,9 +82,12 @@ check: verify audit test lint
 verify:
 	@echo "🔍 Verifying Project Integrity..."
 	@if [ ! -f .env ]; then echo "❌ Error: .env file missing!"; exit 1; fi
-	@if [ ! -f docs/SYSTEM_PROMPT.md ]; then echo "❌ Error: docs/SYSTEM_PROMPT.md missing!"; exit 1; fi
+	@if [ ! -f docs/SYSTEM_PROMPT.md ]; then \
+		echo "⚠️  Warning: docs/SYSTEM_PROMPT.md missing (Backend will use default prompt)."; \
+	else \
+		echo "  - Docs & Persona: OK"; \
+	fi
 	@echo "  - Environment: OK"
-	@echo "  - Docs & Persona: OK"
 	@echo "  - Node Version: `node -v`"
 	@echo "✅ Integrity verified."
 
@@ -125,3 +128,30 @@ push:
 	@$(MAKE) build
 	@echo "✅ Full quality gate passed. Ready to commit."
 	@git status
+
+# --- 5. GIT AUTOMATION ---
+# Uso: make save MSG="feat: minha mensagem"
+save:
+	@echo "🚀 Iniciando Protocolo de Sincronização Soberana..."
+	@$(MAKE) check
+	@$(MAKE) build
+	@echo "💾 Staging changes..."
+	@git add .
+	@if [ -z "$(MSG)" ]; then \
+		echo "⚠️  Aviso: Nenhuma mensagem (MSG) fornecida. Usando padrão."; \
+		git commit -m "chore: NΞØ Protocol automated synchronization"; \
+	else \
+		git commit -m "$(MSG)"; \
+	fi
+	@echo "🚀 Enviando para o Nexus (GitHub)..."
+	@git push origin main
+	@echo "✅ Sincronização concluída com sucesso."
+
+# --- 6. UTILS ---
+seed:
+	@echo "🌱 Gerando usuário de teste..."
+	@node scripts/seed-test-user.js
+
+db-init:
+	@echo "🐘 Inicializando tabelas no PostgreSQL..."
+	@psql $(DATABASE_URL) -f backend/schema.sql
