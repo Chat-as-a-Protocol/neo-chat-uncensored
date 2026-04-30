@@ -441,7 +441,7 @@
       }
     } catch (err) {
       // Network/CORS failures should not break chat UX.
-      console.warn('[Quota] usage unavailable');
+      console.warn('[Quota] usage unavailable', err);
     }
   }
 

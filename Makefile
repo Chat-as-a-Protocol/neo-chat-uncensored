@@ -111,7 +111,7 @@ lint:
 
 clean:
 	@echo "🧹 Cleaning artifacts..."
-	rm -rf dist .astro
+	@$(MAKE) astro-clean
 	find . -name "node_modules" -type d -prune -exec rm -rf '{}' +
 	@echo "✨ Clean complete."
 
