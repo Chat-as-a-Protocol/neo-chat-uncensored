@@ -5,7 +5,7 @@
 # Version: 1.3.0 (Quality Gate Integrated)
 # ========================================
 
-.PHONY: help init install dev dev-fe dev-be stop check verify audit test lint build push clean logs
+.PHONY: help init install dev dev-fe dev-be stop check verify audit test lint build push clean logs astro-clean astro-rebuild
 
 # --- CONFIGURATION ---
 PNPM = pnpm
@@ -34,6 +34,8 @@ help:
 	@echo "  test          Roda testes unitários do backend"
 	@echo "  lint          Verifica padrões de código (placeholder)"
 	@echo "  clean         Remove artefatos de build e node_modules"
+	@echo "  astro-clean   Remove apenas cache/output do Astro (.astro + dist)"
+	@echo "  astro-rebuild Limpa cache do Astro e executa build"
 	@echo ""
 	@echo "4. BUILD & PRODUCTION"
 	@echo "  build         Build de produção (Astro static/hybrid)"
@@ -112,6 +114,15 @@ clean:
 	rm -rf dist .astro
 	find . -name "node_modules" -type d -prune -exec rm -rf '{}' +
 	@echo "✨ Clean complete."
+
+astro-clean:
+	@echo "🧼 Cleaning Astro cache/output..."
+	rm -rf dist .astro
+	@echo "✨ Astro cache clean complete."
+
+astro-rebuild: astro-clean
+	@echo "🏗️  Rebuilding Astro after clean..."
+	$(PNPM) run build
 
 # --- 4. BUILD & PRODUCTION ---
 build:

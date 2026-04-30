@@ -43,12 +43,15 @@ const enableAuth = import.meta.env.ENABLE_AUTH_PAGES === 'true';
   .scene-shell {
     position: relative;
     isolation: isolate;
-    min-height: 100svh;
+    min-height: 100dvh;
     padding: clamp(14px, 2.2vw, 28px);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
+    background:
+      radial-gradient(circle at 50% -20%, rgba(34, 37, 52, 0.35), transparent 42%),
+      #07090f;
   }
 
   .scene-footer {
