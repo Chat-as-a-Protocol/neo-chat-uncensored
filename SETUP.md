@@ -79,5 +79,13 @@ Consulte `.env.example` e `backend/.env.example` para a lista completa. As princ
 * **SHA-256 IDs**: Identificação de usuários baseada em hashes determinísticos e unidirecionais.
 * **Idempotency**: Webhooks processados com travas no Redis para evitar crédito duplicado.
 
+## 🔍 Comandos de Inspeção e Debug
+
+Para inspecionar Pull Requests automatizados (ex: Railway bots e atualizações de infraestrutura):
+
+```bash
+gh pr view 8 --json number,title,state,mergeStateStatus,headRefName,baseRefName,isDraft,url,author,files,commits
+```
+
 ---
 Para visão geral do projeto, consulte [README.md](./README.md).
