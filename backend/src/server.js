@@ -52,6 +52,7 @@ const app = express();
 import redis from "./lib/redis.js";
 import { ledgerService } from "./services/ledger.js";
 import { estimateTokensFromChunk } from "./utils/billing.js";
+import { query } from "./utils/db.js";
 
 // Logger
 const logger = createLogger({
@@ -182,6 +183,58 @@ app.post(
 );
 
 app.use(express.json());
+
+// ===== AUTH ROUTES =====
+app.post("/api/auth/signup", async (req, res) => {
+  try {
+    const { email, name, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+
+    // Verify if user exists
+    const existing = await query("SELECT * FROM users WHERE email = $1", [email]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+    const userId = getUserId(email);
+
+    await query(
+      "INSERT INTO users (id, email, name, password_hash, tier) VALUES ($1, $2, $3, $4, 'free')",
+      [userId, email, name, password_hash]
+    );
+
+    const token = jwt.sign({ id: userId, email, tier: "free" }, effectiveJwtSecret, { expiresIn: "7d" });
+    
+    res.status(201).json({ token, user: { id: userId, email, name, tier: "free" } });
+  } catch (error) {
+    logger.error("Signup error: " + error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+
+    const result = await query("SELECT * FROM users WHERE email = $1", [email]);
+    const user = result.rows[0];
+
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) return res.status(401).json({ error: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user.id, email: user.email, tier: user.tier }, effectiveJwtSecret, { expiresIn: "7d" });
+
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, tier: user.tier } });
+  } catch (error) {
+    logger.error("Login error: " + error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 // ===== AUTH MIDDLEWARE =====
 const authenticateToken = (req, res, next) => {
