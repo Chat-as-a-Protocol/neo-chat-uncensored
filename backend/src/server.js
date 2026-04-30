@@ -63,6 +63,14 @@ const logger = createLogger({
   ],
 });
 
+// Middleware de Log de Acesso
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    logger.info(`${req.method} ${req.originalUrl} - ${res.statusCode}`);
+  });
+  next();
+});
+
 // 1. CORS deve vir primeiro para lidar com Preflight (OPTIONS)
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",").map(o => o.trim().replace(/\/$/, ""))
@@ -315,6 +323,7 @@ const checkQuota = async (req, res, next) => {
   const limit = parseInt((await redis.get(`limit:${req.user.id}`)) || "100");
 
   if (usage >= limit) {
+    logger.warn(`[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`);
     return res.status(403).json({
       error: "Daily quota exceeded",
       usage,
