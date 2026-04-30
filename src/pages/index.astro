@@ -43,12 +43,13 @@ const enableAuth = import.meta.env.ENABLE_AUTH_PAGES === 'true';
   .scene-shell {
     position: relative;
     isolation: isolate;
-    min-height: 100dvh;
+    height: 100dvh;
     padding: clamp(14px, 2.2vw, 28px);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
+    overflow: hidden;
     background:
       radial-gradient(circle at 50% -20%, rgba(34, 37, 52, 0.35), transparent 42%),
       #07090f;
@@ -58,6 +59,7 @@ const enableAuth = import.meta.env.ENABLE_AUTH_PAGES === 'true';
     width: 100%;
     max-width: 480px;
     margin: 0 auto;
+    flex: 0 0 auto;
     text-align: center;
     color: rgba(236, 236, 236, 0.44);
     font-size: clamp(14px, 1.9vw, 22px);
