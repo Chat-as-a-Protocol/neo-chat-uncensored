@@ -2,7 +2,7 @@
 
 ```text
 ========================================
-     NØX.ai · TECHNICAL PROTOCOL
+     NØX.AI · TECHNICAL PROTOCOL
 ========================================
 ```
 

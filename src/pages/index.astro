@@ -3,17 +3,16 @@ import AstroChatInterface from '../components/AstroChatInterface.astro';
 import Layout from '../layouts/Layout.astro';
 import SceneBackground from '../components/SceneBackground.astro';
 const enableAuth = import.meta.env.ENABLE_AUTH_PAGES === 'true';
+
+if (enableAuth) {
+  const token = Astro.cookies.get('neo_token')?.value;
+  if (!token) {
+    return Astro.redirect('/login');
+  }
+}
 ---
 
 <Layout title="NEØ Uncensored Chat">
-{enableAuth && (
-  <script is:inline>
-    // Se não houver token, redireciona para login imediatamente
-    if (!localStorage.getItem('neo_token')) {
-      window.location.replace('/login');
-    }
-  </script>
-)}
   <main class="scene-shell">
     <SceneBackground />
 

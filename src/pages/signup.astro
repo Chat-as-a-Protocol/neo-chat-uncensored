@@ -17,8 +17,8 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
     <div class="content-container">
       <Card class="w-full max-w-[440px]" textured>
         <div class="text-center mb-8">
-          <h1 class="text-3xl font-bold mb-2 tracking-tight">Criar Conta</h1>
-          <p class="text-[var(--text-soft)]">Junte-se à revolução do chat sem censura</p>
+          <h1 class="text-3xl font-bold mb-2">NØX,AI</h1>
+          <p class="text-[var(--text-soft)]">Credencial de acesso</p>
         </div>
 
         <form id="signup-form" class="flex flex-col gap-5">
@@ -89,9 +89,12 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
     submitBtn.disabled = true;
     submitBtn.innerText = 'Criando conta...';
 
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const apiUrl = import.meta.env.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
+
     try {
       // Endpoint sugerido (precisa ser confirmado no backend)
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch(`${apiUrl}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -101,6 +104,8 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
 
       if (response.ok && result.token) {
         localStorage.setItem('neo_token', result.token);
+        // Salva em cookies para SSR (7 dias)
+        document.cookie = `neo_token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
         window.location.href = '/';
       } else {
         alert(result.error || 'Erro ao criar conta. Tente novamente.');

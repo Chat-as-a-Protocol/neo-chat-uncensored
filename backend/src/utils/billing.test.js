@@ -1,25 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { estimateTokensFromChunk, estimateTokensFromText } from './billing.js';
+import { countTokensFromText } from './billing.js';
 
 test('Billing Utilities - Unit Tests', async (t) => {
-  await t.test('estimateTokensFromChunk - should count chunks with content', () => {
-    const chunk = 'data: {"choices":[{"delta":{"content":"Olá"}}]}\ndata: {"choices":[{"delta":{"content":" mundo"}}]}';
-    assert.strictEqual(estimateTokensFromChunk(chunk), 2);
-  });
-
-  await t.test('estimateTokensFromChunk - should return 0 for empty or meta chunks', () => {
-    const chunk = 'data: [DONE]';
-    assert.strictEqual(estimateTokensFromChunk(chunk), 0);
-    assert.strictEqual(estimateTokensFromChunk(''), 0);
-  });
-
-  await t.test('estimateTokensFromText - should return proportional token count', () => {
+  await t.test('countTokensFromText - should return proportional token count (1:4 ratio)', () => {
     const text = 'Olá mundo'; // 9 chars
-    assert.strictEqual(estimateTokensFromText(text), 3);
+    assert.strictEqual(countTokensFromText(text), 3); // ceil(9/4) = 3
+    
+    const longText = 'Esta é uma frase longa para testar.'; // 35 chars
+    assert.strictEqual(countTokensFromText(longText), 9); // ceil(35/4) = 9
   });
 
-  await t.test('estimateTokensFromText - should handle empty string', () => {
-    assert.strictEqual(estimateTokensFromText(''), 0);
+  await t.test('countTokensFromText - should handle empty string', () => {
+    assert.strictEqual(countTokensFromText(''), 0);
   });
 });

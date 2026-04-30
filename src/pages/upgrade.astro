@@ -1,5 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
+
+const token = Astro.cookies.get('neo_token')?.value;
+if (!token) {
+  return Astro.redirect('/login');
+}
 ---
 
 <Layout title="NØX.ai - Upgrade">
@@ -251,7 +256,7 @@ import Layout from '../layouts/Layout.astro';
 
   <script is:inline>
     const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    const apiUrl = import.meta.env.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : window.location.origin);
+    const apiUrl = import.meta.env.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
 
     async function handleFlowPay() {
       const token = localStorage.getItem('neo_token');
