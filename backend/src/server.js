@@ -263,11 +263,12 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
+  const devUser = { id: "dev_user", email: "dev@localhost", tier: "pro" };
+  
   // Bypass de Dev: permite testar o chat sem login em ambiente local
   if (process.env.NODE_ENV !== "production") {
     if (!token || token === "null") {
-      // Injetamos um usuário 'pro' para evitar bloqueios de quota durante o desenvolvimento
-      req.user = { id: "dev_user", email: "dev@localhost", tier: "pro" };
+      req.user = devUser;
       return next();
     }
   }
@@ -278,7 +279,7 @@ const authenticateToken = (req, res, next) => {
     if (err) {
       if (process.env.NODE_ENV !== "production") {
         // Falhou assinatura, mas como estamos em dev, injeta o user fake
-        req.user = { id: "dev_user", email: "dev@localhost", tier: "premium" };
+        req.user = devUser;
         return next();
       }
       return res.status(401).json({ error: "Invalid token" });
@@ -293,8 +294,9 @@ const createUserRateLimit = () =>
   rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minuto
     max: async (req) => {
-      const userTier = (await redis.get(`tier:${req.user.id}`)) || "free";
-      return userTier === "premium" ? 60 : 10; // 60 req/min para premium, 10 para free
+      const userTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+      const isPaid = userTier === "pro" || userTier === "premium";
+      return isPaid ? 60 : 10; // 60 req/min para pagos, 10 para free
     },
     keyGenerator: (req) => req.user.id,
     handler: (_req, res) => {
@@ -321,7 +323,9 @@ const createUserRateLimit = () =>
 const checkQuota = async (req, res, next) => {
   const today = new Date().toISOString().split("T")[0];
   const usage = await ledgerService.getDailyUsage(req.user.id, today);
-  const defaultLimit = (req.user.tier === "pro" || req.user.tier === "premium") ? "10000" : "100";
+  const userTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+  const isPaid = userTier === "pro" || userTier === "premium";
+  const defaultLimit = isPaid ? "10000" : "100";
   const limit = parseInt((await redis.get(`limit:${req.user.id}`)) || defaultLimit);
 
   if (usage >= limit) {
