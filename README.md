@@ -14,7 +14,7 @@
 
 ## ⟠ Objetivo
 
-Interface soberana e minimalista para processamento de modelos de IA sem censura. 
+Interface soberana e minimalista para processamento de modelos de IA sem censura.
 A NØX.ai opera como uma engine técnica, removendo verniz social e focando em saída bruta de dados com performance instantânea e integridade de contexto.
 
 ## ⧉ Destaques

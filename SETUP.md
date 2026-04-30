@@ -50,30 +50,34 @@ make build
 Abaixo estão os comandos reais executados dentro dos containers em produção (Railway/Docker):
 
 ### **Frontend (Astro)**
+
 O frontend é servido como arquivos estáticos após o build.
-*   **Comando**: `serve dist -l $PORT`
-*   **Dependência**: Requer `serve` instalado globalmente ou via `npx`.
+
+* **Comando**: `serve dist -l $PORT`
+* **Dependência**: Requer `serve` instalado globalmente ou via `npx`.
 
 ### **Backend (Express)**
+
 O backend opera como um proxy seguro para APIs externas e gerenciamento de usuários.
-*   **Comando**: `cd backend && node src/server.js`
-*   **Porta**: `$PORT` (Padrão Railway) ou `3001`.
+
+* **Comando**: `cd backend && node src/server.js`
+* **Porta**: `$PORT` (Padrão Railway) ou `3001`.
 
 ## ⚙️ Variáveis de Ambiente (.env)
 
 Consulte `.env.example` e `backend/.env.example` para a lista completa. As principais são:
 
-- `PUBLIC_API_URL`: URL pública do seu backend (ex: `https://api.seusite.com`).
-- `FRONTEND_URL`: URL do seu frontend para liberação de CORS.
-- `VENICE_API_KEY`: Chave de API da Venice.ai.
-- `FLOWPAY_WEBHOOK_SECRET`: Segredo para validação de pagamentos.
+* `PUBLIC_API_URL`: URL pública do seu backend (ex: `https://api.seusite.com`).
+* `FRONTEND_URL`: URL do seu frontend para liberação de CORS.
+* `VENICE_API_KEY`: Chave de API da Venice.ai.
+* `FLOWPAY_WEBHOOK_SECRET`: Segredo para validação de pagamentos.
 
 ## 🛡️ Segurança
 
-- **Proxy-Only**: Chaves de API nunca são expostas ao frontend.
-- **Timing-Safe Auth**: Verificações de senha e assinatura de webhook usam `crypto.timingSafeEqual`.
-- **SHA-256 IDs**: Identificação de usuários baseada em hashes determinísticos e unidirecionais.
-- **Idempotency**: Webhooks processados com travas no Redis para evitar crédito duplicado.
+* **Proxy-Only**: Chaves de API nunca são expostas ao frontend.
+* **Timing-Safe Auth**: Verificações de senha e assinatura de webhook usam `crypto.timingSafeEqual`.
+* **SHA-256 IDs**: Identificação de usuários baseada em hashes determinísticos e unidirecionais.
+* **Idempotency**: Webhooks processados com travas no Redis para evitar crédito duplicado.
 
 ---
 Para visão geral do projeto, consulte [README.md](./README.md).
