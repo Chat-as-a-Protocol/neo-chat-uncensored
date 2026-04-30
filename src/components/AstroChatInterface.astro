@@ -1,18 +1,12 @@
 <div class="chat-ui-shell">
-  <header class="brand-pill" aria-label="brand">
-    <span class="brand-icon">
-      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="8"/>
-        <line x1="20" y1="80" x2="80" y2="20" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
-      </svg>
-    </span>
-    <div class="brand-info">
-      <span>NØX.ai</span>
+  <header class="chat-header" aria-label="brand">
+    <div class="brand-pill">
+      <span class="brand-name">NØX.AI</span>
       <div id="quota-indicator" class="quota-badge" title="Mensagens hoje">
         <span class="quota-count">--/--</span>
       </div>
+      <div class="noise-overlay"></div>
     </div>
-    <div class="noise-overlay"></div>
   </header>
 
   <div
@@ -493,7 +487,7 @@
     overflow: hidden;
   }
 
-  header {
+  .chat-header {
     display: flex;
     justify-content: center;
     padding: 1rem;
@@ -501,27 +495,34 @@
     top: 0;
     z-index: 100;
     pointer-events: none;
+    width: 100%;
   }
 
   .brand-pill {
     pointer-events: auto;
     position: relative;
     margin-top: 4px;
-    display: inline-flex;
+    display: flex;
+    width: 100%;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
     border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(28, 29, 38, 0.6);
-    backdrop-filter: blur(20px);
+    border: none; /* Removido o contorno */
+    background: rgba(20, 20, 25, 0.15); /* Mais transparente */
+    backdrop-filter: blur(28px); /* Vidro forte */
+    -webkit-backdrop-filter: blur(28px);
     color: #f2f2f4;
-    padding: 10px 24px;
-    font-size: clamp(24px, 1.4vw, 28px);
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    padding: 12px 24px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     overflow: hidden;
     animation: fade-in 680ms ease;
+  }
+
+  .brand-name {
+    font-size: clamp(18px, 1.2vw, 22px);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    font-family: 'Space Grotesk', sans-serif;
   }
 
   .noise-overlay {
@@ -533,24 +534,15 @@
     background-image: url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E');
   }
 
-  .brand-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    line-height: 1;
-  }
-
   .quota-badge {
-    margin-top: 4px;
-    font-size: 10px;
-    font-weight: 700;
-    font-family: 'Space Grotesk', sans-serif;
-    color: rgba(255, 255, 255, 0.4);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Space Grotesk', monospace;
+    color: rgba(255, 255, 255, 0.6);
     letter-spacing: 0.05em;
-    text-transform: uppercase;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
 
   .quota-badge.is-exhausted {
@@ -565,32 +557,19 @@
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 8px var(--accent);
+    animation: led-flicker 4s infinite alternate;
   }
 
   .quota-badge.is-exhausted::before {
     background: #ff6b6b;
     box-shadow: 0 0 8px #ff6b6b;
-  }
-
-  .brand-icon {
-    display: inline-grid;
-    place-items: center;
-    color: var(--accent);
-    filter: 
-      drop-shadow(0 0 2px var(--accent))
-      drop-shadow(0 0 8px var(--accent));
-    animation: led-flicker 4s infinite alternate;
-  }
-
-  .brand-icon svg {
-    width: 32px;
-    height: 32px;
+    animation: none;
   }
 
   @keyframes led-flicker {
-    0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 10px var(--accent)); }
-    92% { opacity: 0.95; filter: drop-shadow(0 0 1px var(--accent)) drop-shadow(0 0 6px var(--accent)); }
-    96% { opacity: 1; filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 10px var(--accent)); }
+    0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px var(--accent)); }
+    92% { opacity: 0.8; filter: drop-shadow(0 0 1px var(--accent)); }
+    96% { opacity: 1; filter: drop-shadow(0 0 2px var(--accent)); }
   }
 
   .messages-container {
@@ -745,6 +724,8 @@
     border-radius: 16px;
     padding: 12px 14px;
     border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     box-shadow:
       0 7px 20px rgba(12, 14, 23, 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 0.22),
@@ -1070,11 +1051,6 @@
       font-size: 20px;
       padding: 9px 16px;
       margin-top: 2px;
-    }
-
-    .brand-icon svg {
-      width: 25px;
-      height: 25px;
     }
   }
   :global(.thought-accordion) {

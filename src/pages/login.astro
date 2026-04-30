@@ -12,7 +12,7 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
 
 <Layout title="Login · NEØ">
   <main class="scene-shell">
-    <SceneBackground />
+    <SceneBackground animateLogo={false} />
 
     <div class="content-container">
       <Card class="w-full max-w-[440px]" textured>
@@ -113,7 +113,8 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end; /* Descendo o modal */
+    padding-bottom: 12vh; /* Espaço na base */
     overflow: hidden;
   }
 

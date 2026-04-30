@@ -1,11 +1,14 @@
 ---
+export interface Props {
+  animateLogo?: boolean;
+}
+const { animateLogo = true } = Astro.props;
 ---
 
-<div class="scene-lights" aria-hidden="true">
-  <div class="streak streak-a"></div>
-  <div class="streak streak-b"></div>
-  <div class="streak streak-c"></div>
+<div class="scene-lights" aria-hidden="true" transition:persist="scene-bg">
   <div class="grain"></div>
+  <img src="/bg_escuro.webp" alt="" class="bg-wallpaper" />
+  <img src="/neoai.png" alt="" class={`floating-logo ${animateLogo ? '' : 'no-anim'}`} />
   <div class="vignette"></div>
 </div>
 
@@ -14,39 +17,8 @@
     position: absolute;
     inset: 0;
     z-index: -1;
-    background:
-      radial-gradient(circle at 80% 24%, rgba(224, 202, 172, 0.46), transparent 40%),
-      radial-gradient(circle at 12% 22%, rgba(211, 211, 215, 0.48), transparent 48%),
-      linear-gradient(180deg, #3a3a3f 0%, #292a30 46%, #0f1016 100%);
-  }
-
-  .streak {
-    position: absolute;
-    top: -4%;
-    bottom: -10%;
-    width: min(22vw, 230px);
-    filter: blur(3px);
-    mix-blend-mode: screen;
-    opacity: 0.34;
-  }
-
-  .streak-a {
-    left: min(24vw, 320px);
-    background: linear-gradient(90deg, rgba(252, 250, 244, 0), rgba(252, 250, 244, 0.66), rgba(252, 250, 244, 0));
-  }
-
-  .streak-b {
-    left: min(49vw, 640px);
-    width: min(20vw, 210px);
-    opacity: 0.26;
-    background: linear-gradient(90deg, rgba(247, 239, 227, 0), rgba(247, 239, 227, 0.55), rgba(247, 239, 227, 0));
-  }
-
-  .streak-c {
-    left: min(67vw, 860px);
-    width: min(18vw, 180px);
-    opacity: 0.2;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0));
+    background: #000000;
+    overflow: hidden;
   }
 
   .grain {
@@ -56,11 +28,62 @@
     background-image: radial-gradient(rgba(255, 255, 255, 0.6) 0.6px, transparent 0);
     background-size: 3px 3px;
     mix-blend-mode: soft-light;
+    z-index: 0;
+  }
+
+  .bg-wallpaper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    opacity: 1;
+    pointer-events: none;
+    user-select: none;
+    z-index: 1;
+    border: none;
+    outline: none;
+  }
+
+  .floating-logo {
+    position: absolute;
+    top: 24%; /* Subindo a logo ainda mais para abrir espaço para o modal alto de signup */
+    left: 50%;
+    width: 150vw;
+    min-width: 1200px;
+    max-width: none;
+    height: auto;
+    object-fit: contain;
+    opacity: 0.95; /* Quase 100%, com leve respiro para o wallpaper interagir */
+    pointer-events: none;
+    user-select: none;
+    z-index: 2; /* Fica acima do wallpaper e abaixo da vinheta */
+    border: none;
+    outline: none;
+    filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.65)); /* Sombra forte para descolar do fundo e dar profundidade 3D */
+    animation: float-logo 12s ease-in-out infinite;
+  }
+
+  @keyframes float-logo {
+    0%, 100% {
+      transform: translate(-50%, -48%) rotate(-0.5deg);
+    }
+    50% {
+      transform: translate(-50%, -52%) rotate(0.5deg);
+    }
+  }
+
+  .floating-logo.no-anim {
+    animation: none !important;
+    transform: translate(-50%, -50%);
   }
 
   .vignette {
     position: absolute;
     inset: 0;
+    z-index: 3;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.82) 100%);
   }
 </style>

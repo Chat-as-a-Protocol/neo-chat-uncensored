@@ -12,7 +12,7 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
 
 <Layout title="Cadastro · NEØ">
   <main class="scene-shell">
-    <SceneBackground />
+    <SceneBackground animateLogo={false} />
 
     <div class="content-container">
       <Card class="w-full max-w-[440px]" textured>
@@ -124,7 +124,8 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
+    padding-bottom: 3vh;
     overflow: hidden;
   }
 
