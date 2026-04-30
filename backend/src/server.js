@@ -399,7 +399,7 @@ app.post(
               stream,
               max_tokens: 4096,
               venice_parameters: {
-                include_venice_system_prompt: false, // Usa só seu system prompt
+                include_venice_system_prompt: true, // Usa o prompt nativo da Venice
                 ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
               },
             }),
