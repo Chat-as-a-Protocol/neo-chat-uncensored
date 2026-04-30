@@ -18,4 +18,4 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 8080
 # Usamos o formato JSON para o CMD e garantimos o uso da variável $PORT do Railway
-CMD ["sh", "-c", "serve dist -l ${PORT:-8080}"]
+CMD ["sh", "-c", "serve dist -l tcp://0.0.0.0:${PORT:-3000}"]
