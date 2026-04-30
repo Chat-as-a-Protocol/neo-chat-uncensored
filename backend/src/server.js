@@ -63,15 +63,29 @@ const logger = createLogger({
   ],
 });
 
-app.use(helmet());
+// 1. CORS deve vir primeiro para lidar com Preflight (OPTIONS)
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(",").map(o => o.trim().replace(/\/$/, ""))
+  : ["http://localhost:4321", "https://laughter.up.railway.app"];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL
-      ? process.env.FRONTEND_URL.split(",")
-      : ["http://localhost:4321", "https://laughter.up.railway.app"],
+    origin: (origin, callback) => {
+      // Permitir requisições sem origin (como mobile apps ou curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== "production") {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-nexus-signature"],
   }),
 );
+
+app.use(helmet());
 // ===== UTILS =====
 const getUserId = (email) => {
   const emailLower = email.toLowerCase().trim();
