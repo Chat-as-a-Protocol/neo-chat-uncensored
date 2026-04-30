@@ -7,8 +7,9 @@ const enableAuth = import.meta.env.ENABLE_AUTH_PAGES === 'true';
 
 <Layout title="NEØ Uncensored Chat">
 {enableAuth && (
-  <script>
-    if (import.meta.env.PROD && !localStorage.getItem('neo_token')) {
+  <script is:inline>
+    // Se não houver token, redireciona para login imediatamente
+    if (!localStorage.getItem('neo_token')) {
       window.location.replace('/login');
     }
   </script>

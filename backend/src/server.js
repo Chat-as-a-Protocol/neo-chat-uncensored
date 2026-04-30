@@ -263,10 +263,11 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
-  // Bypass de Dev: apenas em ambiente de desenvolvimento
+  // Bypass de Dev: permite testar o chat sem login em ambiente local
   if (process.env.NODE_ENV !== "production") {
     if (!token || token === "null") {
-      req.user = { id: "dev_user", email: "dev@localhost", tier: "premium" };
+      // Injetamos um usuário 'pro' para evitar bloqueios de quota durante o desenvolvimento
+      req.user = { id: "dev_user", email: "dev@localhost", tier: "pro" };
       return next();
     }
   }
@@ -320,7 +321,8 @@ const createUserRateLimit = () =>
 const checkQuota = async (req, res, next) => {
   const today = new Date().toISOString().split("T")[0];
   const usage = await ledgerService.getDailyUsage(req.user.id, today);
-  const limit = parseInt((await redis.get(`limit:${req.user.id}`)) || "100");
+  const defaultLimit = (req.user.tier === "pro" || req.user.tier === "premium") ? "10000" : "100";
+  const limit = parseInt((await redis.get(`limit:${req.user.id}`)) || defaultLimit);
 
   if (usage >= limit) {
     logger.warn(`[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`);
