@@ -12,10 +12,10 @@ RUN corepack enable
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app
+# Instalamos o serve localmente para garantir que esteja no PATH
+RUN npm install -g serve
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./package.json
-# Precisamos do pnpm para o comando serve
-RUN pnpm install -g serve
 
 EXPOSE 8080
-CMD serve dist -l $PORT
+# Usamos o formato JSON para o CMD e garantimos o uso da variável $PORT do Railway
+CMD ["sh", "-c", "serve dist -l ${PORT:-8080}"]

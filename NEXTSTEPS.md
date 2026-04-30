@@ -130,9 +130,9 @@ Fase      : PRÉ-MVP (bug fixes pendentes antes do launch)
 
 ### Persona e Experience
 
-- [x] **System prompt / persona NØX.ai**
-  - Conteúdo em `docs/SYSTEM_PROMPT.md`
-  - Integração no `backend/src/server.js` concluída (injeção via `system` message)
+- [ ] **System prompt / persona NØX.ai**
+  - **Ação Requerida**: Criar `docs/SYSTEM_PROMPT.md` com a persona blasé.
+  - Integração no `backend/src/server.js` pronta para ler o arquivo (atualmente usando fallback).
 
 - [x] **Indicador de quota no chat**
   - Exibição dinâmica de `uso/limite` integrada na Brand Pill

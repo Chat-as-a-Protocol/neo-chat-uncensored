@@ -1,4 +1,4 @@
-# Title: NØX.ai (Neo-Chat-Uncensored)
+# NØX.ai (Neo-Chat-Uncensored)
 
 ```text
 ========================================
@@ -10,79 +10,31 @@
 
 > **Version:** v2.0.0 (Processing Engine)  
 > **Status:** Operational · Blasé Persona Ativa
-> **Framework:** Astro 6.x / Node 22+
 > **Protocol:** NΞØ Nexus / FlowPay
 
 ## ⟠ Objetivo
 
-Interface soberana e minimalista para processamento de modelos de IA sem censura.
-A NØX.ai opera como uma engine técnica, removendo verniz social e focando em saída bruta de dados.
+Interface soberana e minimalista para processamento de modelos de IA sem censura. 
+A NØX.ai opera como uma engine técnica, removendo verniz social e focando em saída bruta de dados com performance instantânea e integridade de contexto.
 
-O sistema utiliza arquitetura Astro 6 nativa, garantindo performance instantânea,
-integridade de contexto e comunicação via SSE (Server-Sent Events).
+## ⧉ Destaques
 
-────────────────────────────────────────
+- **Performance Extrema**: Arquitetura Astro 6 nativa com carregamento instantâneo.
+- **Soberania de Dados**: Integração direta com o Protocolo NΞØ para pagamentos soberanos via FlowPay.
+- **Experiência Premium**: Interface ultra-limpa com Glassmorphism e suporte total a mobile (WebApp-like).
+- **IA Sem Filtros**: Conectado a modelos de alta fidelidade via Venice AI.
 
-## ⧉ Arquitetura
+---
 
-O ecossistema é uma implementação canônica do NΞØ Protocol, utilizando FlowPay como gateway único e Nexus como barramento de eventos.
+## 📖 Documentação
 
-```text
-▓▓▓ SYSTEM TOPOLOGY
-────────────────────────────────────────
-└─ Root (Astro 6.x)
-   ├─ src/pages/ (Static Routes)
-   ├─ src/components/ (Astro/Vanilla Components)
-   └─ public/ (Static Assets & Logo)
+Para informações técnicas, guias de instalação e comandos de deploy, consulte o arquivo de configuração:
 
-└─ Backend (Express/Node.js)
-   ├─ src/server.js (Core Logic)
-   └─ .env (Sensitive Context)
-────────────────────────────────────────
-```
+👉 **[Guia de Instalação e Setup (SETUP.md)](./SETUP.md)**
 
-### 1. Frontend (Astro)
+---
 
-Componentização baseada em Astro e scripts Vanilla JS.
-Utiliza Server-Sent Events (SSE) para streaming de tokens em tempo real.
-Design System: Glassmorphism / Cyberpunk (Tailwind CSS puro).
-
-### 2. Backend (Proxy)
-
-Gateway seguro para a Venice AI API.
-Gerenciamento de rate limiting, quotas diárias e integração com Stripe.
-Bypass de autenticação em modo desenvolvimento para agilidade operacional.
-
-────────────────────────────────────────
-
-## ⨷ Comandos
-
-Todos os comandos devem ser executados via `pnpm` para garantir consistência do lockfile.
-
-```bash
-# Inicializar ambiente e dependências
-make install
-
-# Iniciar ecossistema completo (FE + BE)
-make dev
-
-# Auditoria de segurança e integridade
-make audit
-make verify
-
-# Build de produção
-make build
-```
-
-────────────────────────────────────────
-
-## ⍟ Segurança
-
-- **Zero Bloat**: Removido Framer Motion, Zustand e React-Three-Fiber.
-- **Privacy First**: Chaves de API nunca tocam o cliente; processamento via proxy.
-- **Context Engineering**: Manifestos de integridade em `docs/CONTEXT.md`.
-
-────────────────────────────────────────
+## ⍟ Contato
 
 ```text
 ▓▓▓ NΞØ MELLØ
@@ -94,6 +46,5 @@ neo@neoprotocol.space
 chaos becomes protocol."
 
 Security by design.
-Exploits find no refuge here.
 ────────────────────────────────────────
 ```

@@ -67,7 +67,7 @@ app.use(
   cors({
     origin: process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(",")
-      : "http://localhost:4321",
+      : ["http://localhost:4321", "https://laughter.up.railway.app"],
     credentials: true,
   }),
 );
@@ -155,7 +155,7 @@ app.post(
         // Adiciona créditos no ledger (Idempotente via ledgerService.addEntry)
         const entry = await ledgerService.addEntry(
           userId,
-          100000, // 100k tokens para PRO
+          100000, // 100k tokens para PREMIUM
           "PURCHASE",
           reference,
         );
@@ -500,8 +500,8 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     }
   }
 
-  // Timing-safe check
-  const dummyHash = "$2b$12$L7mX/vFkS5n7.n7.n7.n7.O5O5O5O5O5O5O5O5O5O5O5O5O5O5O5";
+  // Timing-safe check: use a real, valid bcrypt hash for non-existent users
+  const dummyHash = "$2b$12$K6/vXy0G.S7.fG7.k7.m7.O5O5O5O5O5O5O5O5O5O5O5O5O5O5O5";
   const actualHash = passwordHash || dummyHash;
   const valid = await bcrypt.compare(password, actualHash);
 

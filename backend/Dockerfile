@@ -3,5 +3,6 @@ RUN corepack enable
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile
+WORKDIR /app/backend
 EXPOSE 3001
-CMD [ "pnpm", "start" ]
+CMD [ "node", "src/server.js" ]

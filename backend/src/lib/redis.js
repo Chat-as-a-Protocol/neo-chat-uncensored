@@ -79,6 +79,10 @@ if (
           ops.push({ op: "pexpire", k, ms });
           return chain;
         },
+        set: function (k, v) {
+          ops.push({ op: "set", k, v });
+          return chain;
+        },
         exec: async function () {
           const results = [];
           for (const { op, k, ms } of ops) {
@@ -94,6 +98,10 @@ if (
               }, ms);
               expiries.set(k, timer);
               results.push([null, 1]);
+            } else if (op === "set") {
+              clearExpiry(k);
+              store.set(k, v);
+              results.push([null, "OK"]);
             }
           }
           return results;
