@@ -6,7 +6,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 
 import jwt from "jsonwebtoken";
-import { randomUUID } from "node:crypto";
+import crypto, { randomUUID } from "node:crypto";
 import { createLogger, format, transports } from "winston";
 import { z } from "zod";
 
@@ -55,6 +55,16 @@ import { paymentService } from "./services/payments.js";
 import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
 
+// Carregar Configuração de Planos (NEØ PROTOCOL)
+const plansPath = path.resolve(process.cwd(), "..", "shared", "plans.json");
+let plans = { tiers: {}, packages: {} };
+try {
+  const plansData = await fs.readFile(plansPath, "utf-8");
+  plans = JSON.parse(plansData);
+} catch (err) {
+  console.error("ERRO: Falha ao carregar shared/plans.json");
+}
+
 // Logger
 const logger = createLogger({
   format: format.combine(format.timestamp(), format.json()),
@@ -75,7 +85,7 @@ app.use((req, res, next) => {
 // 1. CORS deve vir primeiro para lidar com Preflight (OPTIONS)
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",").map(o => o.trim().replace(/\/$/, ""))
-  : ["http://localhost:4321", "https://laughter.up.railway.app"];
+  : ["http://localhost:4321", "http://localhost:3000", "https://laughter.up.railway.app"];
 
 app.use(
   cors({
@@ -247,7 +257,7 @@ app.post("/api/auth/guest", async (req, res) => {
     const rawDeviceId = String(req.body?.deviceId || randomUUID()).slice(0, 128);
     const userId = "guest_" + crypto.createHash("sha256").update(rawDeviceId).digest("hex").slice(0, 32);
     const email = `${userId}@guest.nox.local`;
-    const tier = "pro";
+    const tier = "free";
 
     const token = jwt.sign(
       { id: userId, email, tier, guest: true },
@@ -375,12 +385,33 @@ const checkQuota = async (req, res, next) => {
     ]);
 
     // Normalização com Fail-Safe: prioriza Redis, mas cai para JWT em caso de erro/vazio
-    const rawTier = redisTier || req.user.tier || "free";
+    const rawTier = redisTier || req.user.tier || "guest";
     const userTier = rawTier === "premium" ? "pro" : rawTier;
-    const isPaid = userTier === "pro";
     
-    const defaultLimit = isPaid ? "10000" : "100";
-    const limit = parseInt(redisLimit || defaultLimit);
+    // Obter limite do arquivo de planos centralizado
+    const tierConfig = plans.tiers[userTier] || plans.tiers.guest;
+    const defaultLimit = tierConfig.limit || 500;
+    const messageLimit = tierConfig.messageLimit;
+    
+    const limit = parseInt(redisLimit || defaultLimit.toString());
+
+    // Validação de Contagem de Mensagens (Hardened Security)
+    if (messageLimit !== null && messageLimit !== undefined) {
+      const msgCountKey = `msg_count:${today}:${req.user.id}`;
+      const currentMsgs = parseInt(await redis.get(msgCountKey) || "0");
+      
+      if (currentMsgs >= messageLimit) {
+        logger.warn(`[Quota] Message limit reached for user ${req.user.id}: ${currentMsgs}/${messageLimit}`);
+        return res.status(403).json({
+          error: "Message limit reached",
+          message: "Seus 3 desejos foram ouvidos. Conclua o cadastro para continuar.",
+          upgradeUrl: "/signup"
+        });
+      }
+      // Incrementar contador (expira em 24h)
+      await redis.incr(msgCountKey);
+      await redis.expire(msgCountKey, 86400);
+    }
 
     if (usage >= limit) {
       logger.warn(`[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`);

@@ -47,3 +47,17 @@
 {"level":"info","message":"Server running on port 3001","timestamp":"2026-04-30T09:15:04.003Z"}
 {"level":"info","message":"Server running on port 3001","timestamp":"2026-04-30T09:17:52.044Z"}
 {"level":"info","message":"Server running on port 3001","timestamp":"2026-04-30T09:23:49.857Z"}
+{"level":"info","message":"NØX Backend running on port 3001","timestamp":"2026-05-01T08:35:21.805Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:35:30.115Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:35:30.340Z"}
+{"level":"info","message":"NØX Backend running on port 3001","timestamp":"2026-05-01T08:37:24.104Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:37:54.427Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:37:54.430Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:45:52.315Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:45:52.324Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:46:07.471Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:46:07.501Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:48:25.427Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:48:25.429Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T09:30:58.602Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T09:30:58.605Z"}

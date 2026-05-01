@@ -9,6 +9,12 @@
 # --- CONFIGURATION ---
 PNPM = pnpm
 
+# Load environment variables
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
 # --- HELP ---
 help:
 	@echo "NΞØ Protocol · neo-chat-uncensored"

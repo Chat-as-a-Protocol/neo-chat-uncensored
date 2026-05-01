@@ -218,7 +218,7 @@ FlowPay (api.flowpay.cash)
 
 - [x] Implementar Feature Toggles para controle de páginas (`ENABLE_AUTH_PAGES`)
 - [x] Criar esquema inicial do PostgreSQL (`backend/schema.sql`)
-- [ ] Migrar persistência de usuários/ledger do Redis para PostgreSQL (mantendo Redis para cache/sessões)
+- [x] Migrar persistência de usuários/ledger do Redis para PostgreSQL (mantendo Redis para cache/sessões)
 
 ────────────────────────────────────────
 

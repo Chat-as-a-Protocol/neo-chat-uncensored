@@ -2,6 +2,10 @@
 import AstroChatInterface from '../components/AstroChatInterface.astro';
 import Layout from '../layouts/Layout.astro';
 import SceneBackground from '../components/SceneBackground.astro';
+
+// A "trava" agora é gerenciada dentro do componente de Chat para permitir a amostra de 3 mensagens.
+// O redirecionamento só acontece se o usuário tentar acessar páginas Pro ou se o componente decidir.
+
 const showAuthLinks = false;
 ---
 
@@ -73,19 +77,22 @@ const showAuthLinks = false;
   }
 
   .intro-splash {
-    position: absolute;
+    position: fixed;
     inset: 0;
-    z-index: 4;
-    display: grid;
-    place-items: center;
+    z-index: 10000; /* Acima de tudo */
+    display: flex;
+    align-items: center;
+    justify-content: center;
     pointer-events: none;
     background: #000;
     animation: intro-out 1900ms ease forwards;
   }
 
   .intro-splash img {
-    width: min(120vw, 1100px);
-    max-width: none;
+    width: 80vw;
+    max-width: 600px;
+    height: auto;
+    object-fit: contain;
     filter: drop-shadow(0 36px 70px rgba(0, 0, 0, 0.72));
     animation: logo-pulse 1500ms ease forwards;
   }
@@ -100,9 +107,9 @@ const showAuthLinks = false;
 
   @keyframes logo-pulse {
     0% { opacity: 0; transform: scale(1.04); }
-    24% { opacity: 1; transform: scale(1); }
-    68% { opacity: 1; transform: scale(0.985); }
-    100% { opacity: 0; transform: scale(0.97); }
+    15% { opacity: 1; transform: scale(1); }
+    85% { opacity: 1; transform: scale(0.995); }
+    100% { opacity: 0; transform: scale(0.98); }
   }
 
   @keyframes intro-out {

@@ -1,64 +1,97 @@
-# NØX.AI - User Journey (Current State)
+<!-- markdownlint-disable MD003 MD007 MD013 MD022 MD023 MD025 MD029 MD032 MD033 MD034 -->
+# User Journey
 
-**Version:** 3.1.0 (Hardened)
-**Status:** Audit Only - No Changes Applied
+```text
+========================================
+         NØX.AI · USER JOURNEY
+========================================
+Status: OPERATIONAL
+Version: v4.0.0
+========================================
+```
 
-## 🗺️ Mapa de Rotas (Public vs Private)
+> **Version:** v4.0.0 (Guest-First)  
+> **Status:** active  
+> **Context:** Sovereign Funnel Logic
 
-| Rota | Visibilidade | Propósito |
-| :--- | :--- | :--- |
-| `/` | **Restrita** | Interface de Chat AI (Core Product). |
-| `/login` | Pública | Acesso de usuários cadastrados. |
-| `/signup` | Pública | Registro de novos usuários. |
-| `/upgrade` | **Restrita** | Venda de pacotes de tokens e assinatura Pro. |
-| `/success` | **Restrita** | Landing page pós-pagamento FlowPay. |
-| `/health` | Pública | API de monitoramento de infraestrutura. |
-| `/privacy-policy` | Pública | Documentação jurídica. |
-| `/terms-and-conditions` | Pública | Regras de serviço. |
+## ⧉ Mapa de Rotas
 
----
+```text
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ ROTA          VISIBILIDADE    PROPÓSITO
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ /             Pública (Lim 3) Interface de Chat AI - Guest Mode
+┃ /login        Pública         Acesso para usuários identificados
+┃ /signup       Pública         Registro para quebra de barreira
+┃ /upgrade      Restrita        Vitrine († NEØ †, VOID.ᴇxᴇ, EL CHAPO 亗)
+┃ /success      Restrita        Confirmação de recarga FlowPay
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 
-## 🛤️ Fluxo da Jornada "Hoje" (As-Is)
+────────────────────────────────────────
 
-### 1. Entrada e Gate de Segurança
+## ⟠ Fluxo da Jornada (Sovereign Funnel)
 
-O ponto de entrada é a raiz `/`. O sistema executa uma verificação SSR (Server-Side Rendering):
+### 1. O Despertar (Guest Mode)
 
-- **Condição:** Se `ENABLE_AUTH_PAGES=true` e o cookie `neo_token` estiver ausente.
-- **Ação:** Redirecionamento 302 para `/login`.
-- **Observação:** O usuário que deseja apenas "espiar" o produto é forçado a logar antes de ver qualquer interface.
+O usuário acessa a raiz `/` e obtém acesso imediato.
+Não há exigência de credenciais para a interação inicial.
 
-### 2. Autenticação e Onboarding
+- **Experiência Gênio**: Permissão de até 3 mensagens.
+- **Validação**: Controle via Redis e DeviceId no backend.
+- **Interface**: Identidade pura NØX, sem seletores complexos.
 
-- O usuário alterna entre `/login` e `/signup`.
-- Após o sucesso na autenticação, o backend (Express) emite um token JWT que o frontend armazena no Cookie e no LocalStorage.
-- O usuário é então redirecionado de volta para `/`.
+### 2. O Gate de Conversão (Marketing Barrier)
 
-### 3. Uso do Produto (Chat Loop)
+Interrupção obrigatória após o esgotamento do 3º desejo.
+A interface bloqueia o input e exige decisão soberana.
 
-- No `/`, o usuário consome tokens diários.
-- A cada mensagem, o backend valida o saldo no Redis/PostgreSQL.
-- Se o saldo acaba, o usuário recebe um alerta visual e é incentivado a clicar em "Upgrade".
+- **Ações**: Cadastro via `/signup` ou Login via `/login`.
+- **Hardened**: Bloqueio enforçado na camada de API.
+- **UX**: Botões diretos para conversão sem timers agressivos.
 
-### 4. Ciclo de Monetização
+### 3. Escalada de Poder (Upgrade)
 
-- O usuário clica em link para `/upgrade`.
-- Escolhe um pacote e é enviado para o checkout externo da FlowPay.
-- Após o pagamento, retorna para `/success` e depois volta manualmente para `/`.
+Usuários identificados podem expandir limites em `/upgrade`.
+Aumento de cota e acesso a privilégios de rede.
 
----
+- **† NEØ † / × VOID.ᴇxᴇ ×**: Recarga de tokens e fim da trava de mensagens.
+- **EL CHAPO 亗**: 10.000 tokens e acesso total sobre a inteligência.
+- **Negociação**: Suporte direto com o Arquiteto para o tier EL CHAPO.
 
-## 🚩 Pontos Identificados (O "Lugar Errado")
+────────────────────────────────────────
 
-De acordo com a análise preliminar, estes são os pontos onde a jornada parece "quebrada" ou sub-otimizada hoje:
+## ⍟ Segurança e Resiliência
 
-1. **Gate Agressivo**: O redirecionamento imediato para `/login` impede o "Guest Mode", o que pode aumentar a taxa de rejeição de novos usuários.
-2. **Navegação de Rodapé**: Links como "Login" e "Sign Up" aparecem no rodapé da página de Chat (`/`), o que é redundante se o usuário já está logado para ver aquela página.
-3. **Pós-Pagamento**: O redirecionamento após `/success` é manual, o que quebra a fluidez do "reabastecimento" de tokens.
-4. **Falta de Landing Page**: Não existe uma `/landing` ou uma home pública que apresente o valor do produto antes de exigir o cadastro.
+```text
+▓▓▓ OPERATIONAL CONSTRAINTS
+────────────────────────────────────────
+└─ Histórico: Truncagem automática (últimas 30 msgs)
+└─ Quota: Auditada em tempo real via Redis
+└─ Acessibilidade: Gestão de foco e navegação Escape (A11y)
+└─ Persistência: LocalStorage + Sessão Identificada
+```
 
----
+────────────────────────────────────────
 
-## 🧪 Próximos Passos (Estratégia)
+## ◬ Próximos Passos
 
-Este documento servirá de base para o estudo da **Nova Estratégia de Soberania**, onde transformaremos esse fluxo funcional em um funil de conversão de alta performance.
+1. Automatizar retorno de `/success` para o loop principal.
+2. Preparar injeção de protocolos customizados para EL CHAPO.
+3. Hardening contínuo de rate-limiting por Device Fingerprint.
+
+────────────────────────────────────────
+
+```text
+▓▓▓ NΞØ MELLØ
+────────────────────────────────────────
+Core Architect · NΞØ Protocol
+neo@neoprotocol.space
+
+"Code is law. Expand until
+chaos becomes protocol."
+
+Security by design.
+Exploits find no refuge here.
+────────────────────────────────────────
+```

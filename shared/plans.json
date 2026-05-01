@@ -1,0 +1,58 @@
+{
+  "tiers": {
+    "guest": {
+      "name": "Guest Mode",
+      "limit": 500,
+      "messageLimit": 3
+    },
+    "paid_basic": {
+      "name": "Identified User",
+      "limit": 5000,
+      "messageLimit": null
+    },
+    "paid_pro": {
+      "name": "EL CHAPO 亗",
+      "limit": 10000,
+      "messageLimit": null
+    }
+  },
+  "packages": {
+    "1k": {
+      "id": "1k",
+      "name": "† NEØ †",
+      "tokens": 1000,
+      "price": 49,
+      "tier_upgrade": "paid_basic",
+      "benefits": [
+        "Recarga imediata de tokens",
+        "Segredo absoluto e mensagens criptografadas",
+        "Remoção da barreira de 3 desejos"
+      ]
+    },
+    "5k": {
+      "id": "5k",
+      "name": "× VOID.ᴇxᴇ ×",
+      "tokens": 5000,
+      "price": 79,
+      "tier_upgrade": "paid_basic",
+      "benefits": [
+        "Carga massiva de tokens (5k)",
+        "Segredo absoluto e mensagens criptografadas",
+        "Prioridade de processamento"
+      ]
+    },
+    "10k": {
+      "id": "10k",
+      "name": "EL CHAPO 亗",
+      "tokens": 10000,
+      "price": 149,
+      "tier_upgrade": "paid_pro",
+      "benefits": [
+        "Acesso EL CHAPO 亗",
+        "Personalização Direta com o Arquiteto",
+        "Acesso total sobre a inteligência",
+        "Segredo absoluto"
+      ]
+    }
+  }
+}

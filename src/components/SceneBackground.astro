@@ -24,10 +24,10 @@ const { animateLogo = true } = Astro.props;
   .grain {
     position: absolute;
     inset: 0;
-    opacity: 0.08;
-    background-image: radial-gradient(rgba(255, 255, 255, 0.6) 0.6px, transparent 0);
-    background-size: 3px 3px;
-    mix-blend-mode: soft-light;
+    opacity: 0.04; /* Mais sutil */
+    background-image: radial-gradient(rgba(255, 255, 255, 0.4) 0.5px, transparent 0);
+    background-size: 2px 2px;
+    mix-blend-mode: overlay;
     z-index: 0;
   }
 
@@ -39,7 +39,7 @@ const { animateLogo = true } = Astro.props;
     width: 100vw;
     height: 100vh;
     object-fit: cover;
-    opacity: 1;
+    opacity: 0.65;
     pointer-events: none;
     user-select: none;
     z-index: 1;
@@ -56,7 +56,7 @@ const { animateLogo = true } = Astro.props;
     max-width: none;
     height: auto;
     object-fit: contain;
-    opacity: 0.52;
+    opacity: 0.85;
     pointer-events: none;
     user-select: none;
     z-index: 2; /* Fica acima do wallpaper e abaixo da vinheta */
@@ -68,10 +68,10 @@ const { animateLogo = true } = Astro.props;
 
   @keyframes float-logo {
     0%, 100% {
-      transform: translate(-50%, -48%) rotate(-0.5deg);
+      transform: translate(-50%, -49.5%) rotate(-0.2deg);
     }
     50% {
-      transform: translate(-50%, -52%) rotate(0.5deg);
+      transform: translate(-50%, -50.5%) rotate(0.2deg);
     }
   }
 
@@ -84,6 +84,6 @@ const { animateLogo = true } = Astro.props;
     position: absolute;
     inset: 0;
     z-index: 3;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.82) 100%);
+    background: radial-gradient(circle at 50% 40%, rgba(0, 0, 0, 0) 20%, rgba(0, 0, 0, 0.85) 100%);
   }
 </style>
