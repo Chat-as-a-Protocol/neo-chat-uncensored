@@ -51,6 +51,7 @@ const app = express();
 
 import redis from "./lib/redis.js";
 import { ledgerService, LEDGER_TYPES } from "./services/ledger.js";
+import { paymentService } from "./services/payments.js";
 import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
 
@@ -171,13 +172,24 @@ app.post(
         }
 
         const reference = paymentId || `flowpay_${Date.now()}`;
+        const amountBrl = Number(data?.amount ?? data?.value ?? metadata.amountBrl ?? metadata.price ?? 0);
+        const currency = String(data?.currency || metadata.currency || "BRL").toUpperCase();
 
-        // Idempotency: check if this event was already processed
-        const lockKey = `webhook_processed:${reference}`;
-        const isNew = await redis.set(lockKey, "1", "NX", "EX", 86400); // 24h lock
-        if (!isNew) {
-          logger.info(`[Webhook] Event ${reference} already processed (Redis lock)`);
-          return res.status(200).json({ status: "success", message: "Already processed" });
+        const paymentRecord = await paymentService.recordFlowPayPayment({
+          providerReference: reference,
+          userId,
+          amountBrl,
+          currency,
+          status: String(data?.status || "received").toLowerCase(),
+          metadata: {
+            ...metadata,
+            event,
+            paymentId: paymentId || null,
+          },
+        });
+
+        if (!paymentRecord.persisted) {
+          logger.warn(`[Webhook] Payment ${reference} not persisted: ${paymentRecord.reason}`);
         }
 
         let entry;
@@ -207,6 +219,8 @@ app.post(
           );
           return res.status(200).json({ status: "success", message: "Already processed" });
         }
+
+        await redis.set(`webhook_processed:${reference}`, "1", "EX", 86400);
 
         const successMessage = isTokenPurchase ? "Tokens added successfully" : "Tier updated successfully";
         
@@ -837,6 +851,8 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
         metadata: {
           plan: "pro",
           userId: req.user.id,
+          amountBrl: 49,
+          type: "pro_subscription",
         },
       }),
     });
@@ -901,6 +917,7 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
         callbackUrl: `${frontendBaseUrl}/success`,
         metadata: { 
           tokens: selected.tokens,
+          price: selected.price,
           userId: req.user.id,
           type: "tokens_purchase"
         }

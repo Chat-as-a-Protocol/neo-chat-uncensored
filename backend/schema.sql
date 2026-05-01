@@ -28,9 +28,25 @@ CREATE TABLE IF NOT EXISTS ledger (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tabela de Pagamentos (FlowPay / PIX)
+-- Fonte auditável do evento financeiro antes do crédito no ledger
+CREATE TABLE IF NOT EXISTS payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider TEXT NOT NULL DEFAULT 'flowpay',
+  provider_reference TEXT UNIQUE NOT NULL,
+  user_id TEXT NOT NULL,
+  amount_brl INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'BRL',
+  status TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_ledger_user_id ON ledger(user_id);
 CREATE INDEX IF NOT EXISTS idx_ledger_reference ON ledger(reference);
+CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_provider_reference ON payments(provider_reference);
 
 -- Gatilho para atualizar o updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
