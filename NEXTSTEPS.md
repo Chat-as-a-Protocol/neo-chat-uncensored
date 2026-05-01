@@ -206,7 +206,9 @@ FlowPay (api.flowpay.cash)
 - [x] Banco de dados real para usuários (Turso/PostgreSQL) em vez de Redis puro
 - [ ] Histórico de conversas — local ou criptografado no server
 - [ ] Password reset flow (email via Resend ou FlowPay)
-- [ ] Personas customizáveis (system prompts pré-definidos pelo usuário)
+- [x] Personas customizáveis (módulos dinâmicos via manifests)
+- [ ] **Marketplace de Personas**: Sistema para terceiros venderem prompts (comissão 30% padrão)
+- [ ] **Sistema de Indicação (Referral)**: Links de indicação para crescimento viral e recompensas em tokens
 - [ ] Contagem real de tokens no streaming (ao invés da heurística atual)
 
 ────────────────────────────────────────

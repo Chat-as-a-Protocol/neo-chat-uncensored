@@ -2,6 +2,14 @@
   <header class="chat-header" aria-label="brand">
     <div class="brand-pill">
       <span class="brand-name">NØX.AI</span>
+      
+      <div class="persona-selector">
+        <select id="persona-select" title="Selecionar Módulo de IA">
+          <option value="nox">NØX_STD</option>
+          <option value="analyst">ANALYST_MOD</option>
+        </select>
+      </div>
+
       <div id="quota-indicator" class="quota-badge" title="Mensagens hoje">
         <span class="quota-count">--/--</span>
       </div>
@@ -326,6 +334,7 @@
         },
         body: JSON.stringify({
           messages,
+          personaId: (document.getElementById('persona-select') as HTMLSelectElement)?.value || 'nox',
           stream: true,
         }),
       });
@@ -591,6 +600,32 @@
     background: var(--accent);
     box-shadow: 0 0 8px var(--accent);
     animation: led-flicker 4s infinite alternate;
+  }
+
+  .persona-selector {
+    margin-left: auto;
+    margin-right: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 2px 8px;
+  }
+
+  .persona-selector select {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-family: 'Space Grotesk', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    outline: none;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+
+  .persona-selector select option {
+    background: #181923;
+    color: var(--text-strong);
   }
 
   .quota-badge.is-exhausted::before {

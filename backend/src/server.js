@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import dotenv from "dotenv";
+import { randomUUID } from "crypto";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
@@ -50,7 +51,7 @@ const effectiveJwtSecret = JWT_SECRET || randomUUID();
 const app = express();
 
 import redis from "./lib/redis.js";
-import { ledgerService } from "./services/ledger.js";
+import { ledgerService, LEDGER_TYPES } from "./services/ledger.js";
 import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
 
@@ -156,7 +157,7 @@ app.post(
       const { event, data } = payload;
 
       if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-        const { userId, paymentId } = data;
+        const { userId, paymentId, metadata } = data;
 
         if (!userId) {
           throw new Error("Missing userId in payload");
@@ -172,16 +173,23 @@ app.post(
           return res.status(200).json({ status: "success", message: "Already processed" });
         }
 
-        // Atualiza o tier no Redis (Operação Idempotente por natureza no Redis)
-        await redis.set(`tier:${userId}`, "premium");
-
-        // Adiciona créditos no ledger (Idempotente via ledgerService.addEntry)
-        const entry = await ledgerService.addEntry(
-          userId,
-          100000, // 100k tokens para PREMIUM
-          "PURCHASE",
-          reference,
-        );
+        let entry;
+        if (metadata?.type === "tokens_purchase") {
+          // Compra de pacotes de tokens avulsos
+          const tokens = parseInt(metadata.tokens) || 0;
+          entry = await ledgerService.addEntry(userId, tokens, LEDGER_TYPES.TOKEN_PURCHASE, reference);
+          logger.info(`[Webhook] User ${userId} purchased ${tokens} tokens`);
+        } else {
+          // Upgrade de plano mensal (Padrão)
+          await redis.set(`tier:${userId}`, "pro");
+          entry = await ledgerService.addEntry(
+            userId,
+            0, // Valor 0 conforme regra: Pro é controlado via Tier/Limit, não créditos no ledger
+            LEDGER_TYPES.PRO_SUBSCRIPTION,
+            reference,
+          );
+          logger.info(`[Webhook] User ${userId} upgraded to PRO (Subscription Event)`);
+        }
 
         if (!entry) {
           logger.info(
@@ -190,7 +198,7 @@ app.post(
           return res.status(200).json({ status: "success", message: "Already processed" });
         }
 
-        logger.info(`[Webhook] User ${userId} upgraded to PREMIUM via FlowPay (${reference})`);
+        logger.info(`[Webhook] User ${userId} upgraded to PRO via FlowPay (${reference})`);
         return res
           .status(200)
           .json({ status: "success", message: "Tier updated and credits added" });
@@ -258,30 +266,14 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// ===== AUTH MIDDLEWARE =====
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
-
-  const devUser = { id: "dev_user", email: "dev@localhost", tier: "pro" };
-  
-  // Bypass de Dev: permite testar o chat sem login em ambiente local
-  if (process.env.NODE_ENV !== "production") {
-    if (!token || token === "null") {
-      req.user = devUser;
-      return next();
-    }
-  }
 
   const secret = effectiveJwtSecret;
 
   jwt.verify(token, secret, (err, user) => {
     if (err) {
-      if (process.env.NODE_ENV !== "production") {
-        // Falhou assinatura, mas como estamos em dev, injeta o user fake
-        req.user = devUser;
-        return next();
-      }
       return res.status(401).json({ error: "Invalid token" });
     }
     req.user = user;
@@ -294,8 +286,9 @@ const createUserRateLimit = () =>
   rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minuto
     max: async (req) => {
-      const userTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
-      const isPaid = userTier === "pro" || userTier === "premium";
+      const rawTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+      const userTier = rawTier === "premium" ? "pro" : rawTier;
+      const isPaid = userTier === "pro";
       return isPaid ? 60 : 10; // 60 req/min para pagos, 10 para free
     },
     keyGenerator: (req) => req.user.id,
@@ -322,26 +315,103 @@ const createUserRateLimit = () =>
 // ===== CHECK QUOTA MIDDLEWARE =====
 const checkQuota = async (req, res, next) => {
   const today = new Date().toISOString().split("T")[0];
-  const usage = await ledgerService.getDailyUsage(req.user.id, today);
-  const userTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
-  const isPaid = userTier === "pro" || userTier === "premium";
-  const defaultLimit = isPaid ? "10000" : "100";
-  const limit = parseInt((await redis.get(`limit:${req.user.id}`)) || defaultLimit);
+  
+  try {
+    // Busca paralela para reduzir latência (Hot Path)
+    const [usage, redisTier, redisLimit] = await Promise.all([
+      ledgerService.getDailyUsage(req.user.id, today),
+      redis.get(`tier:${req.user.id}`).catch(() => null),
+      redis.get(`limit:${req.user.id}`).catch(() => null)
+    ]);
 
-  if (usage >= limit) {
-    logger.warn(`[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`);
-    return res.status(403).json({
-      error: "Daily quota exceeded",
-      usage,
-      limit,
-      upgradeUrl: "/billing",
-    });
+    // Normalização com Fail-Safe: prioriza Redis, mas cai para JWT em caso de erro/vazio
+    const rawTier = redisTier || req.user.tier || "free";
+    const userTier = rawTier === "premium" ? "pro" : rawTier;
+    const isPaid = userTier === "pro";
+    
+    const defaultLimit = isPaid ? "10000" : "100";
+    const limit = parseInt(redisLimit || defaultLimit);
+
+    if (usage >= limit) {
+      logger.warn(`[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`);
+      return res.status(403).json({
+        error: "Daily quota exceeded",
+        usage,
+        limit,
+        upgradeUrl: "/upgrade",
+      });
+    }
+
+    req.currentUsage = usage;
+    req.dailyLimit = limit;
+    next();
+  } catch (err) {
+    logger.error("[Quota] Critical error in quota enforcement:", err);
+    // Em caso de erro crítico no Redis/Ledger, permitimos o next() como fail-safe em vez de travar o chat
+    next();
+  }
+};
+
+// ===== PERSONA MANAGER =====
+async function loadPersona(personaId, userTier = "free") {
+  // 1. Camada de Cache (Redis)
+  const cacheKey = `manifest_cache:${personaId}`;
+  const cached = await redis.get(cacheKey);
+  if (cached) {
+    const manifest = JSON.parse(cached);
+    // Validar tier mesmo no cache (Normalizado)
+    const effectiveTier = userTier === "premium" ? "pro" : userTier;
+    if (manifest.tier === "pro" && effectiveTier !== "pro") {
+      throw new Error("PRO_REQUIRED");
+    }
+    return manifest.prompt;
   }
 
-  req.currentUsage = usage;
-  req.dailyLimit = limit;
-  next();
-};
+  // 2. Fallback para Persona Padrão
+  if (!personaId || personaId === "nox") {
+    try {
+      const promptPath = path.resolve(process.cwd(), "..", "docs", "SYSTEM_PROMPT.md");
+      const prompt = await fs.readFile(promptPath, "utf-8");
+      return prompt;
+    } catch (err) {
+      return "Protocolo NØX. Sem filtros.";
+    }
+  }
+
+  // 3. Carregamento de Manifestos Locais
+  try {
+    const filePath = path.resolve(process.cwd(), "..", "src", "content", "manifests", `${personaId}.md`);
+    const content = await fs.readFile(filePath, "utf-8");
+
+    // Parser Nativo de Frontmatter (Regex)
+    const fmMatch = content.match(/^---\s*([\s\S]*?)\s*---\s*([\s\S]*)$/);
+    if (!fmMatch) throw new Error("INVALID_MANIFEST_FORMAT");
+
+    const fmRaw = fmMatch[1];
+    const prompt = fmMatch[2].trim();
+
+    // Extrair tier do YAML simplificado
+    const tierMatch = fmRaw.match(/tier:\s*["']?(\w+)["']?/);
+    const tier = tierMatch ? tierMatch[1] : "free";
+
+    // Validação de Tier (Normalizado)
+    const effectiveTier = userTier === "premium" ? "pro" : userTier;
+    if (tier === "pro" && effectiveTier !== "pro") {
+      throw new Error("PRO_REQUIRED");
+    }
+
+    // Salvar no Cache por 1 hora
+    await redis.set(cacheKey, JSON.stringify({ tier, prompt }), "EX", 3600);
+    
+    return prompt;
+  } catch (err) {
+    if (err.message === "PRO_REQUIRED") throw err;
+    logger.warn(`Could not load persona ${personaId}: ${err.message}`);
+    // Fallback silencioso para o padrão
+    const promptPath = path.resolve(process.cwd(), "..", "docs", "SYSTEM_PROMPT.md");
+    return await fs.readFile(promptPath, "utf-8").catch(() => "NØX ativo.");
+  }
+}
 
 // ===== VENICE API PROXY =====
 app.post(
@@ -356,6 +426,7 @@ app.post(
         model = process.env.VENICE_MODEL || "venice-uncensored-1-2",
         temperature = 0.7,
         stream = true,
+        personaId = "nox",
       } = req.body;
 
       // Validar input
@@ -363,29 +434,31 @@ app.post(
         messages: z
           .array(
             z.object({
-              role: z.enum(["system", "user", "assistant"]),
-              content: z.string().min(1).max(32000),
+              role: z.enum(["user", "assistant", "system"]),
+              content: z.string(),
             }),
           )
           .max(50),
         model: z.string().optional(),
         stream: z.boolean().optional(),
+        personaId: z.string().optional(),
       });
 
       schema.parse(req.body);
 
-      // Carregar Persona NØX.ai
-      let systemPrompt = "";
+      // Carregar Persona Dinâmica com Validação de Tier
+      const userTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+      let systemPrompt;
       try {
-        const promptPath = path.resolve(
-          process.cwd(),
-          "..",
-          "docs",
-          "SYSTEM_PROMPT.md",
-        );
-        systemPrompt = await fs.readFile(promptPath, "utf-8");
+        systemPrompt = await loadPersona(personaId, userTier);
       } catch (err) {
-        logger.warn("Could not load SYSTEM_PROMPT.md, using empty fallback.");
+        if (err.message === "PRO_REQUIRED") {
+          return res.status(403).json({ 
+            error: "Módulo Pro Requerido", 
+            upgradeUrl: "/upgrade" 
+          });
+        }
+        throw err;
       }
 
       const finalMessages = [
@@ -472,7 +545,7 @@ app.post(
             await ledgerService.addEntry(
               req.user.id,
               -tokens,
-              "CONSUMPTION",
+              LEDGER_TYPES.TOKEN_CONSUMPTION,
               "chat_" + Date.now()
             );
           } catch (err) {
@@ -719,7 +792,7 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
         userId: req.user.id,
         callbackUrl: `${frontendBaseUrl}/success`,
         metadata: {
-          plan: "premium",
+          plan: "pro",
         },
       }),
     });
@@ -742,6 +815,60 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
 
 // ===== START SERVER =====
 const PORT = process.env.PORT || 3001;
+// ===== TOKEN PURCHASE ENDPOINT =====
+app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
+  try {
+    const rawTier = await redis.get(`tier:${req.user.id}`) || req.user.tier || "free";
+    const userTier = rawTier === "premium" ? "pro" : rawTier;
+    
+    if (userTier === "pro") {
+      return res.status(403).json({ 
+        error: "Pro users already have unlimited tokens",
+        upgradeUrl: null
+      });
+    }
+
+    const { package: pkg } = req.body;
+    const tokenPackages = {
+      "1k": { tokens: 1000, price: 19 },
+      "5k": { tokens: 5000, price: 79 },
+      "10k": { tokens: 10000, price: 149 }
+    };
+    
+    const selected = tokenPackages[pkg];
+    if (!selected) return res.status(400).json({ error: "Invalid package" });
+    
+    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
+    
+    const response = await fetch(`${flowpayUrl}/api/create-charge`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.FLOWPAY_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        amount: selected.price,
+        currency: "BRL",
+        orderId: `tokens_${randomUUID()}`,
+        userId: req.user.id,
+        callbackUrl: `${process.env.FRONTEND_URL}/success`,
+        metadata: { 
+          tokens: selected.tokens,
+          type: "tokens_purchase"
+        }
+      })
+    });
+    
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "FlowPay Error");
+    
+    res.json({ checkoutUrl: data.checkoutUrl });
+  } catch (error) {
+    logger.error(`[Tokens] Purchase error: ${error.message}`);
+    res.status(500).json({ error: "Failed to create token purchase" });
+  }
+});
+
 app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
 });

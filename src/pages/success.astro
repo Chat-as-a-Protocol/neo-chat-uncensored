@@ -2,9 +2,8 @@
 import Layout from '../layouts/Layout.astro';
 
 const token = Astro.cookies.get('neo_token')?.value;
-const isProd = import.meta.env.PROD;
 
-if (!token && isProd) {
+if (!token) {
   return Astro.redirect('/login');
 }
 ---
