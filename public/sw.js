@@ -51,21 +51,20 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => {
+        .catch(async () => {
           // Fallback Offline
-          return caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) return cachedResponse;
+          const cachedResponse = await caches.match(event.request);
+          if (cachedResponse) return cachedResponse;
 
-            // Se for uma navegação (mudança de página), retorna o App Shell (/)
-            if (event.request.mode === 'navigate') {
-              return caches.match('/');
-            }
+          // Se for uma navegação (mudança de página), retorna o App Shell (/)
+          if (event.request.mode === 'navigate') {
+            return await caches.match('/');
+          }
 
-            // Fallback genérico
-            return new Response('Offline: Resource not in cache', {
-              status: 503,
-              statusText: 'Service Unavailable'
-            });
+          // Fallback genérico
+          return new Response('Offline: Resource not in cache', {
+            status: 503,
+            statusText: 'Service Unavailable'
           });
         })
     );

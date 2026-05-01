@@ -48,11 +48,11 @@ if (!token) {
           <div class="badge">Acesso Total</div>
           <h3>Pro Engine</h3>
           <div class="usage-hint">
-            <p><strong>Pro:</strong> Já inclui uso ilimitado + modelos exclusivos</p>
+            <p><strong>Pro:</strong> Já inclui uso prioritário + modelos exclusivos</p>
           </div>
           <div class="price">R$ 49<span>/mês</span></div>
           <ul class="features">
-            <li>Processamento Ilimitado</li>
+            <li>Alta Capacidade Diária (10k)</li>
             <li>Todos os modelos Pro</li>
             <li>Deep Analysis Ativo</li>
           </ul>
@@ -61,6 +61,18 @@ if (!token) {
       </div>
       
       <a href="/" style="color: white;" class="back-link">←Return</a>
+
+      <!-- FlowPay Diagnostics Panel -->
+      <div class="test-panel" id="flowpay-test">
+        <div class="test-header">
+          <span class="test-title">Sovereign Payment Diagnostics</span>
+          <button onclick="checkFlowHealth()" class="btn-check">Check API</button>
+        </div>
+        <div id="health-status" class="health-status"></div>
+        <hr class="test-divider" />
+        <button onclick="testFlowCharge()" class="btn-test">Simulate Test Charge (R$ 1.00)</button>
+        <div id="test-result" class="test-result"></div>
+      </div>
     </div>
   </div>
 
@@ -145,8 +157,94 @@ if (!token) {
     .tokens-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      gap: 12px;
     }
+
+    /* Diagnostics Panel Styles */
+    .test-panel {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 40px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .test-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .test-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .btn-check, .btn-test {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-test {
+      width: 100%;
+      background: rgba(var(--accent-rgb), 0.1);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .btn-check:hover, .btn-test:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .health-status, .test-result {
+      font-family: monospace;
+      font-size: 0.75rem;
+      margin: 10px 0;
+    }
+
+    .test-divider {
+      border: 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      margin: 15px 0;
+    }
+
+    .success { color: #00ffaa; }
+    .error { color: #ff4444; }
+    .loading { color: #aaa; font-style: italic; }
+
+    .success-box {
+      background: rgba(0, 255, 170, 0.1);
+      border: 1px solid rgba(0, 255, 170, 0.2);
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .btn-checkout {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      background: #00ffaa;
+      color: #000;
+      border: none;
+      padding: 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+
 
     .token-item {
       background: rgba(255, 255, 255, 0.03);
@@ -245,11 +343,62 @@ if (!token) {
     }
   </style>
 
-  <script is:inline>
-    const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    const apiUrl = import.meta.env.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
+  <script is:inline define:vars={{ 
+    PUBLIC_API_URL: import.meta.env.PUBLIC_API_URL,
+    isLocalhost: ['localhost', '127.0.0.1'].includes(Astro.url.hostname) 
+  }}>
+    const apiUrl = PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
+    const API_URL = isLocalhost ? 'http://localhost:3001' : '';
 
-    async function buyTokens(packageType) {
+    window.checkFlowHealth = async function() {
+      const token = localStorage.getItem('neo_token');
+      const statusEl = document.getElementById('health-status');
+      statusEl.innerHTML = '<span class="loading">Probing API...</span>';
+      
+      try {
+        const res = await fetch(`${API_URL}/api/flowpay/health`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        statusEl.innerHTML = data.status === 'online' 
+          ? `<span class="success">● FlowPay Online (${data.statusCode})</span>`
+          : `<span class="error">● FlowPay Offline</span>`;
+      } catch (err) {
+        statusEl.innerHTML = `<span class="error">● Error: ${err.message}</span>`;
+      }
+    }
+
+    window.testFlowCharge = async function() {
+      const token = localStorage.getItem('neo_token');
+      const resultEl = document.getElementById('test-result');
+      resultEl.innerHTML = '<span class="loading">Creating sandbox charge...</span>';
+      
+      try {
+        const res = await fetch(`${API_URL}/api/flowpay/test-charge`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          }
+        });
+        const data = await res.json();
+        if (data.success) {
+          resultEl.innerHTML = `
+            <div class="success-box">
+              <p>✅ Test Charge Created</p>
+              <small>ID: ${data.chargeId}</small>
+              <button onclick="window.open('${data.checkoutUrl}', '_blank')" class="btn-checkout">Open Test Checkout</button>
+            </div>
+          `;
+        } else {
+          resultEl.innerHTML = `<div class="error-box">❌ ${data.error}</div>`;
+        }
+      } catch (err) {
+        resultEl.innerHTML = `<div class="error-box">❌ ${err.message}</div>`;
+      }
+    }
+
+    window.buyTokens = async function(packageType) {
       const token = localStorage.getItem('neo_token');
       if (!token) return window.location.href = '/login';
       
@@ -274,7 +423,7 @@ if (!token) {
       }
     }
 
-    async function handleFlowPay() {
+    window.handleFlowPay = async function() {
       const token = localStorage.getItem('neo_token');
       if (!token) return window.location.href = '/login';
       
