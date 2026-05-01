@@ -151,7 +151,7 @@ Versão    : 3.0.0
 
 ### Persona e Experience
 
-- [ ] **System prompt / persona NØX.ai**
+- [ ] **System prompt / persona NØX.AI**
   - **Ação Requerida**: Criar `docs/SYSTEM_PROMPT.md` com a persona blasé.
   - Integração no `backend/src/server.js` pronta para ler o arquivo (atualmente usando fallback).
 
@@ -169,7 +169,7 @@ Versão    : 3.0.0
   - [x] Referências de estilo centralizadas no diretório pai `Chat-as-a-Protocol`
 
 - [x] **Refino da Interface (UX)**
-  - [x] Revisar mensagem de abertura para alinhar 100% com NØX.ai
+  - [x] Revisar mensagem de abertura para alinhar 100% com NØX.AI
   - [x] Remover logs de depuração do console em `AstroChatInterface.astro`
 
 ────────────────────────────────────────

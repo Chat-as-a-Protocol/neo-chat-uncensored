@@ -1,4 +1,4 @@
-# Setup & Technical Documentation - NØX.ai
+# Setup & Technical Documentation - NØX.AI
 
 ```text
 ========================================
@@ -6,7 +6,7 @@
 ========================================
 ```
 
-Este documento detalha a infraestrutura, comandos e configurações necessárias para operar a engine NØX.ai.
+Este documento detalha a infraestrutura, comandos e configurações necessárias para operar a engine NØX.AI.
 
 ## ⧉ Arquitetura (Topology)
 
