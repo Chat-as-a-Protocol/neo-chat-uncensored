@@ -1,7 +1,7 @@
 ---
 title: "NØX Analyst"
 category: "business"
-price: 499
+product_id: "pro_analyst"
 tier: "pro"
 tags: ["analysis", "corporate", "data"]
 ---

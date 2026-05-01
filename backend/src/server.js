@@ -65,6 +65,51 @@ try {
   console.error("ERRO: Falha ao carregar shared/plans.json");
 }
 
+const FALLBACK_GUEST_PLAN = {
+  limit: 500,
+  messageLimit: 3,
+  maxOutputTokens: 384,
+};
+
+const parsePositiveInt = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const normalizeAccessTier = (rawTier) => {
+  if (rawTier === "premium" || rawTier === "paid_pro") return "pro";
+  return rawTier || "guest";
+};
+
+const resolvePlanKey = (accessTier, isGuest) => {
+  if (isGuest || accessTier === "guest") return "guest";
+  if (accessTier === "pro") return plans.tiers.paid_pro ? "paid_pro" : "pro";
+  if (accessTier === "paid_basic") return "paid_basic";
+  return plans.tiers[accessTier] ? accessTier : "guest";
+};
+
+const getUserPlan = ({ redisTier, jwtTier, isGuest }) => {
+  const accessTier = normalizeAccessTier(isGuest ? "guest" : redisTier || jwtTier);
+  const planKey = resolvePlanKey(accessTier, isGuest);
+  return {
+    accessTier,
+    planKey,
+    tierConfig: plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN,
+  };
+};
+
+const persistUserPlan = async (userId, tier) => {
+  const accessTier = normalizeAccessTier(tier);
+  const planKey = resolvePlanKey(accessTier, accessTier === "guest");
+  const tierConfig = plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN;
+  const limit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
+
+  await redis.set(`tier:${userId}`, planKey);
+  await redis.set(`limit:${userId}`, String(limit));
+
+  return { accessTier, planKey, limit };
+};
+
 // Logger
 const logger = createLogger({
   format: format.combine(format.timestamp(), format.json()),
@@ -203,24 +248,39 @@ app.post(
         }
 
         let entry;
-        const purchaseType = String(metadata?.type || "").toLowerCase();
-        const isTokenPurchase = purchaseType === "tokens_purchase" || purchaseType === "token_purchase";
+        const entitlement = paymentService.resolveEntitlement(metadata, plans);
+        const isTokenPurchase = entitlement.kind === "token_purchase";
 
         if (isTokenPurchase) {
-          // Compra de pacotes de tokens avulsos
-          const tokens = parseInt(metadata.tokens) || 0;
-          entry = await ledgerService.addEntry(userId, tokens, LEDGER_TYPES.TOKEN_PURCHASE, reference);
-          logger.info(`[Webhook] User ${userId} purchased ${tokens} tokens`);
+          if (entitlement.tokens <= 0) {
+            throw new Error("Invalid token purchase metadata");
+          }
+
+          entry = await ledgerService.addEntry(
+            userId,
+            entitlement.tokens,
+            LEDGER_TYPES.TOKEN_PURCHASE,
+            reference,
+          );
+
+          if (entitlement.tierUpgrade) {
+            await persistUserPlan(userId, entitlement.tierUpgrade);
+          }
+
+          logger.info(
+            `[Webhook] User ${userId} purchased ${entitlement.tokens} tokens`,
+          );
         } else {
-          // Upgrade de plano mensal (Padrão)
-          await redis.set(`tier:${userId}`, "pro");
+          const plan = await persistUserPlan(userId, entitlement.tierUpgrade);
           entry = await ledgerService.addEntry(
             userId,
             0, // Valor 0 conforme regra: Pro é controlado via Tier/Limit, não créditos no ledger
             LEDGER_TYPES.PRO_SUBSCRIPTION,
             reference,
           );
-          logger.info(`[Webhook] User ${userId} upgraded to PRO (Subscription Event)`);
+          logger.info(
+            `[Webhook] User ${userId} upgraded to ${plan.planKey} (Subscription Event)`,
+          );
         }
 
         if (!entry) {
@@ -257,7 +317,7 @@ app.post("/api/auth/guest", async (req, res) => {
     const rawDeviceId = String(req.body?.deviceId || randomUUID()).slice(0, 128);
     const userId = "guest_" + crypto.createHash("sha256").update(rawDeviceId).digest("hex").slice(0, 32);
     const email = `${userId}@guest.nox.local`;
-    const tier = "free";
+    const tier = "guest";
 
     const token = jwt.sign(
       { id: userId, email, tier, guest: true },
@@ -347,8 +407,8 @@ const createUserRateLimit = () =>
     windowMs: 1 * 60 * 1000, // 1 minuto
     max: async (req) => {
       const rawTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
-      const userTier = rawTier === "premium" ? "pro" : rawTier;
-      const isPaid = userTier === "pro";
+      const userTier = normalizeAccessTier(rawTier);
+      const isPaid = userTier === "pro" || userTier === "paid_basic";
       return isPaid ? 60 : 10; // 60 req/min para pagos, 10 para free
     },
     keyGenerator: (req) => req.user.id,
@@ -384,16 +444,15 @@ const checkQuota = async (req, res, next) => {
       redis.get(`limit:${req.user.id}`).catch(() => null)
     ]);
 
-    // Normalização com Fail-Safe: prioriza Redis, mas cai para JWT em caso de erro/vazio
-    const rawTier = redisTier || req.user.tier || "guest";
-    const userTier = rawTier === "premium" ? "pro" : rawTier;
-    
-    // Obter limite do arquivo de planos centralizado
-    const tierConfig = plans.tiers[userTier] || plans.tiers.guest;
-    const defaultLimit = tierConfig.limit || 500;
+    const { accessTier, planKey, tierConfig } = getUserPlan({
+      redisTier,
+      jwtTier: req.user.tier,
+      isGuest: Boolean(req.user.guest),
+    });
+    const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
     const messageLimit = tierConfig.messageLimit;
     
-    const limit = parseInt(redisLimit || defaultLimit.toString());
+    const limit = parsePositiveInt(redisLimit, defaultLimit);
 
     // Validação de Contagem de Mensagens (Hardened Security)
     if (messageLimit !== null && messageLimit !== undefined) {
@@ -425,6 +484,12 @@ const checkQuota = async (req, res, next) => {
 
     req.currentUsage = usage;
     req.dailyLimit = limit;
+    req.userTier = accessTier;
+    req.planTier = planKey;
+    req.maxOutputTokens = parsePositiveInt(
+      tierConfig.maxOutputTokens,
+      FALLBACK_GUEST_PLAN.maxOutputTokens,
+    );
     next();
   } catch (err) {
     logger.error(`[Quota] Critical error in quota enforcement for user ${req.user?.id ?? "unknown"}:`, err);
@@ -454,7 +519,7 @@ async function loadPersona(personaId, userTier = "free") {
   // 2. Fallback para Persona Padrão
   if (!personaId || personaId === "nox") {
     try {
-      const promptPath = path.resolve(process.cwd(), "..", "docs", "SYSTEM_PROMPT.md");
+      const promptPath = path.resolve(process.cwd(), "..", "shared", "runtime-prompt.md");
       const prompt = await fs.readFile(promptPath, "utf-8");
       return prompt;
     } catch (err) {
@@ -492,7 +557,7 @@ async function loadPersona(personaId, userTier = "free") {
     if (err.message === "PRO_REQUIRED") throw err;
     logger.warn(`Could not load persona ${personaId}: ${err.message}`);
     // Fallback silencioso para o padrão
-    const promptPath = path.resolve(process.cwd(), "..", "docs", "SYSTEM_PROMPT.md");
+    const promptPath = path.resolve(process.cwd(), "..", "shared", "runtime-prompt.md");
     return await fs.readFile(promptPath, "utf-8").catch(() => "NØX ativo.");
   }
 }
@@ -531,7 +596,7 @@ app.post(
       schema.parse(req.body);
 
       // Carregar Persona Dinâmica com Validação de Tier
-      const userTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+      const userTier = req.userTier || "guest";
       let systemPrompt;
       try {
         systemPrompt = await loadPersona(personaId, userTier);
@@ -569,7 +634,7 @@ app.post(
               messages: finalMessages,
               temperature,
               stream,
-              max_tokens: 4096,
+              max_tokens: req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens,
               venice_parameters: {
                 include_venice_system_prompt: true, // Usa o prompt nativo da Venice
                 ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
@@ -823,15 +888,29 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
 // ===== USAGE STATS & LEDGER =====
 app.get("/api/usage", authenticateToken, async (req, res) => {
   const today = new Date().toISOString().split("T")[0];
-  const usage = await ledgerService.getDailyUsage(req.user.id, today);
-  const limit = (await redis.get(`limit:${req.user.id}`)) || 100;
-  const tier = (await redis.get(`tier:${req.user.id}`)) || "free";
+  const [usage, redisTier, redisLimit] = await Promise.all([
+    ledgerService.getDailyUsage(req.user.id, today),
+    redis.get(`tier:${req.user.id}`).catch(() => null),
+    redis.get(`limit:${req.user.id}`).catch(() => null),
+  ]);
+  const { accessTier, planKey, tierConfig } = getUserPlan({
+    redisTier,
+    jwtTier: req.user.tier,
+    isGuest: Boolean(req.user.guest),
+  });
+  const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
+  const limit = parsePositiveInt(redisLimit, defaultLimit);
 
   res.json({
     today: parseInt(usage),
-    limit: parseInt(limit),
-    tier,
-    remaining: parseInt(limit) - parseInt(usage),
+    limit,
+    tier: accessTier,
+    plan: planKey,
+    remaining: limit - parseInt(usage),
+    maxOutputTokens: parsePositiveInt(
+      tierConfig.maxOutputTokens,
+      FALLBACK_GUEST_PLAN.maxOutputTokens,
+    ),
   });
 });
 
@@ -861,6 +940,10 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
     const flowpayUrl =
       process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
     const apiKey = process.env.FLOWPAY_API_KEY;
+    const selected = plans.products?.pro_analyst;
+    if (!selected) {
+      return res.status(503).json({ error: "P.R.O product is not configured" });
+    }
 
     // Use a single canonical frontend URL for callbacks, even if multiple are allowed for CORS
     const frontendBaseUrl = process.env.FRONTEND_URL
@@ -874,16 +957,19 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        amount: 49, // Valor fixo do Pro Engine no MVP
+        amount: selected.price,
         currency: "BRL",
         orderId: `nox_${randomUUID()}`,
         userId: req.user.id,
         callbackUrl: `${frontendBaseUrl}/success`,
         metadata: {
-          plan: "pro",
+          productId: selected.id,
+          personaId: selected.persona_id,
+          plan: selected.tier_upgrade,
+          tierUpgrade: selected.tier_upgrade,
           userId: req.user.id,
-          amountBrl: 49,
-          type: "pro_subscription",
+          amountBrl: selected.price,
+          type: "product_purchase",
         },
       }),
     });
@@ -908,7 +994,7 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
 app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
   try {
     const rawTier = await redis.get(`tier:${req.user.id}`) || req.user.tier || "free";
-    const userTier = rawTier === "premium" ? "pro" : rawTier;
+    const userTier = normalizeAccessTier(rawTier);
     
     if (userTier === "pro") {
       return res.status(403).json({ 
@@ -918,13 +1004,7 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     }
 
     const { package: pkg } = req.body;
-    const tokenPackages = {
-      "1k": { tokens: 1000, price: 49 },
-      "5k": { tokens: 5000, price: 79 },
-      "10k": { tokens: 10000, price: 149 }
-    };
-    
-    const selected = tokenPackages[pkg];
+    const selected = plans.packages?.[pkg];
     if (!selected) return res.status(400).json({ error: "Invalid package" });
     
     const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
@@ -947,8 +1027,10 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
         userId: req.user.id,
         callbackUrl: `${frontendBaseUrl}/success`,
         metadata: { 
+          packageId: selected.id || pkg,
           tokens: selected.tokens,
           price: selected.price,
+          tierUpgrade: selected.tier_upgrade,
           userId: req.user.id,
           type: "tokens_purchase"
         }
@@ -962,6 +1044,61 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
   } catch (error) {
     logger.error(`[Tokens] Purchase error: ${error.message}`);
     res.status(500).json({ error: "Failed to create token purchase" });
+  }
+});
+
+// ===== PRODUCT PURCHASE ENDPOINT =====
+app.post("/api/products/purchase", authenticateToken, async (req, res) => {
+  try {
+    const rawTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+    const userTier = normalizeAccessTier(rawTier);
+
+    if (userTier === "pro") {
+      return res.status(403).json({
+        error: "P.R.O access is already active",
+        upgradeUrl: null,
+      });
+    }
+
+    const { productId } = req.body;
+    const selected = plans.products?.[productId];
+    if (!selected) return res.status(400).json({ error: "Invalid product" });
+
+    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
+    const frontendBaseUrl = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(",")[0]
+      : "http://localhost:4321";
+
+    const response = await fetch(`${flowpayUrl}/api/create-charge`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.FLOWPAY_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: selected.price,
+        currency: "BRL",
+        orderId: `product_${randomUUID()}`,
+        userId: req.user.id,
+        callbackUrl: `${frontendBaseUrl}/success`,
+        metadata: {
+          productId: selected.id || productId,
+          personaId: selected.persona_id,
+          price: selected.price,
+          tierUpgrade: selected.tier_upgrade,
+          userId: req.user.id,
+          type: "product_purchase",
+        },
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "FlowPay Error");
+
+    res.json({ checkoutUrl: data.checkoutUrl });
+  } catch (error) {
+    logger.error(`[Products] Purchase error: ${error.message}`);
+    res.status(500).json({ error: "Failed to create product purchase" });
   }
 });
 

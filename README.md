@@ -34,6 +34,14 @@ Para informações técnicas, guias de instalação e comandos de deploy, consul
 
 👉 **[Guia de Instalação e Setup (SETUP.md)](./SETUP.md)**
 
+## Runtime Prompt Boundary
+
+- `shared/runtime-prompt.md`: contrato minimo do chat em producao.
+- `docs/`, `AGENTS.md`, `CONTEXT.md`, `MEMORY.md`, `SKILL.md`, `USER_JOURNEY.md`, `SETUP.md` e `.github/prompts/*`: contexto e standards para agentes de desenvolvimento.
+- `shared/plans.json`: fonte de verdade para planos, limites, tokens e precos.
+
+Documentos operacionais nao devem ser carregados como prompt runtime do usuario final.
+
 ---
 
 ## ⍟ Contato

@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import test from "node:test";
 import redis from "../lib/redis.js";
-import { ledgerService } from "./ledger.js";
+import { LEDGER_TYPES, ledgerService } from "./ledger.js";
 
 test("Ledger Service - Integration Tests", async (t) => {
   // Setup: Flush redis mock before tests
@@ -31,6 +31,64 @@ test("Ledger Service - Integration Tests", async (t) => {
     const usage = await ledgerService.getDailyUsage(userId, today);
     // Note: getDailyUsage returns absolute value of CONSUMPTION
     assert.strictEqual(usage, 200);
+  });
+
+  await t.test(
+    "should calculate guest daily token usage from canonical ledger entries",
+    async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const guestId = "guest_quota_regression";
+
+      await ledgerService.addEntry(
+        guestId,
+        -904,
+        LEDGER_TYPES.TOKEN_CONSUMPTION,
+        "guest_chat_904",
+      );
+      await ledgerService.addEntry(
+        guestId,
+        1000,
+        LEDGER_TYPES.TOKEN_PURCHASE,
+        "guest_credit_ignored",
+      );
+      await ledgerService.addEntry(
+        guestId,
+        -50,
+        "OTHER_DEBIT",
+        "guest_other_debit_ignored",
+      );
+
+      const usage = await ledgerService.getDailyUsage(guestId, today);
+      assert.strictEqual(usage, 904);
+    },
+  );
+
+  await t.test("should ignore token consumption from outside the requested day", async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const guestId = "guest_previous_day_regression";
+    const previousDay = Date.now() - 86400000;
+
+    await redis.lpush(
+      `ledger:${guestId}`,
+      JSON.stringify({
+        id: "previous-day-entry",
+        userId: guestId,
+        amount: -500,
+        type: LEDGER_TYPES.TOKEN_CONSUMPTION,
+        reference: "previous_day_chat",
+        createdAt: previousDay,
+      }),
+    );
+
+    await ledgerService.addEntry(
+      guestId,
+      -125,
+      LEDGER_TYPES.TOKEN_CONSUMPTION,
+      "current_day_chat",
+    );
+
+    const usage = await ledgerService.getDailyUsage(guestId, today);
+    assert.strictEqual(usage, 125);
   });
 
   await t.test("should return full statement sorted by date", async () => {

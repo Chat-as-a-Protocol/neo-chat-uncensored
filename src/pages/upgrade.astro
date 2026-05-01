@@ -9,6 +9,8 @@ if (!token) {
 }
 
 const packages = Object.values(plans.packages);
+const products = Object.values(plans.products || {});
+const guestTier = plans.tiers.guest;
 ---
 
 <Layout title="NØX.AI - Upgrade">
@@ -19,6 +21,19 @@ const packages = Object.values(plans.packages);
           <img src="/nox_vert.webp" alt="NØX" class="nox-logo" />
           <h1 class="white-text">Upgrade</h1>
         </div>
+      </div>
+
+      <div class="price-card is-guest">
+        <span class="badge guest-badge">FREE</span>
+        <h3>{guestTier.name}</h3>
+        <div class="token-highlight">DEGUSTACAO</div>
+        <div class="price">R$ 0</div>
+
+        <ul class="features">
+          {guestTier.benefits.map((benefit) => (
+            <li>• {benefit}</li>
+          ))}
+        </ul>
       </div>
       
       <div class="pricing-grid">
@@ -41,6 +56,29 @@ const packages = Object.values(plans.packages);
           </div>
         ))}
       </div>
+
+      {products.length > 0 && (
+        <div class="products-grid">
+          {products.map((product) => (
+            <div class="price-card is-product">
+              <span class="badge pro-badge">P.R.O</span>
+              <h3>{product.name}</h3>
+              <div class="token-highlight">{product.category.toUpperCase()}</div>
+              <div class="price">R$ {product.price}</div>
+
+              <ul class="features">
+                {product.benefits.map((benefit) => (
+                  <li>• {benefit}</li>
+                ))}
+              </ul>
+
+              <button onclick={`buyProduct('${product.id}')`} class="btn-token">
+                ATIVAR P.R.O
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       
       <a href="/" class="back-link">← Return to Terminal</a>
 
@@ -98,6 +136,19 @@ const packages = Object.values(plans.packages);
       margin-bottom: 20px;
     }
 
+    .price-card.is-guest {
+      margin-bottom: 16px;
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.28);
+    }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
     .price-card {
       background: rgba(0, 0, 0, 0.4);
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -117,6 +168,11 @@ const packages = Object.values(plans.packages);
       z-index: 2;
     }
 
+    .price-card.is-product {
+      border-color: rgba(255, 255, 255, 0.22);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0.55) 100%);
+    }
+
     .price-card:hover {
       transform: translateY(-5px);
       border-color: rgba(255, 255, 255, 0.2);
@@ -124,6 +180,11 @@ const packages = Object.values(plans.packages);
 
     .price-card.is-pro:hover {
       transform: scale(1.07) translateY(-5px);
+    }
+
+    .price-card.is-product:hover {
+      transform: translateY(-5px);
+      border-color: var(--accent);
     }
 
     .price-card.active {
@@ -325,6 +386,16 @@ const packages = Object.values(plans.packages);
       color: #000;
     }
 
+    .badge.guest-badge {
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.82);
+    }
+
+    .badge.pro-badge {
+      background: var(--accent);
+      color: #000;
+    }
+
     .features {
       list-style: none;
       padding: 0;
@@ -429,6 +500,31 @@ const packages = Object.values(plans.packages);
           body: JSON.stringify({ package: packageType })
         });
         
+        const data = await response.json();
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Connection error. Please try again.');
+      }
+    }
+
+    window.buyProduct = async function(productId) {
+      const token = localStorage.getItem('neo_token');
+      if (!token) return window.location.href = '/login';
+
+      try {
+        const response = await fetch(`${apiUrl}/api/products/purchase`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ productId })
+        });
+
         const data = await response.json();
         if (data.checkoutUrl) {
           window.location.href = data.checkoutUrl;

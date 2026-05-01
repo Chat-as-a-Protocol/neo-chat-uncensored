@@ -120,6 +120,8 @@
   const openingAssistantMessage = "Terminal NØX ativo. Envie seu comando.";
   let messages: { role: string; content: string }[] = [];
   let guestSessionPromise: Promise<string | null> | null = null;
+  let isGuestAccess = true;
+  let quotaSynced = false;
 
   // 1. Persistência: Tentar carregar do localStorage
   try {
@@ -230,6 +232,26 @@
     }
 
     return guestSessionPromise;
+  }
+
+  function decodeSessionToken(token: string): { guest?: boolean; tier?: string } | null {
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+      return JSON.parse(atob(padded));
+    } catch {
+      return null;
+    }
+  }
+
+  function isGuestSession() {
+    if (quotaSynced) return isGuestAccess;
+    const token = localStorage.getItem('neo_token');
+    if (!token) return true;
+    const session = decodeSessionToken(token);
+    return Boolean(session?.guest || session?.tier === 'guest');
   }
 
   let streamingBubble: HTMLElement | null = null;
@@ -446,7 +468,7 @@
     if (isSending) return;
 
     // Lógica de Marketing: 3 Desejos (Apenas para Guests)
-    const isGuest = !localStorage.getItem('neo_token') || localStorage.getItem('neo_token')?.includes('guest_');
+    const isGuest = isGuestSession();
     const userMessagesCount = messages.filter(m => m.role === 'user').length;
 
     if (isGuest && userMessagesCount >= 3) {
@@ -581,6 +603,8 @@
       if (!response.ok) return;
 
       const data = await response.json();
+      isGuestAccess = data.plan === 'guest';
+      quotaSynced = true;
       const indicator = document.getElementById('quota-indicator');
       const count = indicator?.querySelector('.quota-count');
       if (count && indicator) {

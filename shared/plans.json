@@ -3,17 +3,42 @@
     "guest": {
       "name": "Guest Mode",
       "limit": 500,
-      "messageLimit": 3
+      "messageLimit": 3,
+      "maxOutputTokens": 384,
+      "benefits": [
+        "3 interacoes gratuitas",
+        "Resposta compacta",
+        "Sem cadastro inicial",
+        "Degustacao controlada"
+      ]
     },
     "paid_basic": {
       "name": "Identified User",
       "limit": 5000,
-      "messageLimit": null
+      "messageLimit": null,
+      "maxOutputTokens": 1200
     },
     "paid_pro": {
       "name": "EL CHAPO 亗",
       "limit": 10000,
-      "messageLimit": null
+      "messageLimit": null,
+      "maxOutputTokens": 4096
+    }
+  },
+  "products": {
+    "pro_analyst": {
+      "id": "pro_analyst",
+      "name": "P.R.O Analyst",
+      "persona_id": "analyst",
+      "category": "business",
+      "price": 499,
+      "tier_upgrade": "paid_pro",
+      "benefits": [
+        "Acesso ao NØX Analyst",
+        "Analise fria e focada em ROI",
+        "Diagnosticos tecnicos e planos de acao",
+        "Acesso ao tier P.R.O"
+      ]
     }
   },
   "packages": {
@@ -24,9 +49,9 @@
       "price": 49,
       "tier_upgrade": "paid_basic",
       "benefits": [
-        "Recarga imediata de tokens",
-        "Segredo absoluto e mensagens criptografadas",
-        "Remoção da barreira de 3 desejos"
+        "1k NØX registrados no ledger",
+        "Remove a barreira de 3 mensagens",
+        "Ativa acesso identificado"
       ]
     },
     "5k": {
@@ -36,9 +61,9 @@
       "price": 79,
       "tier_upgrade": "paid_basic",
       "benefits": [
-        "Carga massiva de tokens (5k)",
-        "Segredo absoluto e mensagens criptografadas",
-        "Prioridade de processamento"
+        "5k NØX registrados no ledger",
+        "Remove a barreira de 3 mensagens",
+        "Mais margem para uso intensivo"
       ]
     },
     "10k": {
@@ -48,10 +73,10 @@
       "price": 149,
       "tier_upgrade": "paid_pro",
       "benefits": [
-        "Acesso EL CHAPO 亗",
-        "Personalização Direta com o Arquiteto",
-        "Acesso total sobre a inteligência",
-        "Segredo absoluto"
+        "10k NØX registrados no ledger",
+        "Acesso ao tier EL CHAPO",
+        "Respostas maiores por chamada",
+        "Sem trava de 3 mensagens"
       ]
     }
   }
