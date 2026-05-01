@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import plans from '../../shared/plans.json';
 
-const token = Astro.cookies.get('neo_token')?.value;
+const token = Astro.cookies.get('nox_token')?.value;
 
 if (!token) {
   return Astro.redirect('/login');
@@ -437,9 +437,14 @@ const guestTier = plans.tiers.guest;
   }}>
     const apiUrl = PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
     const API_URL = isLocalhost ? 'http://localhost:3001' : '';
+    const tokenStorageKey = 'nox_token';
+
+    function getAuthToken() {
+      return localStorage.getItem(tokenStorageKey);
+    }
 
     window.checkFlowHealth = async function() {
-      const token = localStorage.getItem('neo_token');
+      const token = getAuthToken();
       const statusEl = document.getElementById('health-status');
       statusEl.innerHTML = '<span class="loading">Probing API...</span>';
       
@@ -457,7 +462,7 @@ const guestTier = plans.tiers.guest;
     }
 
     window.testFlowCharge = async function() {
-      const token = localStorage.getItem('neo_token');
+      const token = getAuthToken();
       const resultEl = document.getElementById('test-result');
       resultEl.innerHTML = '<span class="loading">Creating sandbox charge...</span>';
       
@@ -487,7 +492,7 @@ const guestTier = plans.tiers.guest;
     }
 
     window.buyTokens = async function(packageType) {
-      const token = localStorage.getItem('neo_token');
+      const token = getAuthToken();
       if (!token) return window.location.href = '/login';
       
       try {
@@ -512,7 +517,7 @@ const guestTier = plans.tiers.guest;
     }
 
     window.buyProduct = async function(productId) {
-      const token = localStorage.getItem('neo_token');
+      const token = getAuthToken();
       if (!token) return window.location.href = '/login';
 
       try {

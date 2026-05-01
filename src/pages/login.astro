@@ -92,9 +92,9 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
       const result = await response.json();
 
       if (response.ok && result.token) {
-        localStorage.setItem('neo_token', result.token);
+        localStorage.setItem('nox_token', result.token);
         // Salva em cookies para SSR (7 dias)
-        document.cookie = `neo_token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        document.cookie = `nox_token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
         window.location.href = '/';
       } else {
         alert(result.error || 'Erro ao fazer login. Verifique suas credenciais.');

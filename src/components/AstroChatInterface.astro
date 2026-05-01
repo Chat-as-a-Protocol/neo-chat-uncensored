@@ -104,6 +104,8 @@
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const apiUrl = import.meta.env.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
   const autoscrollThreshold = 56;
+  const tokenStorageKey = 'nox_token';
+  const tokenCookieMaxAge = 7 * 24 * 60 * 60;
 
   interface MessageOptions {
     streaming?: boolean;
@@ -115,6 +117,28 @@
 
   interface ChatOptions {
     isRetry?: boolean;
+  }
+
+  interface ApiErrorPayload {
+    error?: string;
+    message?: string;
+    usage?: number;
+    limit?: number;
+    upgradeUrl?: string;
+  }
+
+  class ChatApiError extends Error {
+    status: number;
+    payload: ApiErrorPayload | null;
+    rawBody: string;
+
+    constructor(status: number, payload: ApiErrorPayload | null, rawBody: string) {
+      super(payload?.error || `API Error ${status}`);
+      this.name = 'ChatApiError';
+      this.status = status;
+      this.payload = payload;
+      this.rawBody = rawBody;
+    }
   }
 
   const openingAssistantMessage = "Terminal NØX ativo. Envie seu comando.";
@@ -202,8 +226,22 @@
     return guestId;
   }
 
+  function persistAuthToken(token: string) {
+    localStorage.setItem(tokenStorageKey, token);
+    document.cookie = `${tokenStorageKey}=${token}; path=/; max-age=${tokenCookieMaxAge}; SameSite=Lax`;
+  }
+
+  function clearAuthToken() {
+    localStorage.removeItem(tokenStorageKey);
+    document.cookie = `${tokenStorageKey}=; path=/; max-age=0; SameSite=Lax`;
+  }
+
+  function getStoredToken() {
+    return localStorage.getItem(tokenStorageKey);
+  }
+
   async function ensureSession() {
-    const existingToken = localStorage.getItem('neo_token');
+    const existingToken = getStoredToken();
     if (existingToken) return existingToken;
 
     if (!guestSessionPromise) {
@@ -223,8 +261,7 @@
           throw new Error('Guest session token missing');
         }
 
-        localStorage.setItem('neo_token', result.token);
-        document.cookie = `neo_token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        persistAuthToken(result.token);
         return result.token;
       })().finally(() => {
         guestSessionPromise = null;
@@ -248,7 +285,7 @@
 
   function isGuestSession() {
     if (quotaSynced) return isGuestAccess;
-    const token = localStorage.getItem('neo_token');
+    const token = getStoredToken();
     if (!token) return true;
     const session = decodeSessionToken(token);
     return Boolean(session?.guest || session?.tier === 'guest');
@@ -410,7 +447,7 @@
     maybeScrollToBottom();
   }
 
-  function appendErrorMessage(failedMessage: string): void {
+  function appendErrorMessage(failedMessage: string, message = 'Erro ao processar a mensagem.'): void {
     const wasNearBottom = isUserNearBottom();
 
     const wrapper = document.createElement('div');
@@ -422,7 +459,7 @@
 
     const content = document.createElement('div');
     content.className = 'message-content';
-    content.textContent = 'Erro ao processar a mensagem.';
+    content.textContent = message;
 
     const actions = document.createElement('div');
     actions.className = 'error-actions';
@@ -446,6 +483,89 @@
     if (wasNearBottom) {
       maybeScrollToBottom(true);
     }
+  }
+
+  function appendQuotaMessage(error: ChatApiError, failedMessage: string): void {
+    const payload = error.payload || {};
+    const usage = Number.isFinite(payload.usage) ? payload.usage : null;
+    const limit = Number.isFinite(payload.limit) ? payload.limit : null;
+    const hasUsage = typeof usage === 'number' && typeof limit === 'number';
+    const upgradeUrl = payload.upgradeUrl || '/upgrade';
+    const wasNearBottom = isUserNearBottom();
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message-row is-assistant';
+    wrapper.dataset.role = 'assistant';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble assistant-bubble quota-bubble is-visible';
+
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    content.textContent = hasUsage
+      ? `Limite gratuito atingido: ${usage}/${limit}. Faça upgrade ou acesse sua conta para continuar.`
+      : (payload.message || 'Limite de uso atingido. Faça upgrade ou acesse sua conta para continuar.');
+
+    const actions = document.createElement('div');
+    actions.className = 'error-actions';
+
+    const upgradeBtn = document.createElement('button');
+    upgradeBtn.type = 'button';
+    upgradeBtn.className = 'retry-btn quota-action-primary';
+    upgradeBtn.textContent = upgradeUrl.includes('signup') ? 'Criar conta' : 'Upgrade';
+    upgradeBtn.addEventListener('click', () => {
+      window.location.href = upgradeUrl;
+    });
+
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'retry-btn';
+    retryBtn.textContent = 'Tentar novamente';
+    retryBtn.addEventListener('click', () => {
+      wrapper.remove();
+      sendMessage(failedMessage, { isRetry: true });
+    });
+
+    actions.appendChild(upgradeBtn);
+    actions.appendChild(retryBtn);
+    bubble.appendChild(content);
+    bubble.appendChild(actions);
+    wrapper.appendChild(bubble);
+    messagesContainer.appendChild(wrapper);
+
+    if (wasNearBottom) {
+      maybeScrollToBottom(true);
+    }
+  }
+
+  function handleChatApiError(error: unknown, failedMessage: string): boolean {
+    if (!(error instanceof ChatApiError)) return false;
+
+    if (error.status === 403 && error.payload?.error === 'Message limit reached') {
+      showMarketingBarrier();
+      return true;
+    }
+
+    if (error.status === 403 && error.payload?.error === 'Daily quota exceeded') {
+      appendQuotaMessage(error, failedMessage);
+      return true;
+    }
+
+    return false;
+  }
+
+  async function buildChatApiError(response: Response): Promise<ChatApiError> {
+    const rawBody = await response.text();
+    let payload: ApiErrorPayload | null = null;
+
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      payload = null;
+    }
+
+    console.error('[Chat] Erro na API. Status:', response.status, 'Body:', rawBody);
+    return new ChatApiError(response.status, payload, rawBody);
   }
 
   function animateSendInteraction(): void {
@@ -503,15 +623,12 @@
       });
 
       if (response.status === 401) {
-        localStorage.removeItem('neo_token');
-        document.cookie = 'neo_token=; path=/; max-age=0; SameSite=Lax';
+        clearAuthToken();
         throw new Error('Session expired');
       }
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.error('[Chat] Erro na API. Status:', response.status, 'Body:', errText);
-        throw new Error('API Error');
+        throw await buildChatApiError(response);
       }
 
       const reader = response.body?.getReader();
@@ -579,7 +696,13 @@
         streamingBubble.classList.remove('is-streaming');
         streamingBubble = null;
       }
-      appendErrorMessage(userMessage);
+
+      if (!handleChatApiError(err, userMessage)) {
+        const message = err instanceof ChatApiError && err.payload?.message
+          ? err.payload.message
+          : 'Erro ao processar a mensagem.';
+        appendErrorMessage(userMessage, message);
+      }
     } finally {
       isSending = false;
       hideTypingIndicator();
@@ -591,11 +714,11 @@
 
   async function updateQuota() {
     try {
-      const token = localStorage.getItem('neo_token');
+      const token = getStoredToken();
       if (!token) {
         await ensureSession();
       }
-      const activeToken = localStorage.getItem('neo_token');
+      const activeToken = getStoredToken();
       if (!activeToken) return;
       const response = await fetch(`${apiUrl}/api/usage`, {
         headers: { Authorization: `Bearer ${activeToken}` }
@@ -1164,6 +1287,9 @@
 
   .error-actions {
     margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .retry-btn {
@@ -1174,6 +1300,18 @@
     color: rgba(255, 233, 233, 0.92);
     background: rgba(255, 255, 255, 0.08);
     cursor: pointer;
+  }
+
+  .quota-bubble {
+    border-color: rgba(185, 214, 49, 0.5);
+    background: rgba(38, 45, 17, 0.32);
+  }
+
+  .quota-action-primary {
+    border-color: rgba(185, 214, 49, 0.72);
+    color: #101204;
+    background: var(--accent);
+    font-weight: 800;
   }
 
   /* Raciocínio Accordion */

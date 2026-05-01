@@ -121,7 +121,7 @@ Versão    : 3.0.0
 
 - [x] **[UX] Signup não usa o token retornado**
   - Arquivo: `src/pages/signup.astro`
-  - Fix aplicado: salva `neo_token` no localStorage + redirect direto para `/`
+  - Fix aplicado: salva `nox_token` no localStorage + redirect direto para `/`
 
 - [x] **[LINK] Link `/docs` em `success.astro`**
   - Arquivo: `src/pages/success.astro`
@@ -131,7 +131,7 @@ Versão    : 3.0.0
 
 - [x] **[AUTH] Auth guard no frontend para produção**
   - Arquivo: `src/pages/index.astro`
-  - Fix aplicado: redirect para `/login` quando `neo_token` ausente em `import.meta.env.PROD`
+  - Fix aplicado: redirect para `/login` quando `nox_token` ausente em `import.meta.env.PROD`
 
 - [x] **[LEDGER] Implementar Sovereign Ledger (Fase 0)**
   - Arquivo: `backend/src/server.js` (refatorado para `services/ledger.js`)

@@ -5,8 +5,6 @@ import SceneBackground from '../components/SceneBackground.astro';
 
 // A "trava" agora é gerenciada dentro do componente de Chat para permitir a amostra de 3 mensagens.
 // O redirecionamento só acontece se o usuário tentar acessar páginas Pro ou se o componente decidir.
-
-const showAuthLinks = false;
 ---
 
 <Layout title="NEØ Uncensored Chat">
@@ -21,20 +19,14 @@ const showAuthLinks = false;
 
     <footer class="scene-footer">
       <div class="footer-links">
-        {showAuthLinks && (
-          <>
-            <a href="/login">Login</a>
-            <span class="dot">•</span>
-            <a href="/signup">Sign Up</a>
-            <span class="dot">•</span>
-            <a href="/upgrade">Upgrade</a>
-          </>
-        )}
+        <a href="/upgrade">Upgrade</a>
+        <span class="dot">·</span>
+        <a href="/conta">Conta</a>
       </div>
       <div class="footer-legal mt-2">
-        <a href="/privacy-policy" aria-label="Política de Privacidade">Privacy Policy</a>
-        <span class="dot">•</span>
-        <a href="/terms-and-conditions" aria-label="Termos e Condições">Terms & Conditions</a>
+        <a href="/privacy-policy" aria-label="Política de Privacidade">Privacy</a>
+        <span class="dot">·</span>
+        <a href="/terms-and-conditions" aria-label="Termos e Condições">Terms</a>
       </div>
     </footer>
   </main>
