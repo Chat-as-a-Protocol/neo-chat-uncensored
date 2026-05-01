@@ -2,14 +2,7 @@
 import AstroChatInterface from '../components/AstroChatInterface.astro';
 import Layout from '../layouts/Layout.astro';
 import SceneBackground from '../components/SceneBackground.astro';
-const enableAuth = import.meta.env.ENABLE_AUTH_PAGES === 'true';
-
-if (enableAuth) {
-  const token = Astro.cookies.get('neo_token')?.value;
-  if (!token) {
-    return Astro.redirect('/login');
-  }
-}
+const showAuthLinks = false;
 ---
 
 <Layout title="NEØ Uncensored Chat">
@@ -24,7 +17,7 @@ if (enableAuth) {
 
     <footer class="scene-footer">
       <div class="footer-links">
-        {enableAuth && (
+        {showAuthLinks && (
           <>
             <a href="/login">Login</a>
             <span class="dot">•</span>
