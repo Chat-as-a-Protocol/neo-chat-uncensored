@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import redis from "../lib/redis.js";
 
+// Tipos de transação canônicos do NØX Ledger
+export const LEDGER_TYPES = {
+  TOKEN_CONSUMPTION: 'TOKEN_CONSUMPTION',
+  PRO_SUBSCRIPTION: 'PRO_SUBSCRIPTION',
+  TOKEN_PURCHASE: 'TOKEN_PURCHASE'
+};
+
 export const ledgerService = {
   async addEntry(userId, amount, type, reference) {
     // Verificação de Idempotência: Se a referência já existir, ignora
@@ -38,7 +45,7 @@ export const ledgerService = {
     const usage = entries
       .filter(
         (e) =>
-          e.type === "CONSUMPTION" &&
+          (e.type === "CONSUMPTION" || e.type === LEDGER_TYPES.TOKEN_CONSUMPTION) &&
           e.createdAt >= startOfDay &&
           e.createdAt < endOfDay,
       )

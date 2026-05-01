@@ -3,9 +3,8 @@ import AstroChatInterface from '../components/AstroChatInterface.astro';
 import Layout from '../layouts/Layout.astro';
 import SceneBackground from '../components/SceneBackground.astro';
 const enableAuth = import.meta.env.ENABLE_AUTH_PAGES === 'true';
-const isProd = import.meta.env.PROD;
 
-if (enableAuth && isProd) {
+if (enableAuth) {
   const token = Astro.cookies.get('neo_token')?.value;
   if (!token) {
     return Astro.redirect('/login');

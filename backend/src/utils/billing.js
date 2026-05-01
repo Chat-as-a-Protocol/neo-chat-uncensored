@@ -1,10 +1,20 @@
+import { getEncoding } from "js-tiktoken";
+
+// Inicializamos o encoder cl100k_base (padrão GPT-4 / Venice)
+const enc = getEncoding("cl100k_base");
+
 /**
- * Conta o número de tokens em um texto com base na regra de caracteres.
- * @param {string} text 
- * @returns {number}
+ * Conta o número real de tokens em um texto usando o algoritmo Tiktoken.
+ * @param {string} text Texto para contar tokens
+ * @returns {number} Quantidade de tokens
  */
-export function countTokensFromText(text) {
-  if (!text) return 0;
-  // Regra simples: 1 token ~= 4 caracteres em português
-  return Math.ceil(text.length / 4);
-}
+export const countTokensFromText = (text) => {
+  if (!text || typeof text !== "string") return 0;
+  try {
+    return enc.encode(text).length;
+  } catch (err) {
+    console.error("[Billing] Erro ao codificar tokens:", err);
+    // Fallback conservador se falhar (1 token a cada 3 caracteres)
+    return Math.ceil(text.length / 3);
+  }
+};

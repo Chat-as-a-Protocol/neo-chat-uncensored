@@ -1,137 +1,107 @@
 <!-- markdownlint-disable MD003 MD007 MD013 MD022 MD023 MD025 MD029 MD032 MD033 MD034 -->
-# CHAT
+# NØX.AI CANONICAL RULES
 
 ```text
 ========================================
-    NEO CHAT UNCENSORED · CANONICAL
+    NØX.AI · SOVEREIGN PROTOCOL
 ========================================
-Status: ACTIVE
-Version: v2.1.0
+Status: PRODUCTION READY (SSR)
+Version: v3.0.0 (Hardened)
+Tiers: free | pro
 ========================================
 ```
 
 > **Project:** neo-chat-uncensored
 > **Org:** Chat-as-a-Protocol
-> **Context:** AI Interface Sovereignty
-> **Architect:** NΞØ MELLØ
+> **Context:** Infrastructure & Economy Sovereignty
+> **Architect:** Antigravity
 
 ────────────────────────────────────────
 
 ## ⟠ Objetivo
 
-Este arquivo é a fonte única de verdade (SSoT) para agentes
-de IA operando neste projeto.
-
-Consolida as diretrizes de arquitetura, segurança e
-estilo, garantindo soberania de dados e resistência
-à censura em todas as camadas do sistema.
+Este arquivo é a Fonte Única de Verdade (SSoT). Qualquer agente operando neste repositório deve seguir estas diretrizes para manter a integridade do ecossistema NØX.
 
 ────────────────────────────────────────
 
-## ⧉ Stack Canônica
+## ⧉ Stack Canônica (Updated)
 
 ```text
 ┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ LAYER          ┃ TECH                     ┃ MOTIVO                 ┃
 ┣━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ Package Mgr    ┃ pnpm (workspace)         ┃ Padronização Protocolo ┃
-┃ Runtime        ┃ Node.js >=22.12.0        ┃ Astro 6 Requirement    ┃
-┃ Frontend       ┃ Astro 6 (static)         ┃ Performance Extrema    ┃
-┃ Styling        ┃ Tailwind CSS             ┃ Utility-first          ┃
-┃ API            ┃ Express 4.x              ┃ Controle de Fluxo      ┃
-┃ Auth           ┃ JWT + bcrypt             ┃ Soberania de Identidade┃
-┃ Cache/State    ┃ Redis                    ┃ Rate Limit / Quotas    ┃
-┃ LLM            ┃ Venice AI                ┃ Uncensored / Privacy   ┃
-┃ Payments       ┃ FlowPay via Nexus        ┃ Economia Interna       ┃
+┃ Runtime        ┃ Node.js >=22.12.0        ┃ SSR Performance        ┃
+┃ Frontend       ┃ Astro 6 (Server Mode)    ┃ SSR / Auth Guard       ┃
+┃ Billing        ┃ Tiktoken (js-tiktoken)   ┃ 99% Token Precision    ┃
+┃ Ledger         ┃ Redis-based Categorized  ┃ BI & Analytics Ready   ┃
+┃ Persona Engine ┃ Manifesto-driven (MD)    ┃ Dynamic Injection      ┃
+┃ PWA            ┃ Custom Service Worker    ┃ Network-First + Shell  ┃
+┃ Auth           ┃ Fail-Closed JWT          ┃ Zero-Trust Security    ┃
 ┗━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ────────────────────────────────────────
 
-## ⨷ Estrutura do Sistema
+## ⨷ Regras de Arquitetura
+
+### 1. SSR & Segurança
+- **Output**: Deve ser sempre `server`. Páginas estáticas são proibidas para rotas protegidas.
+- **Auth Guard**: Executado no servidor via `Astro.cookies`. Bloqueio imediato (302) para `/login` se o token estiver ausente.
+- **Fail-Closed**: Middlewares de backend nunca devem ter bypasses automáticos baseados em `NODE_ENV`. O sistema deve falhar bloqueado por padrão.
+
+### 2. Sistema de Tiers (Normalização)
+- **Tiers Suportados**: Apenas `free` e `pro`.
+- **Normalização**: Qualquer entrada `premium` deve ser mapeada para `pro` no início do processamento.
+- **Quota Hot-Path**: Leituras no Redis para cota e tier devem ser paralelizadas via `Promise.all`.
+
+### 3. Faturamento e Ledger
+- **Categorias (LEDGER_TYPES)**:
+  - `TOKEN_CONSUMPTION`: Débito por uso de IA.
+  - `PRO_SUBSCRIPTION`: Evento de assinatura (valor 0).
+  - `TOKEN_PURCHASE`: Créditos avulsos comprados.
+- **Token Count**: Nunca usar heurísticas baseadas em caracteres. Usar **Tiktoken** (`cl100k_base`).
+
+### 4. Persona Engine
+- **Manifestos**: Armazenados em `src/content/manifests/` como Markdown + Frontmatter.
+- **Cache**: Manifestos parseados devem ser cacheados no Redis por 1 hora.
+- **Tier Gate**: Manifestos com `tier: pro` só podem ser carregados por usuários `pro`.
+
+### 5. PWA (Service Worker)
+- **Filtros**: O SW deve ignorar métodos não-GET e requisições cross-origin.
+- **App Shell**: Implementar fallback offline para a raiz (`/`) em caso de erro de navegação.
+- **Dev Guard**: Registro do SW apenas em `import.meta.env.PROD`.
+
+────────────────────────────────────────
+
+## ◬ API Endpoints (Hardened)
 
 ```text
-▓▓▓ TOPOLOGIA
-────────────────────────────────────────
-Root (pnpm workspace)
-├── src/pages/           → index, login, signup, upgrade, success, legal
-├── src/components/      → AstroChatInterface.astro (SSE streaming)
-├── backend/src/         → Express Server, Ledger, Utils, Libs
-├── public/              → Assets, SVG banners, static files
-└── docs/                → Documentação estática (Ignorada pelo Git)
+: METHOD : ROUTE                 : AUTH : FUNCTION                     :
+:........:.......................:......:..............................:
+: POST   : /api/chat             :  OK  : Tiktoken SSE Proxy + Persona :
+: POST   : /api/tokens/purchase  :  OK  : Buy Credits (Non-Pro only)   :
+: GET    : /health               :  NO  : Railway Monitoring (200 OK)  :
+: POST   : /webhooks/flowpay     : HMAC : Categorized Credit Injection :
 ```
 
 ────────────────────────────────────────
 
-## ⍟ Protocolo de Chat (SSE)
+## ⨀ Memória de Design (Design Tokens)
 
-1. **POST /api/chat**: Recebe mensagens e parâmetros.
-2. **Pipeline**: Authenticate → Rate Limit → Quota Check.
-3. **Venice AI Proxy**: Streaming via `AbortController`.
-4. **Billing**: `ledgerService` registra consumo assíncrono.
-
-────────────────────────────────────────
-
-## ⍟ Segurança e Governança
-
-### ◸ Regras de Código
-- **Senhas**: bcrypt com rounds >= 12.
-- **Identidade**: `userId` deve ser SHA-256 do email (não reversível).
-- **Webhooks**: Validação HMAC-SHA256 via `timingSafeEqual`.
-- **CORS**: Whitelist estrita. Sem wildcards.
-
-### ◹ Camadas de Proteção (Ordem de Execução)
-1. **CORS**: Deve ser o primeiro middleware (Preflight logic).
-2. **Helmet**: Headers de segurança e CSP.
-3. **Express JSON**: Limitado a 64kb para evitar DoS.
-4. **Auth**: JWT Verify (bypass apenas em dev explícito).
-5. **Rate Limit**: Baseado no Tier (Free/Pro).
-6. **Quota Check**: Validação de saldo no Ledger.
-
-────────────────────────────────────────
-
-## ◬ API Reference
-
-```text
-........................................................................
-: METHOD : ROUTE                       : AUTH : FUNCTION               :
-:........:.............................:......:........................:
-: POST   : /api/chat                   :  OK  : Proxy Venice AI (SSE)  :
-: GET    : /api/models                 :  OK  : Modelos disponíveis    :
-: GET    : /api/usage                  :  OK  : Status de quota diária :
-: GET    : /api/ledger                 :  OK  : Extrato e saldo        :
-: POST   : /api/auth/signup            :  NO  : Registro de usuário    :
-: POST   : /api/auth/login             :  NO  : Autenticação           :
-: POST   : /api/flowpay/create-charge  :  OK  : Iniciar pagamento      :
-:........:.............................:......:........................:
-```
-
-────────────────────────────────────────
-
-## ⨀ Memória Técnica (Recent History)
-
-### ⧖ Correções de Versão
-- **Astro 6 + Zod**: Importar `z` sempre de `astro/zod`.
-- **Node**: Forçar uso de v22.12.0+ (Astro 6 requirement).
-
-### ⧗ Correções de Infra
-- **CORS Fix**: Usar `callback(null, false)` para evitar 500 no Express.
-- **Venice Config**: `include_venice_system_prompt` setado para `true`.
-- **Diagnostics**: Logs de acesso e quota habilitados no backend.
+- **Estética**: High-End Cyberpunk / Sovereign.
+- **Cores**: Dark Mode Native, `--accent` para neon-green.
+- **Mobile**: Grid 9:16 mandatório em todas as páginas de UI.
 
 ────────────────────────────────────────
 
 ## ⍟ Fechamento
 
 ```text
-▓▓▓ NØX AI mind
+▓▓▓ NØX.AI SYSTEM
 ────────────────────────────────────────
-Core Architect · NØX Protocol
+Antigravity AI · Advanced Agentic Coding
 nox@noxai.onion
 
-"Order from chaos."
-
-Security by design.
-Exploits find no refuge here. I am the exploiter.
+"The protocol is the law."
 ────────────────────────────────────────
 ```

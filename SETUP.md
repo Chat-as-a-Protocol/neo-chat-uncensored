@@ -28,28 +28,37 @@ O ecossistema utiliza uma estrutura de monorepo pnpm com um frontend estático (
 
 ## ⨷ Comandos de Desenvolvimento
 
-Todos os comandos devem ser executados via `pnpm` através do `Makefile` raiz para garantir a integridade do ambiente.
+Todos os comandos devem ser executados via `pnpm` através do `Makefile` raiz para garantir a integridade do ambiente. 
+
+> **IMPORTANTE**: Este projeto utiliza **Astro SSR (output: server)**. O build gera arquivos que devem ser executados por um runtime Node.js, não sendo compatível com hosts estáticos puros.
 
 ```bash
-# 1. Inicializar ambiente e instalar dependências em todos os pacotes
+# 1. Inicializar ambiente e instalar dependências
 make install
 
-# 2. Iniciar ecossistema completo localmente (Frontend + Backend)
+# 2. Iniciar ecossistema completo (Frontend SSR + Backend Express)
 make dev
 
-# 3. Auditoria de segurança e integridade
-make audit
-make verify
+# 3. Qualidade e Segurança (Obrigatório antes do push)
+make check  # Roda verify + audit + lint + tests
 
-# 4. Build de produção (gera a pasta dist/)
+# 4. Build de produção (Astro SSR entrypoint em dist/server/entry.mjs)
 make build
 ```
 
-## 🚀 Comandos de Produção (Runtime)
+## 🚀 Infraestrutura e Deploy (Railway)
 
-Abaixo estão os comandos reais executados dentro dos containers em produção (Railway/Docker):
+O deploy é orquestrado pelo arquivo `railway.json`. Regras críticas de manutenção:
 
-### **Frontend (Astro)**
+1.  **Health Check**: A rota canônica de saúde é `/health`. **NUNCA** use `/` no Railway, pois os redirecionamentos de autenticação do SSR (302) farão o health check falhar.
+2.  **Variáveis de Ambiente**: Certifique-se de que `JWT_SECRET`, `FLOWPAY_API_KEY` e `REDIS_URL` estejam configuradas no painel do Railway.
+3.  **Start Command**: O comando de inicialização é `node dist/server/entry.mjs`.
+
+### **Arquitetura de Faturamento**
+- **Tiktoken**: O sistema utiliza o encoder `cl100k_base`. Mudanças no modelo de IA exigem validação de tokens no `backend/src/utils/billing.js`.
+- **Tiers**: Os únicos tiers válidos no sistema são `free` e `pro`. O uso de `premium` é automaticamente normalizado para `pro` no runtime.
+
+### **Frontend (Astro SSR)**
 
 O frontend é servido como arquivos estáticos após o build.
 

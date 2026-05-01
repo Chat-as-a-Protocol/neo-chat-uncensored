@@ -8,21 +8,23 @@
 
 ![neo-chat-uncensored banner](./public/neo-chat-uncensored-banner.svg)
 
-> **Version:** v2.0.0 (Processing Engine)  
-> **Status:** Operational · Blasé Persona Ativa
-> **Protocol:** NΞØ Nexus / FlowPay
+> **Version:** v3.0.0 (Sovereign Infrastructure)  
+> **Status:** Production Ready · SSR Hardened
+> **Protocol:** NΞØ Nexus / FlowPay (Hybrid Billing)
 
 ## ⟠ Objetivo
 
-Interface soberana e minimalista para processamento de modelos de IA sem censura.
-A NØX.ai opera como uma engine técnica, removendo verniz social e focando em saída bruta de dados com performance instantânea e integridade de contexto.
+Interface soberana e minimalista para processamento de modelos de IA sem censura. 
+A NØX.ai opera como uma engine técnica de alta precisão, utilizando o protocolo Tiktoken para faturamento granular e uma arquitetura SSR robusta para garantir segurança e soberania total de dados.
 
 ## ⧉ Destaques
 
-- **Performance Extrema**: Arquitetura Astro 6 nativa com carregamento instantâneo.
-- **Soberania de Dados**: Integração direta com o Protocolo NΞØ para pagamentos soberanos via FlowPay.
-- **Experiência Premium**: Interface ultra-limpa com Glassmorphism e suporte total a mobile (WebApp-like).
-- **IA Sem Filtros**: Conectado a modelos de alta fidelidade via Venice AI.
+- **SSR & Security**: Arquitetura Astro 6 em modo Server com Auth Guard fail-closed.
+- **Hybrid Monetization**: Sistema de Token Packs (Pay-per-use) integrado com assinaturas Pro Engine.
+- **Precisão de Faturamento**: Contagem de tokens via **Tiktoken** (99% de precisão) e Ledger categorizado no Redis.
+- **Experiência PWA**: Service Worker avançado com suporte a App Shell offline e instalação nativa em mobile.
+- **Persona Manifests**: Sistema dinâmico de personas baseado em manifestos Markdown com cache em Redis.
+- **Soberania de Dados**: Integração nativa com FlowPay para pagamentos sem intermediários centralizados.
 
 ---
 

@@ -2,9 +2,8 @@
 import Layout from '../layouts/Layout.astro';
 
 const token = Astro.cookies.get('neo_token')?.value;
-const isProd = import.meta.env.PROD;
 
-if (!token && isProd) {
+if (!token) {
   return Astro.redirect('/login');
 }
 ---
@@ -18,32 +17,46 @@ if (!token && isProd) {
           <h1 class="white-text">Upgrade</h1>
         </div>
       </div>
-      
-      <div class="pricing-grid">
-        <!-- Free Plan -->
-        <div class="price-card tier-free">
-          <h3>Standard</h3>
-          <div class="price">R$ 0<span>/ciclo</span></div>
-          <ul class="features">
-            <li>100 processamentos/dia</li>
-            <li>NØX Engine Base</li>
-            <li>Latência normal</li>
-          </ul>
-          <button class="btn-disabled" disabled>Nível Atual</button>
+           <div class="pricing-grid">
+        <!-- Token Packs -->
+        <div class="price-card tier-tokens">
+          <h3>Token Packs</h3>
+          <div class="usage-hint">
+            <p><strong>Free/Basic:</strong> Compre tokens para uso imediato</p>
+          </div>
+          <div class="tokens-grid">
+            <div class="token-item">
+              <div class="token-amount">1k</div>
+              <div class="token-price">R$ 19</div>
+              <button onclick="buyTokens('1k')" class="btn-token">Buy</button>
+            </div>
+            <div class="token-item">
+              <div class="token-amount">5k</div>
+              <div class="token-price">R$ 79</div>
+              <button onclick="buyTokens('5k')" class="btn-token">Buy</button>
+            </div>
+            <div class="token-item">
+              <div class="token-amount">10k</div>
+              <div class="token-price">R$ 149</div>
+              <button onclick="buyTokens('10k')" class="btn-token">Buy</button>
+            </div>
+          </div>
         </div>
 
         <!-- Pro Plan -->
         <div class="price-card tier-pro active">
-          <div class="badge">Recomendado</div>
+          <div class="badge">Acesso Total</div>
           <h3>Pro Engine</h3>
-          <div class="price">R$ 49<span>/ciclo</span></div>
+          <div class="usage-hint">
+            <p><strong>Pro:</strong> Já inclui uso ilimitado + modelos exclusivos</p>
+          </div>
+          <div class="price">R$ 49<span>/mês</span></div>
           <ul class="features">
             <li>Processamento Ilimitado</li>
-            <li>Todos os modelos Premium</li>
+            <li>Todos os modelos Pro</li>
             <li>Deep Analysis Ativo</li>
-            <li>Suporte Prioritário</li>
           </ul>
-          <button onclick="handleFlowPay()" class="btn-primary">Ativar Upgrade</button>
+          <button onclick="handleFlowPay()" class="btn-primary">Subscribe</button>
         </div>
       </div>
       
@@ -65,66 +78,28 @@ if (!token && isProd) {
 
     .upgrade-glass {
       width: 100%;
-      max-width: 100%;
-      min-height: 100%;
+      max-width: 480px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      /* Efeito de Vidro Grosso (Thick Frosted Glass) */
       background: linear-gradient(145deg, rgba(20, 20, 25, 0.35) 0%, rgba(10, 10, 15, 0.15) 100%);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      border-top: 1px solid rgba(255, 255, 255, 0.35);
-      border-left: 1px solid rgba(255, 255, 255, 0.25);
-      backdrop-filter: blur(4px) saturate(120%); /* Desfoque quase zerado */
-      -webkit-backdrop-filter: blur(2px) saturate(120%);
-      border-radius: 22px; /* Raio padrão Apple */
-      padding: 50px 50px;
+      border-radius: 22px;
+      padding: 40px 30px;
       text-align: center;
-      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(255, 255, 255, 0.05);
-    }
-
-    .upgrade-header h1 {
-      font-size: 1.0rem; /* Texto upgrade hiper-discreto */
-      font-weight: 600;
-      margin-bottom: 0;
-      letter-spacing: 0.3em; /* Espaçado, estilo Apple */
-      text-transform: uppercase;
-      line-height: 1.1;
-      opacity: 0.9; /* Voltou mais forte */
-      text-shadow: 0 2px 30px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.5); /* Sombra agressiva para destaque */
-    }
-
-    .logo-title {
-      display: flex;
-      flex-direction: column; /* Empilhando Logo e Texto */
-      align-items: center;
-      justify-content: center;
-      gap: 4px; /* Mais próximos */
-      margin-bottom: 8px;
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
     }
 
     .nox-logo {
-      height: 100px; /* Logo gigante estourada */
+      height: 80px;
       width: auto;
-      object-fit: contain;
-      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5)); /* Refração natural */
-    }
-
-    .white-text {
-      color: #ffffff;
-      text-shadow: 0 4px 24px rgba(255, 255, 255, 0.4);
-    }
-
-    .upgrade-header p {
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 0.95rem; /* Reduzido */
-      margin-bottom: 24px; /* Menos margem */
+      margin-bottom: 8px;
     }
 
     .pricing-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px; /* Gap de mobile para caber os 2 cards na tela 9:16 */
+      grid-template-columns: 1.5fr 1fr;
+      gap: 12px;
       margin-bottom: 20px;
     }
 
@@ -132,126 +107,140 @@ if (!token && isProd) {
       background: rgba(0, 0, 0, 0.4);
       border: 1px solid rgba(255, 255, 255, 0.05);
       border-radius: 16px;
-      padding: 16px 12px; /* Reduzido para caber lado a lado no 9:16 */
-      transition: all 0.3s ease;
+      padding: 16px 12px;
       display: flex;
       flex-direction: column;
+      text-align: left;
     }
 
     .price-card.active {
-      border-color: rgba(206, 229, 92, 0.4);
+      border-color: var(--accent);
       background: rgba(0, 0, 0, 0.6);
-      box-shadow: inset 0 0 20px rgba(206, 229, 92, 0.05);
-      transform: translateY(-2px);
-    }
-
-    .badge {
-      align-self: center;
-      background: var(--accent);
-      color: #000;
-      font-size: 9px;
-      font-weight: 800;
-      padding: 4px 10px;
-      border-radius: 99px;
-      text-transform: uppercase;
-      margin-bottom: 12px;
     }
 
     .price-card h3 {
-      font-size: 1.1rem; /* Ajuste para o 9:16 */
-      margin-bottom: 6px;
+      font-size: 1rem;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.8;
+    }
+
+    .usage-hint {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 0.75rem;
+      border-left: 3px solid var(--accent);
+      text-align: left;
+    }
+
+    .usage-hint p {
+      margin: 0;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .tokens-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .token-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 12px 4px;
+      text-align: center;
+    }
+
+    .token-amount {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--accent);
+      font-family: 'Space Grotesk', monospace;
+    }
+
+    .token-price {
+      font-size: 0.75rem;
+      margin: 4px 0 10px 0;
+      opacity: 0.6;
+    }
+
+    .btn-token {
+      width: 100%;
+      padding: 6px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-token:hover {
+      background: var(--accent);
+      color: black;
+      border-color: var(--accent);
     }
 
     .price {
-      font-size: 1.8rem; /* Ajuste para o 9:16 */
+      font-size: 1.8rem;
       font-weight: 700;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
 
     .price span {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       opacity: 0.5;
+    }
+
+    .badge {
+      align-self: flex-start;
+      background: var(--accent);
+      color: #000;
+      font-size: 8px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
     }
 
     .features {
       list-style: none;
       padding: 0;
-      margin: 0 0 20px 0;
-      text-align: left;
-      flex: 1;
+      margin: 0 0 16px 0;
     }
 
     .features li {
-      margin-bottom: 8px;
-      font-size: 0.85rem; /* Menor para caber perfeitamente */
-      color: rgba(255,255,255,0.7);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .features li::before {
-      content: '→';
-      color: var(--accent);
-    }
-
-    button {
-      width: 100%;
-      padding: 12px; /* Reduzido */
-      border-radius: 10px;
-      font-weight: 700;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-family: inherit;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 4px;
     }
 
     .btn-primary {
       background: var(--accent);
       border: none;
       color: #000;
-    }
-
-    .btn-primary:hover {
-      transform: scale(1.02);
-      box-shadow: 0 0 20px rgba(206, 229, 92, 0.4);
-    }
-
-    .btn-disabled {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: rgba(255,255,255,0.3);
-      cursor: default;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 800;
+      cursor: pointer;
     }
 
     .back-link {
-      display: inline-block;
-      margin-top: 15px; /* Reduzido */
+      margin-top: 15px;
       color: rgba(255,255,255,0.3);
-      text-decoration: none;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
 
-    .back-link:hover {
-      color: #fff;
-    }
-
-    @media (max-width: 768px) {
+    @media (max-width: 480px) {
       .pricing-grid {
-        grid-template-columns: 1fr 1fr; /* Mantendo lado a lado para caber numa tela só */
-        gap: 8px; /* Menos espaço entre os cards no celular */
-      }
-      .upgrade-glass {
-        padding: 20px 10px; /* Padding super reduzido no celular */
-      }
-      .features li {
-        font-size: 0.75rem; /* Ajuste fino de texto para o celular */
-      }
-      .price {
-        font-size: 1.8rem;
-      }
-      .upgrade-header h1 {
-        font-size: 1.2rem; /* Texto upgrade ainda menor no celular */
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -260,12 +249,34 @@ if (!token && isProd) {
     const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
     const apiUrl = import.meta.env.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
 
+    async function buyTokens(packageType) {
+      const token = localStorage.getItem('neo_token');
+      if (!token) return window.location.href = '/login';
+      
+      try {
+        const response = await fetch(`${apiUrl}/api/tokens/purchase`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ package: packageType })
+        });
+        
+        const data = await response.json();
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Connection error. Please try again.');
+      }
+    }
+
     async function handleFlowPay() {
       const token = localStorage.getItem('neo_token');
-      if (!token) {
-        window.location.href = '/login';
-        return;
-      }
+      if (!token) return window.location.href = '/login';
       
       try {
         const response = await fetch(`${apiUrl}/api/flowpay/create-charge`, {
@@ -276,16 +287,14 @@ if (!token && isProd) {
           }
         });
         
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || 'Falha ao iniciar pagamento');
+        const data = await response.json();
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          alert('Erro: ' + (data.error || 'Falha ao iniciar pagamento'));
         }
-        
-        const { checkoutUrl } = await response.json();
-        window.location.href = checkoutUrl;
       } catch (err) {
-        console.error('[FlowPay] Error:', err);
-        alert('Erro ao processar pagamento: ' + err.message);
+        alert('Erro de conexão: ' + err.message);
       }
     }
   </script>

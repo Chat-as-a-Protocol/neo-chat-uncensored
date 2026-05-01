@@ -1,8 +1,7 @@
-# ========================================
 #      NΞØ · PROJECT CONTROL PLANE
 # ========================================
 # Project: neo-chat-uncensored
-# Version: 1.3.0 (Quality Gate Integrated)
+# Version: 3.0.0 (Hardened Production)
 # ========================================
 
 .PHONY: help init install dev dev-fe dev-be stop check verify audit test lint build push clean logs astro-clean astro-rebuild

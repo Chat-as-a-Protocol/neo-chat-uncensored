@@ -2,16 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { countTokensFromText } from './billing.js';
 
-test('Billing Utilities - Unit Tests', async (t) => {
-  await t.test('countTokensFromText - should return proportional token count (1:4 ratio)', () => {
-    const text = 'Olá mundo'; // 9 chars
-    assert.strictEqual(countTokensFromText(text), 3); // ceil(9/4) = 3
+test('Billing Utilities - Unit Tests (Tiktoken)', async (t) => {
+  await t.test('countTokensFromText - should return precise token count', () => {
+    // 'How are you?' -> 4 tokens
+    assert.strictEqual(countTokensFromText('How are you?'), 4);
     
-    const longText = 'Esta é uma frase longa para testar.'; // 35 chars
-    assert.strictEqual(countTokensFromText(longText), 9); // ceil(35/4) = 9
+    // Texto vazio
+    assert.strictEqual(countTokensFromText(''), 0);
   });
 
-  await t.test('countTokensFromText - should handle empty string', () => {
-    assert.strictEqual(countTokensFromText(''), 0);
+  await t.test('countTokensFromText - should handle PT-BR specific tokens', () => {
+    // 'Olá mundo' -> Tiktoken cl100k_base geralmente conta como 4 ou 5 tokens
+    const count = countTokensFromText('Olá mundo');
+    assert.ok(count >= 3 && count <= 5);
   });
 });

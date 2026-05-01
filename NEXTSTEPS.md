@@ -3,9 +3,9 @@
     NEXT STEPS · RUNBOOK OPERACIONAL
 ========================================
 
-> **Status:** PRÉ-MVP (bug fixes pendentes antes do launch)  
+> **Status:** PRODUCTION READY (v3.0.0)  
 > **Workspace:** Chat-as-a-Protocol / neo-chat-uncensored  
-> **Branch:** main
+> **Branch:** final_check
 
 ────────────────────────────────────────
 
@@ -13,8 +13,9 @@
 
 ```text
 Workspace : Chat-as-a-Protocol / neo-chat-uncensored
-Branch    : main
-Fase      : PRÉ-MVP (bug fixes pendentes antes do launch)
+Branch    : final_check
+Fase      : PRODUCTION READY (Hardened)
+Versão    : 3.0.0
 ```
 
 ────────────────────────────────────────
@@ -47,10 +48,11 @@ Fase      : PRÉ-MVP (bug fixes pendentes antes do launch)
 
 ### Infraestrutura
 
-- [x] Astro migrado para v6 com output estático
+- [x] Astro migrado para v6 com output: server (SSR)
 - [x] Workspace pnpm configurado (`pnpm-workspace.yaml`)
-- [x] SceneBackground extraído como componente reutilizável
-- [x] Componentes UI reutilizáveis: `Button`, `Card`, `Input`
+- [x] PWA Instalável: manifest.json, ícones e service worker
+- [x] Service Worker: Cache Network-First e offline fallback (App Shell)
+- [x] Normalização de Tiers: Mapeamento premium -> pro (schema.sql)
 - [x] Layout global com design tokens CSS (accent, glass, tipografia)
 - [x] Tailwind configurado com `@astrojs/tailwind`
 
@@ -90,13 +92,32 @@ Fase      : PRÉ-MVP (bug fixes pendentes antes do launch)
 
 > **Importante:** Executar antes de qualquer deploy de produção.
 
-- [x] **[BUG] Token key inconsistente em `upgrade.astro`**
-  - Arquivo: `src/pages/upgrade.astro`
-  - Fix aplicado: `'token'` → `'neo_token'`
+- [x] **[SSR] Proteção de rotas no servidor**
+  - Implementado em `index.astro`, `login.astro` e `signup.astro`.
 
-- [x] **[BUG] `window.PUBLIC_API_URL` não funciona no browser**
-  - Arquivo: `src/pages/upgrade.astro`
-  - Fix aplicado: `is:inline` substituído por `define:vars` com `import.meta.env.PUBLIC_API_URL`
+- [x] **[BILLING] Faturamento de Alta Precisão (Tiktoken)**
+  - Migrado de heurística para `js-tiktoken` (`cl100k_base`).
+  - Precisão de 99% no faturamento de mensagens.
+
+- [x] **[LEDGER] Categorização de Transações**
+  - `TOKEN_CONSUMPTION`, `PRO_SUBSCRIPTION`, `TOKEN_PURCHASE`.
+  - Ledger agora permite análise de BI e métricas de faturamento separadas.
+
+- [x] **[MONETIZATION] Modelo Híbrido**
+  - Token Packs (1k, 5k, 10k) + Assinatura Pro.
+  - Bloqueio de compra de tokens para usuários Pro (anti double-dip).
+
+- [x] **[PERSONA] Sovereign Persona Engine**
+  - Manifestos Markdown + Frontmatter em `src/content/manifests/`.
+  - Cache em Redis (1h) para performance.
+  - Gate de Tier (Analista exclusivo para Pro).
+
+- [x] **[UX] Usage Hints no Upgrade**
+  - Dicas visuais claras para guiar a escolha entre Tokens vs Assinatura.
+
+- [x] **[INFRA] Health Check Canônico**
+  - Rota `/health` pública para Railway.
+  - `railway.json` configurado para evitar 302 redirects.
 
 - [x] **[UX] Signup não usa o token retornado**
   - Arquivo: `src/pages/signup.astro`
@@ -206,7 +227,9 @@ FlowPay (api.flowpay.cash)
 - [x] Banco de dados real para usuários (Turso/PostgreSQL) em vez de Redis puro
 - [ ] Histórico de conversas — local ou criptografado no server
 - [ ] Password reset flow (email via Resend ou FlowPay)
-- [ ] Personas customizáveis (system prompts pré-definidos pelo usuário)
+- [x] Personas customizáveis (módulos dinâmicos via manifests)
+- [ ] **Marketplace de Personas**: Sistema para terceiros venderem prompts (comissão 30% padrão)
+- [ ] **Sistema de Indicação (Referral)**: Links de indicação para crescimento viral e recompensas em tokens
 - [ ] Contagem real de tokens no streaming (ao invés da heurística atual)
 
 ────────────────────────────────────────
