@@ -14,7 +14,7 @@
 
 ## ⟠ Objetivo
 
-Interface soberana e minimalista para processamento de modelos de IA sem censura. 
+Interface soberana e minimalista para processamento de modelos de IA sem censura.
 A NØX.AI opera como uma engine técnica de alta precisão, utilizando o protocolo Tiktoken para faturamento granular e uma arquitetura SSR robusta para garantir segurança e soberania total de dados.
 
 ## ⧉ Destaques
@@ -39,14 +39,8 @@ Para informações técnicas, guias de instalação e comandos de deploy, consul
 ## ⍟ Contato
 
 ```text
-▓▓▓ NΞØ MELLØ
-────────────────────────────────────────
-Core Architect · NΞØ Protocol
-neo@neoprotocol.space
-
-"Code is law. Expand until
-chaos becomes protocol."
-
-Security by design.
-────────────────────────────────────────
+NØX.AI ORG
+────────────+++++++++++
+free your mind
+────────────+++++++++++
 ```
