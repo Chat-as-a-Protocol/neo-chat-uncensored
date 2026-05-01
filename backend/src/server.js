@@ -198,10 +198,14 @@ app.post(
           return res.status(200).json({ status: "success", message: "Already processed" });
         }
 
-        logger.info(`[Webhook] User ${userId} upgraded to PRO via FlowPay (${reference})`);
+        const isTokenPurchase = metadata?.type === "tokens_purchase";
+        const successMessage = isTokenPurchase ? "Tokens added successfully" : "Tier updated successfully";
+        
+        logger.info(`[Webhook] Payment ${reference} processed for user ${userId} (${isTokenPurchase ? 'Tokens' : 'Pro Plan'})`);
+        
         return res
           .status(200)
-          .json({ status: "success", message: "Tier updated and credits added" });
+          .json({ status: "success", message: successMessage });
       }
 
       res.status(200).json({ status: "ignored", message: "Event not handled" });
@@ -346,9 +350,12 @@ const checkQuota = async (req, res, next) => {
     req.dailyLimit = limit;
     next();
   } catch (err) {
-    logger.error("[Quota] Critical error in quota enforcement:", err);
-    // Em caso de erro crítico no Redis/Ledger, permitimos o next() como fail-safe em vez de travar o chat
-    next();
+    logger.error(`[Quota] Critical error in quota enforcement for user ${req.user?.id ?? "unknown"}:`, err);
+    // Fail-Closed: protege contra uso ilimitado durante falhas do Redis/Ledger
+    return res.status(503).json({
+      error: "Service temporarily unavailable (Quota System)",
+      message: "Por favor, tente novamente em instantes."
+    });
   }
 };
 
@@ -435,7 +442,7 @@ app.post(
           .array(
             z.object({
               role: z.enum(["user", "assistant", "system"]),
-              content: z.string(),
+              content: z.string().min(1).max(32000),
             }),
           )
           .max(50),
@@ -813,8 +820,6 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
 
 // Webhook logic moved up before express.json() to preserve raw body for signature verification.
 
-// ===== START SERVER =====
-const PORT = process.env.PORT || 3001;
 // ===== TOKEN PURCHASE ENDPOINT =====
 app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
   try {
@@ -823,7 +828,7 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     
     if (userTier === "pro") {
       return res.status(403).json({ 
-        error: "Pro users already have unlimited tokens",
+        error: "Pro users cannot purchase additional token packages",
         upgradeUrl: null
       });
     }
@@ -840,6 +845,11 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     
     const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
     
+    // Normalização canônica da URL de callback (conforme padrão /api/flowpay/create-charge)
+    const frontendBaseUrl = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(",")[0]
+      : "http://localhost:4321";
+
     const response = await fetch(`${flowpayUrl}/api/create-charge`, {
       method: "POST",
       headers: {
@@ -851,10 +861,11 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
         currency: "BRL",
         orderId: `tokens_${randomUUID()}`,
         userId: req.user.id,
-        callbackUrl: `${process.env.FRONTEND_URL}/success`,
+        callbackUrl: `${frontendBaseUrl}/success`,
         metadata: { 
           tokens: selected.tokens,
-          type: "tokens_purchase"
+          userId: req.user.id,
+          type: "TOKEN_PURCHASE"
         }
       })
     });
@@ -869,6 +880,75 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
   }
 });
 
+// ===== FLOWPAY DIAGNOSTICS & TESTING =====
+
+// 1. Health Check da API FlowPay
+app.get("/api/flowpay/health", authenticateToken, async (_req, res) => {
+  try {
+    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
+    const response = await fetch(`${flowpayUrl}/api/health`, {
+      headers: { "Authorization": `Bearer ${process.env.FLOWPAY_API_KEY}` }
+    });
+    
+    res.json({ 
+      status: response.ok ? "online" : "offline",
+      statusCode: response.status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ status: "error", error: error.message });
+  }
+});
+
+// 2. Simulação de Cobrança (Sandbox)
+app.post("/api/flowpay/test-charge", authenticateToken, async (req, res) => {
+  try {
+    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
+    
+    // Normalização canônica da URL de callback
+    const frontendBaseUrl = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(",")[0]
+      : "http://localhost:4321";
+
+    const response = await fetch(`${flowpayUrl}/api/create-charge`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.FLOWPAY_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        amount: 1, // R$ 1,00 para teste
+        currency: "BRL",
+        orderId: `test_${randomUUID()}`,
+        userId: req.user.id,
+        callbackUrl: `${frontendBaseUrl}/success`,
+        testMode: true // Flag vital para não gerar cobrança real
+      })
+    });
+    
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "FlowPay test failed");
+
+    res.json({ 
+      success: true,
+      chargeId: data.id,
+      checkoutUrl: data.checkoutUrl,
+      amount: 1
+    });
+  } catch (error) {
+    logger.error("FlowPay Test Charge Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Error handling middleware
+app.use((err, _req, res, _next) => {
+  logger.error(err.stack);
+  res.status(500).json({ error: "Something went wrong!" });
+});
+
+// ===== START SERVER =====
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
+  logger.info(`NØX Backend running on port ${PORT}`);
 });
