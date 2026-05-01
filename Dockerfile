@@ -9,11 +9,13 @@ RUN pnpm run build
 # Runtime Stage
 FROM node:22-slim
 RUN corepack enable
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app
-# Instalamos o serve localmente para garantir que esteja no PATH
-RUN npm install -g serve
+
+# Copiamos apenas o necessário para instalar dependências de produção
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
+
+# Copiamos o build
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 8080
