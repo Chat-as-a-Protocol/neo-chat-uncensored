@@ -1,13 +1,12 @@
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import dotenv from "dotenv";
-import { randomUUID } from "crypto";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 
 import jwt from "jsonwebtoken";
-import crypto, { randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { createLogger, format, transports } from "winston";
 import { z } from "zod";
 
