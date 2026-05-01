@@ -17,62 +17,47 @@ if (!token) {
           <h1 class="white-text">Upgrade</h1>
         </div>
       </div>
-           <div class="pricing-grid">
-        <!-- Token Packs -->
+      <div class="pricing-grid">
+        <!-- Access Credits -->
         <div class="price-card tier-tokens">
-          <h3>Token Packs</h3>
+          <h3>Credenciais</h3>
           <div class="usage-hint">
-            <p><strong>Free/Basic:</strong> Compre tokens para uso imediato</p>
+            <p><strong>Acesso NØX:</strong> ative carga de uso imediato</p>
           </div>
           <div class="tokens-grid">
             <div class="token-item">
-              <div class="token-amount">1k</div>
-              <div class="token-price">R$ 19</div>
-              <button onclick="buyTokens('1k')" class="btn-token">Buy</button>
+              <div class="token-amount">† NEØ †</div>
+              <div class="token-price">R$ 49</div>
+              <button onclick="buyTokens('1k')" class="btn-token">Ativar</button>
             </div>
             <div class="token-item">
-              <div class="token-amount">5k</div>
+              <div class="token-amount">× VOID.ᴇxᴇ ×</div>
               <div class="token-price">R$ 79</div>
-              <button onclick="buyTokens('5k')" class="btn-token">Buy</button>
+              <button onclick="buyTokens('5k')" class="btn-token">Ativar</button>
             </div>
             <div class="token-item">
-              <div class="token-amount">10k</div>
+              <div class="token-amount">EL CHAPO 亗</div>
               <div class="token-price">R$ 149</div>
-              <button onclick="buyTokens('10k')" class="btn-token">Buy</button>
+              <button onclick="buyTokens('10k')" class="btn-token">Ativar</button>
             </div>
           </div>
-        </div>
-
-        <!-- Pro Plan -->
-        <div class="price-card tier-pro active">
-          <div class="badge">Acesso Total</div>
-          <h3>Pro Engine</h3>
-          <div class="usage-hint">
-            <p><strong>Pro:</strong> Já inclui uso prioritário + modelos exclusivos</p>
-          </div>
-          <div class="price">R$ 49<span>/mês</span></div>
-          <ul class="features">
-            <li>Alta Capacidade Diária (10k)</li>
-            <li>Todos os modelos Pro</li>
-            <li>Deep Analysis Ativo</li>
-          </ul>
-          <button onclick="handleFlowPay()" class="btn-primary">Subscribe</button>
         </div>
       </div>
       
       <a href="/" style="color: white;" class="back-link">←Return</a>
 
-      <!-- FlowPay Diagnostics Panel -->
-      <div class="test-panel" id="flowpay-test">
-        <div class="test-header">
-          <span class="test-title">Sovereign Payment Diagnostics</span>
-          <button onclick="checkFlowHealth()" class="btn-check">Check API</button>
+      {import.meta.env.PUBLIC_ENABLE_FLOWPAY_DIAGNOSTICS === 'true' && (
+        <div class="test-panel" id="flowpay-test">
+          <div class="test-header">
+            <span class="test-title">Sovereign Payment Diagnostics</span>
+            <button onclick="checkFlowHealth()" class="btn-check">Check API</button>
+          </div>
+          <div id="health-status" class="health-status"></div>
+          <hr class="test-divider" />
+          <button onclick="testFlowCharge()" class="btn-test">Simulate Test Charge (R$ 1.00)</button>
+          <div id="test-result" class="test-result"></div>
         </div>
-        <div id="health-status" class="health-status"></div>
-        <hr class="test-divider" />
-        <button onclick="testFlowCharge()" class="btn-test">Simulate Test Charge (R$ 1.00)</button>
-        <div id="test-result" class="test-result"></div>
-      </div>
+      )}
     </div>
   </div>
 
@@ -110,7 +95,7 @@ if (!token) {
 
     .pricing-grid {
       display: grid;
-      grid-template-columns: 1.5fr 1fr;
+      grid-template-columns: 1fr;
       gap: 12px;
       margin-bottom: 20px;
     }
@@ -255,7 +240,7 @@ if (!token) {
     }
 
     .token-amount {
-      font-size: 1.2rem;
+      font-size: clamp(0.78rem, 3.1vw, 1rem);
       font-weight: 800;
       color: var(--accent);
       font-family: 'Space Grotesk', monospace;
@@ -420,30 +405,6 @@ if (!token) {
         }
       } catch (error) {
         alert('Connection error. Please try again.');
-      }
-    }
-
-    window.handleFlowPay = async function() {
-      const token = localStorage.getItem('neo_token');
-      if (!token) return window.location.href = '/login';
-      
-      try {
-        const response = await fetch(`${apiUrl}/api/flowpay/create-charge`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        const data = await response.json();
-        if (data.checkoutUrl) {
-          window.location.href = data.checkoutUrl;
-        } else {
-          alert('Erro: ' + (data.error || 'Falha ao iniciar pagamento'));
-        }
-      } catch (err) {
-        alert('Erro de conexão: ' + err.message);
       }
     }
   </script>

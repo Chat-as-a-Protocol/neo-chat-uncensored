@@ -137,10 +137,15 @@ app.post(
 
       const hmac = crypto.createHmac("sha256", secret);
       const digest = hmac.update(req.body).digest("hex");
+      const signatureValue = Array.isArray(signature) ? signature[0] : signature;
+      const normalizedSignature = String(signatureValue).replace(/^sha256=/, "");
 
       try {
         if (
-          !crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature))
+          !crypto.timingSafeEqual(
+            Buffer.from(digest, "hex"),
+            Buffer.from(normalizedSignature, "hex"),
+          )
         ) {
           logger.warn("[Webhook] Invalid signature");
           return res.status(401).send("Unauthorized: Invalid Signature");
@@ -152,11 +157,14 @@ app.post(
     }
 
     try {
-      const payload = JSON.parse(req.body.toString());
-      const { event, data } = payload;
+      const envelope = JSON.parse(req.body.toString());
+      const { event } = envelope;
+      const data = envelope.data || envelope.payload;
 
       if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-        const { userId, paymentId, metadata } = data;
+        const metadata = data?.metadata || {};
+        const userId = data?.userId || metadata.userId || data?.payerId;
+        const paymentId = data?.paymentId || data?.orderId || data?.chargeId || data?.id;
 
         if (!userId) {
           throw new Error("Missing userId in payload");
@@ -173,7 +181,10 @@ app.post(
         }
 
         let entry;
-        if (metadata?.type === "tokens_purchase") {
+        const purchaseType = String(metadata?.type || "").toLowerCase();
+        const isTokenPurchase = purchaseType === "tokens_purchase" || purchaseType === "token_purchase";
+
+        if (isTokenPurchase) {
           // Compra de pacotes de tokens avulsos
           const tokens = parseInt(metadata.tokens) || 0;
           entry = await ledgerService.addEntry(userId, tokens, LEDGER_TYPES.TOKEN_PURCHASE, reference);
@@ -197,7 +208,6 @@ app.post(
           return res.status(200).json({ status: "success", message: "Already processed" });
         }
 
-        const isTokenPurchase = metadata?.type === "tokens_purchase";
         const successMessage = isTokenPurchase ? "Tokens added successfully" : "Tier updated successfully";
         
         logger.info(`[Webhook] Payment ${reference} processed for user ${userId} (${isTokenPurchase ? 'Tokens' : 'Pro Plan'})`);
@@ -218,6 +228,29 @@ app.post(
 app.use(express.json());
 
 // ===== AUTH ROUTES =====
+app.post("/api/auth/guest", async (req, res) => {
+  try {
+    const rawDeviceId = String(req.body?.deviceId || randomUUID()).slice(0, 128);
+    const userId = "guest_" + crypto.createHash("sha256").update(rawDeviceId).digest("hex").slice(0, 32);
+    const email = `${userId}@guest.nox.local`;
+    const tier = "pro";
+
+    const token = jwt.sign(
+      { id: userId, email, tier, guest: true },
+      effectiveJwtSecret,
+      { expiresIn: "7d" },
+    );
+
+    res.status(201).json({
+      token,
+      user: { id: userId, email, tier, guest: true },
+    });
+  } catch (error) {
+    logger.error("Guest auth error: " + error.message);
+    res.status(500).json({ error: "Guest session unavailable" });
+  }
+});
+
 app.post("/api/auth/signup", async (req, res) => {
   try {
     const { email, name, password } = req.body;
@@ -775,6 +808,10 @@ app.get("/api/ledger", authenticateToken, async (req, res) => {
 // ===== FLOWPAY INTEGRATION =====
 
 app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
+  if (process.env.ENABLE_PRO_ENGINE_CHECKOUT !== "true") {
+    return res.status(404).json({ error: "Not found" });
+  }
+
   try {
     const flowpayUrl =
       process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
@@ -799,6 +836,7 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
         callbackUrl: `${frontendBaseUrl}/success`,
         metadata: {
           plan: "pro",
+          userId: req.user.id,
         },
       }),
     });
@@ -834,7 +872,7 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
 
     const { package: pkg } = req.body;
     const tokenPackages = {
-      "1k": { tokens: 1000, price: 19 },
+      "1k": { tokens: 1000, price: 49 },
       "5k": { tokens: 5000, price: 79 },
       "10k": { tokens: 10000, price: 149 }
     };
@@ -864,7 +902,7 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
         metadata: { 
           tokens: selected.tokens,
           userId: req.user.id,
-          type: "TOKEN_PURCHASE"
+          type: "tokens_purchase"
         }
       })
     });
@@ -881,8 +919,15 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
 
 // ===== FLOWPAY DIAGNOSTICS & TESTING =====
 
+const ensureFlowPayDiagnosticsEnabled = (_req, res, next) => {
+  if (process.env.ENABLE_FLOWPAY_DIAGNOSTICS !== "true") {
+    return res.status(404).json({ error: "Not found" });
+  }
+  next();
+};
+
 // 1. Health Check da API FlowPay
-app.get("/api/flowpay/health", authenticateToken, async (_req, res) => {
+app.get("/api/flowpay/health", authenticateToken, ensureFlowPayDiagnosticsEnabled, async (_req, res) => {
   try {
     const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
     const response = await fetch(`${flowpayUrl}/api/health`, {
@@ -900,7 +945,7 @@ app.get("/api/flowpay/health", authenticateToken, async (_req, res) => {
 });
 
 // 2. Simulação de Cobrança (Sandbox)
-app.post("/api/flowpay/test-charge", authenticateToken, async (req, res) => {
+app.post("/api/flowpay/test-charge", authenticateToken, ensureFlowPayDiagnosticsEnabled, async (req, res) => {
   try {
     const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
     
