@@ -10,5 +10,9 @@ export default defineConfig({
   integrations: [tailwind()],
   devToolbar: {
     enabled: false
+  },
+  server: {
+    host: process.env.HOST || '0.0.0.0',
+    port: parseInt(process.env.PORT || '3000')
   }
 });
