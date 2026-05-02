@@ -52,6 +52,7 @@ const app = express();
 import redis from "./lib/redis.js";
 import { ledgerService, LEDGER_TYPES } from "./services/ledger.js";
 import { paymentService } from "./services/payments.js";
+import { sendMagicLinkEmail } from "./services/email.js";
 import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
 
@@ -883,6 +884,194 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
   res
     .status(201)
     .json({ token, user: { id: userId, email, name, tier: "free" } });
+});
+
+// ===== MAGIC LINK AUTH =====
+const MAGIC_LINK_EXPIRATION_MINUTES =
+  parseInt(process.env.MAGIC_LINK_EXPIRATION_MINUTES, 10) || 10;
+
+const magicLinkRequestSchema = z.object({
+  email: z.string().email().max(254),
+});
+
+const magicLinkVerifySchema = z.object({
+  token: z.string().min(1).max(128),
+});
+
+// Rate limiter: max 5 magic link requests per 15 minutes per IP
+const magicLinkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: "Too many magic link requests. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * POST /api/auth/magic-link/request
+ * Accepts { email } and sends a magic link to the user's inbox.
+ * Creates the user account if it doesn't exist yet.
+ */
+app.post("/api/auth/magic-link/request", magicLinkLimiter, async (req, res) => {
+  const parsed = magicLinkRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "A valid email address is required." });
+  }
+
+  const { email } = parsed.data;
+
+  try {
+    // Ensure user exists — create one if not
+    let userResult = await query("SELECT id, email, name, tier FROM users WHERE email = $1", [email]);
+    let user = userResult.rows[0];
+
+    if (!user) {
+      const userId = getUserId(email);
+      // Generate a random unusable password hash for magic-link-only accounts
+      const randomPasswordHash = await import("node:crypto").then(
+        (m) => "$2b$12$" + m.randomBytes(22).toString("base64").slice(0, 53),
+      );
+      await query(
+        "INSERT INTO users (id, email, name, password_hash, tier) VALUES ($1, $2, $3, $4, 'free') ON CONFLICT (email) DO NOTHING",
+        [userId, email, null, randomPasswordHash],
+      );
+      // Re-fetch in case of race condition
+      userResult = await query("SELECT id, email, name, tier FROM users WHERE email = $1", [email]);
+      user = userResult.rows[0];
+    }
+
+    if (!user) {
+      // Should never happen, but guard defensively
+      logger.error(`[MagicLink] Failed to find or create user for email: ${email}`);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+
+    // Generate a cryptographically secure token (32 random bytes → 64 hex chars)
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + MAGIC_LINK_EXPIRATION_MINUTES * 60 * 1000);
+
+    // Persist token in database
+    await query(
+      `INSERT INTO magic_link_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, $3)`,
+      [user.id, token, expiresAt],
+    );
+
+    // Store token in Redis with TTL for fast lookup
+    await redis.setex(
+      `magic_link:${token}`,
+      MAGIC_LINK_EXPIRATION_MINUTES * 60,
+      user.id,
+    );
+
+    // Build magic link URL
+    const frontendBaseUrl = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(",")[0].trim().replace(/\/$/, "")
+      : "http://localhost:4321";
+    const magicLinkUrl = `${frontendBaseUrl}/auth/magic-link?token=${token}`;
+
+    // Send email via Resend
+    await sendMagicLinkEmail({ to: email, magicLinkUrl });
+
+    logger.info(`[MagicLink] Link sent to ${email} (user: ${user.id})`);
+
+    return res.json({
+      success: true,
+      message: "Check your email for the magic link.",
+    });
+  } catch (err) {
+    logger.error(`[MagicLink] Request error: ${err.message}`);
+    return res.status(500).json({ error: "Failed to send magic link. Please try again." });
+  }
+});
+
+/**
+ * POST /api/auth/magic-link/verify
+ * Accepts { token }, validates it, marks it used, and returns a JWT.
+ */
+app.post("/api/auth/magic-link/verify", async (req, res) => {
+  const parsed = magicLinkVerifySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "A valid token is required." });
+  }
+
+  const { token } = parsed.data;
+
+  try {
+    // Fast path: check Redis first
+    const userId = await redis.get(`magic_link:${token}`);
+    if (!userId) {
+      return res.status(401).json({ error: "Invalid or expired magic link." });
+    }
+
+    // Verify token in database and ensure it hasn't been used
+    const tokenResult = await query(
+      `SELECT id, user_id, expires_at, used_at
+       FROM magic_link_tokens
+       WHERE token = $1`,
+      [token],
+    );
+
+    const tokenRow = tokenResult.rows[0];
+    if (!tokenRow) {
+      await redis.del(`magic_link:${token}`);
+      return res.status(401).json({ error: "Invalid or expired magic link." });
+    }
+
+    if (tokenRow.used_at) {
+      await redis.del(`magic_link:${token}`);
+      return res.status(401).json({ error: "This magic link has already been used." });
+    }
+
+    if (new Date(tokenRow.expires_at) < new Date()) {
+      await redis.del(`magic_link:${token}`);
+      return res.status(401).json({ error: "This magic link has expired." });
+    }
+
+    // Mark token as used in database
+    await query(
+      "UPDATE magic_link_tokens SET used_at = NOW() WHERE id = $1",
+      [tokenRow.id],
+    );
+
+    // Delete token from Redis (single-use enforcement)
+    await redis.del(`magic_link:${token}`);
+
+    // Fetch user data
+    const userResult = await query(
+      "SELECT id, email, name, tier FROM users WHERE id = $1",
+      [tokenRow.user_id],
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      logger.error(`[MagicLink] User not found for id: ${tokenRow.user_id}`);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+
+    // Issue JWT
+    const jwtToken = jwt.sign(
+      { id: user.id, email: user.email, tier: user.tier },
+      effectiveJwtSecret,
+      { expiresIn: "7d" },
+    );
+
+    logger.info(`[MagicLink] Verified for user ${user.id}`);
+
+    return res.json({
+      success: true,
+      token: jwtToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        tier: user.tier,
+      },
+    });
+  } catch (err) {
+    logger.error(`[MagicLink] Verify error: ${err.message}`);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // ===== USAGE STATS & LEDGER =====
