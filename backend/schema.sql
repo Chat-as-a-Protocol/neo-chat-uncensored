@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   name TEXT,
   password_hash TEXT NOT NULL,
-  tier TEXT DEFAULT 'free',          -- 'free' | 'pro'
+  tier TEXT DEFAULT 'free',          -- legacy free/pro plus paid_basic/paid_pro
   daily_limit INTEGER DEFAULT 100,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

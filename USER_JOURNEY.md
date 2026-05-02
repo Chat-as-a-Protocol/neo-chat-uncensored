@@ -3,95 +3,143 @@
 
 ```text
 ========================================
-         NØX.AI · USER JOURNEY
+          NØX · USER JOURNEY
 ========================================
-Status: OPERATIONAL
-Version: v4.0.0
+Status: active
+Version: v4.1.0
 ========================================
 ```
-
-> **Version:** v4.0.0 (Guest-First)  
-> **Status:** active  
-> **Context:** Sovereign Funnel Logic
 
 ## ⧉ Mapa de Rotas
 
 ```text
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ ROTA          VISIBILIDADE    PROPÓSITO
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ /             Pública (Lim 3) Interface de Chat AI - Guest Mode
-┃ /login        Pública         Acesso para usuários identificados
-┃ /signup       Pública         Registro para quebra de barreira
-┃ /upgrade      Restrita        Vitrine († NEØ †, VOID.ᴇxᴇ, EL CHAPO 亗)
-┃ /success      Restrita        Confirmação de recarga FlowPay
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ ROTA               ┃ VISIBILIDADE ┃ PROPÓSITO
+┣━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ /                  ┃ Autenticada  ┃ Terminal principal NØX
+┃ /login             ┃ Pública      ┃ Login e magic link
+┃ /signup            ┃ Pública      ┃ Criação de conta identificada
+┃ /auth/magic-link   ┃ Pública      ┃ Consumo do token de e-mail
+┃ /upgrade           ┃ Restrita     ┃ Pacotes pagos e P.R.O
+┃ /conta             ┃ Restrita     ┃ Conta, uso e saldo
+┃ /success           ┃ Restrita     ┃ Retorno pós-FlowPay
+┃ /privacy-policy    ┃ Pública      ┃ Obrigação legal
+┃ /terms-and-conditions ┃ Pública   ┃ Obrigação legal
+┗━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ────────────────────────────────────────
 
-## ⟠ Fluxo da Jornada (Sovereign Funnel)
+## ⟠ Guest Mode
 
-### 1. O Despertar (Guest Mode)
+Guest Mode continua existindo como degustação controlada.
 
-O usuário acessa a raiz `/` e obtém acesso imediato.
-Não há exigência de credenciais para a interação inicial.
+Contrato:
 
-- **Experiência Gênio**: Permissão de até 3 mensagens.
-- **Validação**: Controle via Redis e DeviceId no backend.
-- **Interface**: Identidade pura NØX, sem seletores complexos.
+- até 3 mensagens
+- limite diário de 500 tokens
+- resposta compacta
+- sem exposição como plano gratuito em `/upgrade`
 
-### 2. O Gate de Conversão (Marketing Barrier)
-
-Interrupção obrigatória após o esgotamento do 3º desejo.
-A interface bloqueia o input e exige decisão soberana.
-
-- **Ações**: Cadastro via `/signup` ou Login via `/login`.
-- **Hardened**: Bloqueio enforçado na camada de API.
-- **UX**: Botões diretos para conversão sem timers agressivos.
-
-### 3. Escalada de Poder (Upgrade)
-
-Usuários identificados podem expandir limites em `/upgrade`.
-Aumento de cota e acesso a privilégios de rede.
-
-- **† NEØ † / × VOID.ᴇxᴇ ×**: Recarga de tokens e fim da trava de mensagens.
-- **EL CHAPO 亗**: 10.000 tokens e acesso total sobre a inteligência.
-- **Negociação**: Suporte direto com o Arquiteto para o tier EL CHAPO.
+Uso recomendado:
+divulgação seletiva para poucas pessoas,
+sem transformar o free em oferta pública principal.
 
 ────────────────────────────────────────
 
-## ⍟ Segurança e Resiliência
+## ⨷ Conversão
+
+Ao atingir a barreira de guest,
+o usuário deve virar usuário identificado.
+
+Fluxos:
+
+- login com e-mail e senha
+- cadastro em `/signup`
+- magic link via Resend
+- token persistido como `nox_token`
+
+Depois disso,
+o usuário pode comprar pacote de tokens ou produto P.R.O.
+
+────────────────────────────────────────
+
+## ⧖ Upgrade
+
+`/upgrade` não exibe o conteúdo do Guest Mode.
+
+Fonte de verdade dos planos:
+
+```text
+shared/plans.json
+```
+
+Pacotes:
+
+- `† NEØ †`: 1.000 NØX, tier `paid_basic`
+- `× VOID.ᴇxᴇ ×`: 5.000 NØX, tier `paid_basic`
+- `EL CHAPO 亗`: 10.000 NØX, tier `paid_pro`
+
+Produto:
+
+- `P.R.O Analyst`: acesso ao NØX Analyst e tier P.R.O
+
+────────────────────────────────────────
+
+## ⧗ Pagamento
+
+O frontend chama a API NØX:
+
+```text
+https://api.noxai.chat/api/tokens/purchase
+https://api.noxai.chat/api/products/purchase
+```
+
+O backend chama FlowPay:
+
+```text
+https://api.flowpay.cash/api/create-charge
+```
+
+Depois do pagamento,
+FlowPay emite evento para Nexus,
+e o backend processa o webhook assinado.
+
+Resultado esperado:
+
+- pagamento persistido em `payments`
+- crédito registrado no ledger
+- tier atualizado quando aplicável
+- e-mail de confirmação enviado via Resend
+
+────────────────────────────────────────
+
+## ⍟ Resiliência
 
 ```text
 ▓▓▓ OPERATIONAL CONSTRAINTS
 ────────────────────────────────────────
-└─ Histórico: Truncagem automática (últimas 30 msgs)
-└─ Quota: Auditada em tempo real via Redis
-└─ Acessibilidade: Gestão de foco e navegação Escape (A11y)
-└─ Persistência: LocalStorage + Sessão Identificada
+└─ Quota calculada via ledger
+└─ Idempotência por referência de pagamento
+└─ Redis para estado rápido de tier, sessão e cache
+└─ Postgres para usuários, pagamentos e magic links
+└─ FlowPay service rejeita HTML e self-call
+└─ Resend isolado no backend
 ```
 
 ────────────────────────────────────────
 
 ## ◬ Próximos Passos
 
-1. Automatizar retorno de `/success` para o loop principal.
-2. Preparar injeção de protocolos customizados para EL CHAPO.
-3. Hardening contínuo de rate-limiting por Device Fingerprint.
-
-────────────────────────────────────────
+1. Validar compra real ponta a ponta em produção.
+2. Expor statement de ledger com UX clara em `/conta`.
+3. Refinar copy curta de conversão após barreira guest.
 
 ```text
-▓▓▓ NΞØ MELLØ
+▓▓▓ NØX
 ────────────────────────────────────────
-Core Architect · NΞØ Protocol
-neo@neoprotocol.space
-
-"Code is law. Expand until
-chaos becomes protocol."
-
-Security by design.
-Exploits find no refuge here.
+Guest controlado.
+Upgrade pago.
+Ledger auditável.
 ────────────────────────────────────────
 ```

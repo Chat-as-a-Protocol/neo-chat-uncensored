@@ -417,7 +417,7 @@ const products = Object.values(plans.products || {});
   <script is:inline define:vars={{ 
     PUBLIC_API_URL: import.meta.env.PUBLIC_API_URL,
   }}>
-    const productionApiUrl = 'https://backend-vit.up.railway.app';
+    const productionApiUrl = 'https://api.noxai.chat';
     const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
     const configuredApiUrl = String(PUBLIC_API_URL || '').trim().replace(/\/$/, '');
     const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);

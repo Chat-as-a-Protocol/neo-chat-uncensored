@@ -1,101 +1,211 @@
-# Setup & Technical Documentation - NØX.AI
+<!-- markdownlint-disable MD003 MD007 MD013 MD022 MD023 MD025 MD029 MD032 MD033 MD034 -->
+# Setup
 
 ```text
 ========================================
-     NØX.AI · TECHNICAL PROTOCOL
+          NØX · TECHNICAL SETUP
+========================================
+Status: active
+Runtime: Astro SSR + Express
 ========================================
 ```
 
-Este documento detalha a infraestrutura, comandos e configurações necessárias para operar a engine NØX.AI.
+## ⟠ Objetivo
 
-## ⧉ Arquitetura (Topology)
+Documento operacional para rodar, validar e publicar NØX.
 
-O ecossistema utiliza uma estrutura de monorepo pnpm com um frontend estático (Astro) e um backend proxy (Express).
+Ele descreve a realidade atual do projeto:
+frontend Astro SSR, backend Express, API pública própria,
+FlowPay externo, Resend e ledger auditável.
+
+────────────────────────────────────────
+
+## ⧉ Topologia
 
 ```text
-▓▓▓ SYSTEM TOPOLOGY
-────────────────────────────────────────
-└─ Root (Astro 6.x - Frontend)
-   ├─ src/             (Componentes e Páginas)
-   ├─ public/          (Assets Estáticos)
-   └─ Dockerfile       (Build de Produção FE)
-
-└─ Backend (Node.js - API/Proxy)
-   ├─ src/server.js    (Lógica Core e Segurança)
-   └─ Dockerfile       (Build de Produção BE)
-────────────────────────────────────────
+neo-chat-uncensored/
+├── src/                    Astro SSR app
+├── public/                 assets públicos e PWA
+├── backend/
+│   ├── src/server.js       API Express
+│   ├── src/services/       ledger, FlowPay, e-mail, pagamentos
+│   └── schema.sql          Postgres
+├── shared/
+│   ├── plans.json          planos, limites, tokens e preços
+│   └── runtime-prompt.md   prompt runtime mínimo
+├── docs/                   standards para documentação
+└── .github/prompts/        prompts de colaboração
 ```
 
-## ⨷ Comandos de Desenvolvimento
+```text
+┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ Serviço      ┃ URL canônica
+┣━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┃ Frontend     ┃ https://noxai.chat
+┃ Backend API  ┃ https://api.noxai.chat
+┃ FlowPay API  ┃ https://api.flowpay.cash
+┃ Resend From  ┃ NØX <send@noxai.chat>
+┗━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 
-Todos os comandos devem ser executados via `pnpm` através do `Makefile` raiz para garantir a integridade do ambiente.
+────────────────────────────────────────
 
-> **IMPORTANTE**: Este projeto utiliza **Astro SSR (output: server)**. O build gera arquivos que devem ser executados por um runtime Node.js, não sendo compatível com hosts estáticos puros.
+## ⨷ Comandos
+
+Use `pnpm` via `Makefile`.
 
 ```bash
-# 1. Inicializar ambiente e instalar dependências
 make install
-
-# 2. Iniciar ecossistema completo (Frontend SSR + Backend Express)
 make dev
-
-# 3. Qualidade e Segurança (Obrigatório antes do push)
-make check  # Roda verify + audit + lint + tests
-
-# 4. Build de produção (Astro SSR entrypoint em dist/server/entry.mjs)
+make check
 make build
 ```
 
-## 🚀 Infraestrutura e Deploy (Railway)
-
-O deploy é orquestrado pelo arquivo `railway.json`. Regras críticas de manutenção:
-
-1. **Health Check**: A rota canônica de saúde é `/health`. **NUNCA** use `/` no Railway, pois os redirecionamentos de autenticação do SSR (302) farão o health check falhar.
-2. **Variáveis de Ambiente**: Certifique-se de que `JWT_SECRET`, `FLOWPAY_API_KEY` e `REDIS_URL` estejam configuradas no painel do Railway.
-3. **Start Command**: O comando de inicialização é `node dist/server/entry.mjs`.
-
-### **Arquitetura de Faturamento**
-
-- **Tiktoken**: O sistema utiliza o encoder `cl100k_base`. Mudanças no modelo de IA exigem validação de tokens no `backend/src/utils/billing.js`.
-- **Tiers**: Os únicos tiers válidos no sistema são `free` e `pro`. O uso de `premium` é automaticamente normalizado para `pro` no runtime.
-
-### **Frontend (Astro SSR)**
-
-O frontend é servido como arquivos estáticos após o build.
-
-- **Comando**: `serve dist -l $PORT`
-- **Dependência**: Requer `serve` instalado globalmente ou via `npx`.
-
-### **Backend (Express)**
-
-O backend opera como um proxy seguro para APIs externas e gerenciamento de usuários.
-
-- **Comando**: `cd backend && node src/server.js`
-- **Porta**: `$PORT` (Padrão Railway) ou `3001`.
-
-## ⚙️ Variáveis de Ambiente (.env)
-
-Consulte `.env.example` e `backend/.env.example` para a lista completa. As principais são:
-
-- `PUBLIC_API_URL`: URL pública do seu backend (ex: `https://api.seusite.com`).
-- `FRONTEND_URL`: URL do seu frontend para liberação de CORS.
-- `VENICE_API_KEY`: Chave de API da Venice.ai.
-- `FLOWPAY_WEBHOOK_SECRET`: Segredo para validação de pagamentos.
-
-## 🛡️ Segurança
-
-- **Proxy-Only**: Chaves de API nunca são expostas ao frontend.
-- **Timing-Safe Auth**: Verificações de senha e assinatura de webhook usam `crypto.timingSafeEqual`.
-- **SHA-256 IDs**: Identificação de usuários baseada em hashes determinísticos e unidirecionais.
-- **Idempotency**: Webhooks processados com travas no Redis para evitar crédito duplicado.
-
-## 🔍 Comandos de Inspeção e Debug
-
-Para inspecionar Pull Requests automatizados (ex: Railway bots e atualizações de infraestrutura):
+Comandos diretos úteis:
 
 ```bash
-gh pr view 8 --json number,title,state,mergeStateStatus,headRefName,baseRefName,isDraft,url,author,files,commits
+fnm exec --using v25.9.0 pnpm check
+fnm exec --using v25.9.0 pnpm build
+fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
 ```
 
----
-Para visão geral do projeto, consulte [README.md](./README.md).
+────────────────────────────────────────
+
+## ⧖ Frontend
+
+Astro roda em modo SSR:
+
+```text
+output: server
+adapter: @astrojs/node
+start: node dist/server/entry.mjs
+health: /health
+```
+
+Não usar `serve dist`.
+O build não é host estático puro.
+
+Variável pública principal:
+
+```env
+PUBLIC_API_URL=https://api.noxai.chat
+```
+
+────────────────────────────────────────
+
+## ⧗ Backend
+
+Backend Express:
+
+```text
+start: node src/server.js
+health: /health
+port: $PORT ou 3001
+```
+
+Responsabilidades:
+
+- autenticação por senha e magic link
+- proxy Venice
+- quota e ledger
+- checkout FlowPay
+- webhook FlowPay via Nexus
+- e-mails via Resend
+
+────────────────────────────────────────
+
+## ⍟ Variáveis
+
+Backend Railway:
+
+```env
+JWT_SECRET=...
+VENICE_API_KEY=...
+VENICE_MODEL=venice-uncensored-1-2
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+REDIS_URL=${{Redis.REDIS_URL}}
+FRONTEND_URL=https://noxai.chat
+FLOWPAY_API_URL=https://api.flowpay.cash
+FLOWPAY_API_KEY=...
+FLOWPAY_WEBHOOK_SECRET=...
+RESEND_API_KEY=${{Resend Mail.RESEND_API_KEY}}
+RESEND_FROM_EMAIL=NØX <send@noxai.chat>
+MAGIC_LINK_EXPIRATION_MINUTES=10
+```
+
+Frontend Railway:
+
+```env
+PUBLIC_API_URL=https://api.noxai.chat
+ENABLE_AUTH_PAGES=true
+ENABLE_LANDING_PAGE=true
+```
+
+Regra crítica:
+
+```text
+FLOWPAY_API_URL != PUBLIC_API_URL
+```
+
+`FLOWPAY_API_URL` aponta para FlowPay.
+`PUBLIC_API_URL` aponta para a API pública NØX.
+
+────────────────────────────────────────
+
+## ◬ Planos
+
+Fonte de verdade:
+
+```text
+shared/plans.json
+```
+
+Tiers atuais:
+
+- `guest`: degustação controlada, 3 mensagens e resposta compacta.
+- `paid_basic`: usuário identificado com pacote de tokens.
+- `paid_pro`: EL CHAPO / P.R.O com respostas maiores.
+
+Compatibilidade interna:
+`free`, `premium` e `pro` podem aparecer em fluxos legados,
+mas são normalizados antes de aplicar regra de acesso.
+
+────────────────────────────────────────
+
+## ⧇ Segurança
+
+- Secrets nunca entram no frontend.
+- `RESEND_API_KEY`, `FLOWPAY_API_KEY`, `JWT_SECRET`,
+  `DATABASE_URL` e `REDIS_URL` ficam no backend.
+- Webhooks validam assinatura `X-Nexus-Signature`.
+- Ledger usa idempotência por referência de pagamento.
+- FlowPay service rejeita resposta HTML e URL apontando
+  para o próprio app.
+
+────────────────────────────────────────
+
+## ◮ Validação
+
+Antes de publicar:
+
+```bash
+make check
+make build
+git diff --check
+```
+
+Smoke test pós-deploy:
+
+```bash
+curl -I https://noxai.chat/health
+curl -I https://api.noxai.chat/health
+```
+
+Testes manuais:
+
+- abrir `/login`
+- pedir magic link
+- abrir `/upgrade`
+- iniciar compra de pacote
+- confirmar que o checkout vem do FlowPay
+- confirmar que nada chama `localhost`

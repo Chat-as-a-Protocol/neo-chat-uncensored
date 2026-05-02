@@ -1,47 +1,40 @@
 <svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background -->
-  <rect width="1200" height="420" fill="#020617"/>
-  
-  <!-- Decorative Grid -->
-  <path d="M0 40H1200M0 80H1200M0 120H1200M0 160H1200M0 200H1200M0 240H1200M0 280H1200M0 320H1200M0 360H1200M0 400H1200" stroke="#1E293B" stroke-opacity="0.2"/>
-  <path d="M40 0V420M80 0V420M120 0V420M160 0V420M200 0V420M240 0V420M280 0V420M320 0V420M360 0V420M400 0V420M440 0V420M480 0V420M520 0V420M560 0V420M600 0V420M640 0V420M680 0V420M720 0V420M760 0V420M800 0V420M840 0V420M880 0V420M920 0V420M960 0V420M1000 0V420M1040 0V420M1080 0V420M1120 0V420M1160 0V420" stroke="#1E293B" stroke-opacity="0.2"/>
+  <rect width="1200" height="420" fill="#09131A"/>
+  <rect x="28" y="28" width="1144" height="364" rx="24" fill="url(#cardGrad)" stroke="#6EE7F9" stroke-opacity="0.34"/>
 
-  <!-- Logo Section -->
-  <g transform="translate(60, 60)">
-    <text x="0" y="40" fill="white" font-family="monospace" font-size="64" font-weight="bold">NØX</text>
-    <rect x="0" y="60" width="340" height="4" fill="url(#grad1)"/>
-    <text x="0" y="100" fill="#94A3B8" font-family="monospace" font-size="24">UNCENSORED AI SYSTEM</text>
+  <text x="70" y="72" fill="#6EE7F9" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="14" letter-spacing="4">CHAT-AS-A-PROTOCOL</text>
+
+  <g transform="translate(86 126)">
+    <circle cx="62" cy="62" r="55" stroke="#6EE7F9" stroke-width="2" stroke-opacity="0.58"/>
+    <circle cx="62" cy="62" r="35" stroke="#D7FF64" stroke-width="3"/>
+    <circle cx="62" cy="62" r="13" fill="#D7FF64"/>
+    <path d="M124 42H196M124 62H196M124 82H196" stroke="#6EE7F9" stroke-width="2" stroke-linecap="round"/>
   </g>
 
-  <!-- Function Cards -->
-  <g transform="translate(60, 180)">
-    <!-- Card 1 -->
-    <rect x="0" y="0" width="340" height="160" rx="12" fill="#0F172A" stroke="#1E293B"/>
-    <text x="20" y="40" fill="#8B5CF6" font-family="monospace" font-size="18" font-weight="bold">⧉ PERFORMANCE</text>
-    <text x="20" y="75" fill="#CBD5E1" font-family="monospace" font-size="14">Astro 6.x / Zero Bloat</text>
-    <text x="20" y="100" fill="#CBD5E1" font-family="monospace" font-size="14">Vanilla JS Streaming</text>
-    <text x="20" y="125" fill="#CBD5E1" font-family="monospace" font-size="14">Edge Optimized</text>
-
-    <!-- Card 2 -->
-    <rect x="360" y="0" width="340" height="160" rx="12" fill="#0F172A" stroke="#1E293B"/>
-    <text x="380" y="40" fill="#EC4899" font-family="monospace" font-size="18" font-weight="bold">⨷ PRIVACY</text>
-    <text x="380" y="75" fill="#CBD5E1" font-family="monospace" font-size="14">No Tracking / Cookies</text>
-    <text x="380" y="100" fill="#CBD5E1" font-family="monospace" font-size="14">Encrypted Local Data</text>
-    <text x="380" y="125" fill="#CBD5E1" font-family="monospace" font-size="14">Sovereign Protocol</text>
-
-    <!-- Card 3 -->
-    <rect x="720" y="0" width="340" height="160" rx="12" fill="#0F172A" stroke="#1E293B"/>
-    <text x="740" y="40" fill="#10B981" font-family="monospace" font-size="18" font-weight="bold">⟠ INTEGRATION</text>
-    <text x="740" y="75" fill="#CBD5E1" font-family="monospace" font-size="14">Venice AI Proxy</text>
-    <text x="740" y="100" fill="#CBD5E1" font-family="monospace" font-size="14">FlowPay / Nexus</text>
-    <text x="740" y="125" fill="#CBD5E1" font-family="monospace" font-size="14">Context Manifests</text>
+  <g transform="translate(286 112)">
+    <rect width="300" height="148" rx="18" fill="#0B151C" stroke="#6EE7F9" stroke-opacity="0.42"/>
+    <text x="28" y="44" fill="#D7FF64" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="20" font-weight="700">chat()</text>
+    <text x="28" y="78" fill="#E8F4F8" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="18">ledger()</text>
+    <text x="28" y="112" fill="#E8F4F8" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="18">checkout()</text>
+    <path d="M316 74H382" stroke="#6EE7F9" stroke-width="2" stroke-linecap="round"/>
+    <path d="M382 74L366 62M382 74L366 86" stroke="#6EE7F9" stroke-width="2" stroke-linecap="round"/>
   </g>
 
-  <!-- Gradients -->
+  <g transform="translate(686 92)">
+    <rect width="416" height="188" rx="20" fill="#10222D" stroke="#D7FF64" stroke-opacity="0.46"/>
+    <text x="30" y="48" fill="#D7FF64" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="22" font-weight="700">NØX PROTOCOL</text>
+    <text x="30" y="86" fill="#E8F4F8" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="17">Astro SSR app on noxai.chat</text>
+    <text x="30" y="120" fill="#E8F4F8" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="17">Express API on api.noxai.chat</text>
+    <text x="30" y="154" fill="#E8F4F8" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="17">FlowPay ledger + Resend email</text>
+  </g>
+
+  <text x="70" y="332" fill="#E8F4F8" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="46" font-weight="800">neo-chat-uncensored</text>
+  <text x="72" y="362" fill="#9BB7C3" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="18">mobile-first AI access, token packs, P.R.O tier, audited usage</text>
+
   <defs>
-    <linearGradient id="grad1" x1="0" y1="0" x2="340" y2="0" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8B5CF6"/>
-      <stop offset="1" stop-color="#EC4899"/>
+    <linearGradient id="cardGrad" x1="28" y1="28" x2="1172" y2="392" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10222D"/>
+      <stop offset="1" stop-color="#0B151C"/>
     </linearGradient>
   </defs>
 </svg>

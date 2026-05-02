@@ -89,7 +89,7 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
     submitBtn.disabled = true;
     submitBtn.innerText = 'Criando conta...';
 
-    const productionApiUrl = 'https://backend-vit.up.railway.app';
+    const productionApiUrl = 'https://api.noxai.chat';
     const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
     const configuredApiUrl = String(import.meta.env.PUBLIC_API_URL || '').trim().replace(/\/$/, '');
     const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);

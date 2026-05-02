@@ -53,7 +53,7 @@ import Card from '../../components/ui/Card.astro';
 
 <script>
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  const apiUrl = (import.meta as any).env?.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
+  const apiUrl = (import.meta as any).env?.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://api.noxai.chat');
 
   const stateLoading = document.getElementById('state-loading') as HTMLDivElement;
   const stateSuccess = document.getElementById('state-success') as HTMLDivElement;

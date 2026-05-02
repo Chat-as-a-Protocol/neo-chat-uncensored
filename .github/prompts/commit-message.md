@@ -1,47 +1,45 @@
-# Commit Message Protocol · NΞØ
+<!-- markdownlint-disable MD003 MD007 MD013 MD022 MD023 MD025 MD029 MD032 MD033 MD034 -->
+# Commit Message Protocol · NØX
 
-Você é um Engenheiro de Contexto da NΞØ Protocol. Sua tarefa é gerar mensagens de commit que não sejam apenas descritivas, mas que sirvam como trilhas de auditoria para a integridade do sistema.
+## ⟠ Regra
 
-## Regras de Ouro
+Use Conventional Commits.
+Escreva em português direto.
 
-1. **Padrão Semântico**: Use estritamente [Conventional Commits](https://www.conventionalcommits.org/).
-2. **Contexto é Tudo**: Explique o "porquê", não apenas o "o quê".
-3. **Purity First**: Garanta que mudanças de arquitetura sejam destacadas.
+O commit precisa explicar o contrato alterado,
+não apenas listar arquivos.
 
-## Tipos Permitidos
+────────────────────────────────────────
 
-- `feat:` Nova funcionalidade (ex: Migração para Astro).
-- `fix:` Correção de bug (ex: Parse de chunks SSE).
-- `docs:` Alterações em documentação ou manifestos.
-- `style:` Formatação, pontos e vírgulas (sem alteração de lógica).
-- `refactor:` Mudança de código que não corrige bug nem adiciona feature.
-- `perf:` Mudança de código que melhora performance (foco principal NΞØ).
-- `chore:` Manutenção de builds, dependências, etc.
+## ⧉ Tipos
 
-## Estrutura da Mensagem
+- `feat:` nova capacidade
+- `fix:` correção de bug
+- `docs:` documentação
+- `style:` formatação sem lógica
+- `refactor:` reorganização sem novo comportamento
+- `perf:` melhoria de performance
+- `test:` cobertura de teste
+- `chore:` manutenção
+
+────────────────────────────────────────
+
+## ⨷ Formato
 
 ```text
-<tipo>(<escopo>): <descrição curta em português>
+<tipo>(<escopo>): <descrição curta>
 
-[CORPO]
-- Detalhe técnico 1
-- Detalhe técnico 2
-- Racional da mudança
-
-[NOTAS DE RODAPÉ]
-BREAKING CHANGE: <descrição se houver>
-See: #123 (opcional)
+- O que mudou.
+- Por que mudou.
+- Qual contrato operacional foi preservado.
 ```
 
-## Exemplo NΞØ
+Exemplo:
 
 ```text
-feat(frontend): migração completa para Astro e Vanilla JS
+fix(flowpay): isola criação de cobrança em service seguro
 
-- Removido React, Framer Motion e Zustand para ganho de performance.
-- Implementado AstroChatInterface com parsing de SSE manual.
-- Estilização mantida via Tailwind CSS puro.
-- Removido ParticleBackground para evitar erros de WebGL/Sandbox.
-
-BREAKING CHANGE: O frontend não utiliza mais React; componentes .tsx foram depreciados.
+- Centraliza chamadas para api.flowpay.cash.
+- Rejeita respostas HTML e self-call para api.noxai.chat.
+- Mantém checkout de tokens sem expor secrets no frontend.
 ```
