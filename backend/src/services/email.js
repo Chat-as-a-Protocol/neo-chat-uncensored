@@ -75,7 +75,7 @@ export const emailService = {
    * Envia Link de Acesso (Magic Link)
    */
   async sendMagicLink(to, { token }) {
-    const loginUrl = `${FRONTEND_URL}/auth/verify?token=${encodeURIComponent(token)}`;
+    const loginUrl = `${FRONTEND_URL}/auth/magic-link?token=${encodeURIComponent(token)}`;
     return sendEmail({
       from: FROM_EMAIL,
       to,

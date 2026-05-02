@@ -1,0 +1,151 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import SceneBackground from '../../components/SceneBackground.astro';
+import Card from '../../components/ui/Card.astro';
+---
+
+<Layout title="Verificando acesso · NØX">
+  <main class="scene-shell">
+    <SceneBackground />
+
+    <div class="content-container">
+      <Card class="w-full max-w-[440px]" textured>
+
+        <!-- Loading state -->
+        <div id="state-loading" class="flex flex-col items-center gap-5 py-6 text-center">
+          <div class="spinner"></div>
+          <p class="text-base font-semibold text-[var(--text-strong)]">Verificando seu link…</p>
+          <p class="text-sm text-[var(--text-soft)]">Aguarde um momento.</p>
+        </div>
+
+        <!-- Success state -->
+        <div id="state-success" class="hidden flex-col items-center gap-5 py-6 text-center">
+          <div class="text-5xl">✅</div>
+          <p class="text-xl font-bold text-[var(--text-strong)]">Acesso confirmado!</p>
+          <p class="text-sm text-[var(--text-soft)]">Redirecionando para o NØX…</p>
+        </div>
+
+        <!-- Error state -->
+        <div id="state-error" class="hidden flex-col items-center gap-5 py-6 text-center">
+          <div class="text-5xl">⚠️</div>
+          <p class="text-xl font-bold text-[var(--text-strong)]">Link inválido</p>
+          <p id="error-message" class="text-sm text-[var(--text-soft)] leading-relaxed">
+            Este link expirou ou já foi utilizado.
+          </p>
+          <a
+            href="/login"
+            class="mt-2 inline-block bg-[var(--accent)] text-[#181923] font-bold px-6 py-3 rounded-xl text-sm hover:brightness-110 transition-all"
+          >
+            Solicitar novo link
+          </a>
+        </div>
+
+      </Card>
+
+      <footer class="mt-8 text-center">
+        <a href="/" class="text-sm text-[var(--text-dim)] hover:text-white transition-colors">
+          ← Voltar para o início
+        </a>
+      </footer>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const apiUrl = (import.meta as any).env?.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
+
+  const stateLoading = document.getElementById('state-loading') as HTMLDivElement;
+  const stateSuccess = document.getElementById('state-success') as HTMLDivElement;
+  const stateError = document.getElementById('state-error') as HTMLDivElement;
+  const errorMessage = document.getElementById('error-message') as HTMLParagraphElement;
+
+  function showState(state: 'loading' | 'success' | 'error') {
+    stateLoading.classList.toggle('hidden', state !== 'loading');
+    stateLoading.classList.toggle('flex', state === 'loading');
+    stateSuccess.classList.toggle('hidden', state !== 'success');
+    stateSuccess.classList.toggle('flex', state === 'success');
+    stateError.classList.toggle('hidden', state !== 'error');
+    stateError.classList.toggle('flex', state === 'error');
+  }
+
+  async function verifyToken() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+
+    if (!token) {
+      errorMessage.textContent = 'Nenhum token encontrado na URL. Solicite um novo link.';
+      showState('error');
+      return;
+    }
+
+    showState('loading');
+
+    try {
+      const response = await fetch(`${apiUrl}/api/auth/magic-link/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success && result.token) {
+        // Persist JWT the same way the rest of the app does
+        localStorage.setItem('nox_token', result.token);
+        document.cookie = `nox_token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+
+        showState('success');
+
+        // Redirect after a brief confirmation moment
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
+      } else {
+        errorMessage.textContent = result.error || 'Link inválido ou expirado. Solicite um novo.';
+        showState('error');
+      }
+    } catch (err) {
+      console.error('Magic link verify error:', err);
+      errorMessage.textContent = 'Erro de conexão. Verifique sua internet e tente novamente.';
+      showState('error');
+    }
+  }
+
+  verifyToken();
+</script>
+
+<style>
+  .scene-shell {
+    position: relative;
+    isolation: isolate;
+    min-height: 100svh;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .content-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(185, 214, 49, 0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
