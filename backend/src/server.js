@@ -502,7 +502,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     const user = result.rows[0];
 
     // Timing-safe: always run bcrypt even when user is not found
-    const dummyHash = "$2b$12$K6/vXy0G.S7.fG7.k7.m7.O5O5O5O5O5O5O5O5O5O5O5O5O5O5O5";
+    const dummyHash = "$2a$12$JcratiN0Fcf3MuRPumDS5eo7Qe/JnM1yuRont/31p6BIWmP9z3QOa";
     const isValid = await bcrypt.compare(password, user?.password_hash || dummyHash);
 
     if (!user || !isValid) {
@@ -1123,7 +1123,15 @@ app.post("/api/auth/magic-link/verify", async (req, res) => {
 });
 
 // ===== USAGE STATS & LEDGER =====
-app.get("/api/usage", authenticateToken, async (req, res) => {
+const usageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => req.user.id,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
     const [usage, redisTier, redisLimit] = await Promise.all([
