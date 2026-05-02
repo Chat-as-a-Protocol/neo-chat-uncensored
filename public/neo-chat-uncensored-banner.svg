@@ -8,7 +8,7 @@
 
   <!-- Logo Section -->
   <g transform="translate(60, 60)">
-    <text x="0" y="40" fill="white" font-family="monospace" font-size="64" font-weight="bold">NØX.AI</text>
+    <text x="0" y="40" fill="white" font-family="monospace" font-size="64" font-weight="bold">NØX</text>
     <rect x="0" y="60" width="340" height="4" fill="url(#grad1)"/>
     <text x="0" y="100" fill="#94A3B8" font-family="monospace" font-size="24">UNCENSORED AI SYSTEM</text>
   </g>

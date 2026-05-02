@@ -1,8 +1,8 @@
-# NØX.AI (Neo-Chat-Uncensored)
+# NØX (Neo-Chat-Uncensored)
 
 ```text
 ========================================
-     NØX.AI · PROCESSING ENGINE
+     NØX · PROCESSING ENGINE
 ========================================
 ```
 
@@ -15,7 +15,7 @@
 ## ⟠ Objetivo
 
 Interface soberana e minimalista para processamento de modelos de IA sem censura.
-A NØX.AI opera como uma engine técnica de alta precisão, utilizando o protocolo Tiktoken para faturamento granular e uma arquitetura SSR robusta para garantir segurança e soberania total de dados.
+A NØX opera como uma engine técnica de alta precisão, utilizando o protocolo Tiktoken para faturamento granular e uma arquitetura SSR robusta para garantir segurança e soberania total de dados.
 
 ## ⧉ Destaques
 
@@ -47,7 +47,7 @@ Documentos operacionais nao devem ser carregados como prompt runtime do usuario 
 ## ⍟ Contato
 
 ```text
-NØX.AI ORG
+NØX ORG
 ────────────+++++++++++
 free your mind
 ────────────+++++++++++

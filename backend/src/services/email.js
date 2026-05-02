@@ -1,113 +1,23 @@
-/**
- * Email Service — Resend integration
- * Handles transactional emails for the NØX platform.
- */
-
 const RESEND_API_URL = "https://api.resend.com/emails";
-const MAGIC_LINK_EXPIRATION_MINUTES =
-  parseInt(process.env.MAGIC_LINK_EXPIRATION_MINUTES, 10) || 10;
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "NØX <send@noxai.chat>";
+const FRONTEND_URL = (process.env.FRONTEND_URL || "https://noxai.chat")
+  .split(",")[0]
+  .trim()
+  .replace(/\/$/, "");
 
-/**
- * Builds the HTML body for a magic link email.
- * @param {string} magicLinkUrl - The full magic link URL.
- * @returns {string} HTML string.
- */
-function buildMagicLinkHtml(magicLinkUrl) {
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Seu link de acesso NØX</title>
-</head>
-<body style="margin:0;padding:0;background:#0d0e14;font-family:'Segoe UI',Arial,sans-serif;color:#f4f5f8;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0d0e14;padding:40px 16px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#1c1d26;border:1px solid rgba(255,255,255,0.08);border-radius:24px;overflow:hidden;">
+const escapeHtml = (value = "") =>
+  String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
-          <!-- Header -->
-          <tr>
-            <td style="padding:36px 40px 24px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.06);">
-              <span style="font-size:28px;font-weight:800;letter-spacing:-0.5px;color:#f4f5f8;">NØX<span style="color:#b9d631;">.</span>AI</span>
-            </td>
-          </tr>
-
-          <!-- Body -->
-          <tr>
-            <td style="padding:36px 40px 28px;">
-              <p style="margin:0 0 8px;font-size:22px;font-weight:700;color:#f4f5f8;line-height:1.3;">
-                Seu link de acesso chegou
-              </p>
-              <p style="margin:0 0 28px;font-size:15px;color:#a3a4aa;line-height:1.6;">
-                Clique no botão abaixo para entrar na sua conta. Nenhuma senha necessária.
-              </p>
-
-              <!-- CTA Button -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center" style="padding:4px 0 32px;">
-                    <a href="${magicLinkUrl}"
-                       style="display:inline-block;background:#b9d631;color:#181923;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:12px;letter-spacing:0.2px;">
-                      Acessar NØX agora →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Expiration notice -->
-              <p style="margin:0 0 16px;font-size:13px;color:#a3a4aa;line-height:1.5;text-align:center;">
-                ⏱ Este link expira em <strong style="color:#f4f5f8;">${MAGIC_LINK_EXPIRATION_MINUTES} minutos</strong>.
-              </p>
-
-              <!-- Fallback URL -->
-              <p style="margin:0;font-size:12px;color:#6b6c72;line-height:1.5;text-align:center;">
-                Se o botão não funcionar, copie e cole este link no seu navegador:<br/>
-                <span style="color:#b9d631;word-break:break-all;">${magicLinkUrl}</span>
-              </p>
-            </td>
-          </tr>
-
-          <!-- Security note -->
-          <tr>
-            <td style="padding:20px 40px 32px;border-top:1px solid rgba(255,255,255,0.06);">
-              <p style="margin:0;font-size:12px;color:#6b6c72;line-height:1.6;text-align:center;">
-                🔒 Se você não solicitou este link, ignore este e-mail com segurança — sua conta permanece protegida.<br/>
-                Este link só pode ser usado uma vez.
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-}
-
-/**
- * Sends a magic link email via Resend.
- * @param {object} opts
- * @param {string} opts.to - Recipient email address.
- * @param {string} opts.magicLinkUrl - The full magic link URL.
- * @returns {Promise<{ success: boolean, id?: string, error?: string }>}
- */
-export async function sendMagicLinkEmail({ to, magicLinkUrl }) {
+const sendEmail = async (payload) => {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    throw new Error("RESEND_API_KEY is not configured");
+    return { skipped: true, reason: "resend_api_key_missing" };
   }
-
-  const from =
-    process.env.RESEND_FROM_EMAIL || "NØX.AI <noreply@nox.ai>";
-
-  const payload = {
-    from,
-    to: [to],
-    subject: "Seu link de acesso NØX — válido por 10 minutos",
-    html: buildMagicLinkHtml(magicLinkUrl),
-  };
 
   const response = await fetch(RESEND_API_URL, {
     method: "POST",
@@ -118,13 +28,102 @@ export async function sendMagicLinkEmail({ to, magicLinkUrl }) {
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     throw new Error(
-      `Resend API error (${response.status}): ${data?.message || JSON.stringify(data)}`,
+      data?.message || data?.error || `Resend email failed (${response.status})`,
     );
   }
 
-  return { success: true, id: data.id };
-}
+  return { skipped: false, data };
+};
+
+export const emailService = {
+  /**
+   * Envia confirmação de compra de tokens
+   */
+  async sendPurchaseConfirmation(to, { userName, amount, reference }) {
+    const safeUserName = escapeHtml(userName || "Operador");
+    const safeAmount = escapeHtml(amount);
+    const safeReference = escapeHtml(reference);
+
+    return sendEmail({
+      from: FROM_EMAIL,
+      to,
+      subject: `† NØX † - Créditos Adicionados (${safeAmount})`,
+      text: `NØX LEDGER\n\nOlá, ${safeUserName}.\nSua transação foi processada.\nCréditos adicionados: ${safeAmount} NØX\nRef: ${safeReference}\n\nAcesse: ${FRONTEND_URL}`,
+      html: `
+        <div style="background: #000; color: #fff; font-family: sans-serif; padding: 40px; border: 1px solid #333; max-width: 600px; margin: auto;">
+          <h1 style="color: #fff; border-bottom: 1px solid #333; padding-bottom: 10px;">NØX LEDGER</h1>
+          <p>Olá, <strong>${safeUserName}</strong>.</p>
+          <p>Sua transação foi processada com sucesso no protocolo.</p>
+          <div style="background: #111; padding: 20px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #fff;">
+            <p style="margin: 0; font-size: 14px; color: #888;">CRÉDITOS ADICIONADOS</p>
+            <p style="margin: 5px 0; font-size: 24px; font-weight: bold;">${safeAmount} NØX</p>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #444;">REF: ${safeReference}</p>
+          </div>
+          <p>Seus tokens já estão disponíveis para uso imediato no terminal.</p>
+          <a href="${FRONTEND_URL}" style="display: inline-block; background: #fff; color: #000; text-decoration: none; padding: 12px 24px; font-weight: bold; margin-top: 20px;">ACESSAR TERMINAL</a>
+          <p style="margin-top: 40px; font-size: 10px; color: #333; text-align: center;">† NΞØ PROTOCOL †</p>
+        </div>
+      `,
+    });
+  },
+
+  /**
+   * Envia Link de Acesso (Magic Link)
+   */
+  async sendMagicLink(to, { token }) {
+    const loginUrl = `${FRONTEND_URL}/auth/magic-link?token=${encodeURIComponent(token)}`;
+    return sendEmail({
+      from: FROM_EMAIL,
+      to,
+      subject: `† NØX † - Link de Acesso`,
+      text: `NØX AUTH\n\nUse este link para autenticar sua sessão. Ele expira em 15 minutos.\n\n${loginUrl}`,
+      html: `
+        <div style="background: #000; color: #fff; font-family: sans-serif; padding: 40px; border: 1px solid #333; max-width: 600px; margin: auto;">
+          <h1 style="color: #fff; border-bottom: 1px solid #333; padding-bottom: 10px;">NØX AUTH</h1>
+          <p>Use o botão abaixo para autenticar sua sessão no protocolo.</p>
+          <p style="color: #888; font-size: 14px;">Este link expira em 15 minutos.</p>
+          <a href="${loginUrl}" style="display: inline-block; background: #fff; color: #000; text-decoration: none; padding: 12px 24px; font-weight: bold; margin: 20px 0;">ENTRAR NO PROTOCOLO</a>
+          <p style="font-size: 12px; color: #444;">Se você não solicitou este acesso, ignore este e-mail.</p>
+          <p style="margin-top: 40px; font-size: 10px; color: #333; text-align: center;">† NΞØ PROTOCOL †</p>
+        </div>
+      `,
+    });
+  },
+
+  /**
+   * Envia confirmação de Upgrade de Tier
+   */
+  async sendTierUpgrade(to, { userName, tierName }) {
+    const safeUserName = escapeHtml(userName || "Soberano");
+    const safeTierName = escapeHtml(tierName || "P.R.O");
+
+    return sendEmail({
+      from: FROM_EMAIL,
+      to,
+      subject: `† NØX † - Upgrade de Nível: ${safeTierName}`,
+      text: `NØX UPGRADE\n\nOperador ${safeUserName}, seu acesso foi elevado para ${safeTierName}.\n\nAcesse: ${FRONTEND_URL}`,
+      html: `
+        <div style="background: #000; color: #fff; font-family: sans-serif; padding: 40px; border: 1px solid #333; max-width: 600px; margin: auto;">
+          <h1 style="color: #fff; border-bottom: 1px solid #333; padding-bottom: 10px;">NØX UPGRADE</h1>
+          <p>Operador <strong>${safeUserName}</strong>,</p>
+          <p>Seu acesso foi elevado para o nível <strong>${safeTierName}</strong>.</p>
+          <div style="border: 1px solid #fff; padding: 15px; text-align: center; margin: 20px 0;">
+            <p style="margin: 0; font-size: 18px; letter-spacing: 2px;">ACESSO TOTAL LIBERADO</p>
+          </div>
+          <p>Vantagens ativas:</p>
+          <ul style="color: #888; font-size: 14px;">
+            <li>Personas Especialistas Desbloqueadas</li>
+            <li>Limites de Contexto Expandidos</li>
+            <li>Prioridade no Protocolo</li>
+          </ul>
+          <a href="${FRONTEND_URL}" style="display: inline-block; background: #fff; color: #000; text-decoration: none; padding: 12px 24px; font-weight: bold; margin-top: 20px;">INICIAR OPERAÇÃO</a>
+          <p style="margin-top: 40px; font-size: 10px; color: #333; text-align: center;">† NΞØ PROTOCOL †</p>
+        </div>
+      `,
+    });
+  },
+};
