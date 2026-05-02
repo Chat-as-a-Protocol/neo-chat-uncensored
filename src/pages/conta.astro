@@ -48,8 +48,13 @@ if (!token) {
 </Layout>
 
 <script>
+  const productionApiUrl = 'https://backend-vit.up.railway.app';
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  const apiUrl = import.meta.env.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
+  const configuredApiUrl = String(import.meta.env.PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+  const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);
+  const apiUrl = configuredApiUrl && (isLocalhost || !configuredApiIsLocal)
+    ? configuredApiUrl
+    : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
   const accountPlanEl = document.getElementById('account-plan');
   const accountUsageEl = document.getElementById('account-usage');
   const accountRemainingEl = document.getElementById('account-remaining');

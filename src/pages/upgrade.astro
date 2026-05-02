@@ -15,72 +15,82 @@ const guestTier = plans.tiers.guest;
 
 <Layout title="NØX - Upgrade">
   <div class="upgrade-container">
-    <div class="upgrade-glass">
-      <div class="upgrade-header">
-        <div class="logo-title">
-          <img src="/nox_vert.webp" alt="NØX" class="nox-logo" />
-          <h1 class="white-text">Upgrade</h1>
-        </div>
-      </div>
+    <main class="upgrade-shell">
+      <header class="upgrade-header">
+        <a href="/" class="back-link" aria-label="Voltar ao terminal">←</a>
+        <img src="/nox_vert.webp" alt="NØX" class="nox-logo" />
+        <h1>Upgrade</h1>
+      </header>
 
-      <div class="price-card is-guest">
-        <span class="badge guest-badge">FREE</span>
-        <h3>{guestTier.name}</h3>
-        <div class="token-highlight">DEGUSTACAO</div>
-        <div class="price">R$ 0</div>
+      <section class="plan-card is-current" aria-label="Plano atual">
+        <div class="plan-head">
+          <div>
+            <span class="badge guest-badge">FREE</span>
+            <h2>{guestTier.name}</h2>
+            <p>Degustação</p>
+          </div>
+          <strong class="price">R$ 0</strong>
+        </div>
 
         <ul class="features">
           {guestTier.benefits.map((benefit) => (
-            <li>• {benefit}</li>
+            <li>{benefit}</li>
           ))}
         </ul>
-      </div>
+      </section>
       
-      <div class="pricing-grid">
+      <section class="plans-stack" aria-label="Pacotes de tokens">
         {packages.map((pkg) => (
-          <div class={`price-card ${pkg.id === '10k' ? 'is-pro' : ''} ${pkg.id === '5k' ? 'is-popular' : ''}`}>
-            {pkg.id === '5k' && <span class="badge best-value">MELHOR VALOR</span>}
-            <h3>{pkg.name}</h3>
-            <div class="token-highlight">{pkg.tokens.toLocaleString()} TOKENS</div>
-            <div class="price">R$ {pkg.price}</div>
+          <article class={`plan-card ${pkg.id === '10k' ? 'is-pro' : ''} ${pkg.id === '5k' ? 'is-popular' : ''}`}>
+            <div class="plan-head">
+              <div>
+                {pkg.id === '5k' && <span class="badge best-value">Melhor valor</span>}
+                {pkg.id === '10k' && <span class="badge pro-badge">Pro</span>}
+                <h2>{pkg.name}</h2>
+                <p>{pkg.tokens.toLocaleString()} tokens</p>
+              </div>
+              <strong class="price">R$ {pkg.price}</strong>
+            </div>
             
             <ul class="features">
               {pkg.benefits.map((benefit) => (
-                <li>• {benefit}</li>
+                <li>{benefit}</li>
               ))}
             </ul>
 
             <button onclick={`buyTokens('${pkg.id}')`} class="btn-token">
               {pkg.id === '10k' ? 'ASCENDER' : 'ATIVAR'}
             </button>
-          </div>
+          </article>
         ))}
-      </div>
+      </section>
 
       {products.length > 0 && (
-        <div class="products-grid">
+        <section class="plans-stack products-stack" aria-label="Produtos P.R.O">
           {products.map((product) => (
-            <div class="price-card is-product">
-              <span class="badge pro-badge">P.R.O</span>
-              <h3>{product.name}</h3>
-              <div class="token-highlight">{product.category.toUpperCase()}</div>
-              <div class="price">R$ {product.price}</div>
+            <article class="plan-card is-product">
+              <div class="plan-head">
+                <div>
+                  <span class="badge pro-badge">P.R.O</span>
+                  <h2>{product.name}</h2>
+                  <p>{product.category}</p>
+                </div>
+                <strong class="price">R$ {product.price}</strong>
+              </div>
 
               <ul class="features">
                 {product.benefits.map((benefit) => (
-                  <li>• {benefit}</li>
+                  <li>{benefit}</li>
                 ))}
               </ul>
 
               <button onclick={`buyProduct('${product.id}')`} class="btn-token">
                 ATIVAR P.R.O
               </button>
-            </div>
+            </article>
           ))}
-        </div>
+        </section>
       )}
-      
-      <a href="/" class="back-link">← Return to Terminal</a>
 
       {import.meta.env.PUBLIC_ENABLE_FLOWPAY_DIAGNOSTICS === 'true' && (
         <div class="test-panel" id="flowpay-test">
@@ -94,110 +104,151 @@ const guestTier = plans.tiers.guest;
           <div id="test-result" class="test-result"></div>
         </div>
       )}
-    </div>
+    </main>
   </div>
 
   <style>
     .upgrade-container {
       min-height: 100svh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+      position: relative;
+      isolation: isolate;
+      padding: max(18px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
       background: url('/bg_claro.webp') center/cover no-repeat;
       background-color: #000;
       font-family: 'Space Grotesk', sans-serif;
+      overflow-y: auto;
     }
 
-    .upgrade-glass {
+    .upgrade-container::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        linear-gradient(180deg, rgba(6, 7, 10, 0.36), rgba(6, 7, 10, 0.78)),
+        rgba(220, 226, 220, 0.2);
+      backdrop-filter: blur(3px) saturate(0.74);
+      -webkit-backdrop-filter: blur(3px) saturate(0.74);
+    }
+
+    .upgrade-shell {
       width: 100%;
       max-width: 480px;
+      min-height: 100%;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      background: linear-gradient(145deg, rgba(20, 20, 25, 0.35) 0%, rgba(10, 10, 15, 0.15) 100%);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 22px;
-      padding: 40px 30px;
-      text-align: center;
-      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+      gap: 12px;
+      padding: 0 2px 12px;
+    }
+
+    .upgrade-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0 12px;
+      background: linear-gradient(180deg, rgba(220, 226, 220, 0.72), rgba(220, 226, 220, 0));
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .back-link {
+      width: 38px;
+      height: 38px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.88);
+      background: rgba(13, 15, 18, 0.48);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      font-size: 22px;
+      line-height: 1;
     }
 
     .nox-logo {
-      height: 80px;
-      width: auto;
-      margin-bottom: 8px;
+      justify-self: center;
+      width: 116px;
+      height: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.34));
     }
 
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-bottom: 20px;
+    .upgrade-header h1 {
+      grid-column: 1 / -1;
+      margin: -4px 0 0;
+      color: rgba(255, 255, 255, 0.94);
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      text-shadow: 0 2px 22px rgba(0, 0, 0, 0.55);
     }
 
-    .price-card.is-guest {
-      margin-bottom: 16px;
-      border-color: rgba(255, 255, 255, 0.12);
-      background: rgba(0, 0, 0, 0.28);
-    }
-
-    .products-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    .price-card {
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
-      padding: 24px 16px;
+    .plans-stack {
       display: flex;
       flex-direction: column;
-      text-align: left;
-      position: relative;
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      gap: 12px;
     }
 
-    .price-card.is-pro {
-      border-color: var(--accent);
-      background: linear-gradient(145deg, rgba(185, 214, 49, 0.1) 0%, rgba(0, 0, 0, 0.6) 100%);
-      transform: scale(1.05);
-      z-index: 2;
+    .products-stack {
+      padding-top: 2px;
     }
 
-    .price-card.is-product {
-      border-color: rgba(255, 255, 255, 0.22);
-      background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0.55) 100%);
+    .plan-card {
+      width: 100%;
+      padding: 18px;
+      border-radius: 26px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07)),
+        rgba(18, 21, 24, 0.72);
+      box-shadow:
+        0 18px 50px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.26);
+      backdrop-filter: blur(22px) saturate(1.16);
+      -webkit-backdrop-filter: blur(22px) saturate(1.16);
+      color: #fff;
     }
 
-    .price-card:hover {
-      transform: translateY(-5px);
-      border-color: rgba(255, 255, 255, 0.2);
+    .plan-card.is-current {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08)),
+        rgba(37, 41, 43, 0.68);
     }
 
-    .price-card.is-pro:hover {
-      transform: scale(1.07) translateY(-5px);
+    .plan-card.is-popular,
+    .plan-card.is-pro,
+    .plan-card.is-product {
+      border-color: rgba(185, 214, 49, 0.58);
     }
 
-    .price-card.is-product:hover {
-      transform: translateY(-5px);
-      border-color: var(--accent);
+    .plan-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
     }
 
-    .price-card.active {
-      border-color: var(--accent);
-      background: rgba(0, 0, 0, 0.6);
+    .plan-head h2 {
+      margin: 8px 0 3px;
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 21px;
+      line-height: 1.08;
+      font-weight: 760;
+      letter-spacing: 0;
     }
 
-    .price-card h3 {
-      font-size: 1rem;
-      margin-bottom: 4px;
+    .plan-head p {
+      margin: 0;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      opacity: 0.8;
+      letter-spacing: 0.04em;
     }
 
     .usage-hint {
@@ -308,36 +359,16 @@ const guestTier = plans.tiers.guest;
 
 
 
-    .token-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 12px 4px;
-      text-align: center;
-    }
-
-    .token-amount {
-      font-size: clamp(0.78rem, 3.1vw, 1rem);
-      font-weight: 800;
-      color: var(--accent);
-      font-family: 'Space Grotesk', monospace;
-    }
-
-    .token-price {
-      font-size: 0.75rem;
-      margin: 4px 0 10px 0;
-      opacity: 0.6;
-    }
-
     .btn-token {
       width: 100%;
-      padding: 6px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.05);
-      color: white;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      font-size: 0.7rem;
-      font-weight: 700;
+      min-height: 50px;
+      margin-top: 2px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      font-size: 14px;
+      font-weight: 800;
       cursor: pointer;
       transition: all 0.2s;
     }
@@ -348,36 +379,30 @@ const guestTier = plans.tiers.guest;
       border-color: var(--accent);
     }
 
-    .token-highlight {
-      font-family: 'Space Grotesk', monospace;
-      font-size: 0.85rem;
-      font-weight: 800;
-      color: var(--accent);
-      margin-bottom: 2px;
-      letter-spacing: 0.05em;
+    .price {
+      flex: 0 0 auto;
+      color: #fff;
+      font-size: 31px;
+      line-height: 1;
+      font-weight: 820;
+      text-align: right;
+      white-space: nowrap;
     }
 
-    .price {
-      font-size: 1.8rem;
-      font-weight: 700;
-      margin-bottom: 16px;
+    .price::first-line {
       color: #fff;
     }
 
-    .price span {
-      font-size: 0.8rem;
-      opacity: 0.5;
-    }
-
     .badge {
-      align-self: flex-start;
-      background: var(--accent);
-      color: #000;
-      font-size: 9px;
-      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
       padding: 3px 10px;
-      border-radius: 4px;
-      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.14);
+      color: rgba(255, 255, 255, 0.86);
+      font-size: 11px;
+      font-weight: 800;
       text-transform: uppercase;
     }
 
@@ -399,44 +424,69 @@ const guestTier = plans.tiers.guest;
     .features {
       list-style: none;
       padding: 0;
-      margin: 0 0 16px 0;
+      margin: 0 0 14px;
+      display: grid;
+      gap: 8px;
     }
 
     .features li {
-      font-size: 0.75rem;
-      color: rgba(255,255,255,0.6);
-      margin-bottom: 4px;
+      position: relative;
+      padding-left: 22px;
+      color: rgba(255, 255, 255, 0.76);
+      font-size: 14px;
+      line-height: 1.38;
     }
 
-    .btn-primary {
+    .features li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.5em;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
       background: var(--accent);
-      border: none;
-      color: #000;
-      padding: 12px;
-      border-radius: 10px;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    .back-link {
-      margin-top: 15px;
-      color: rgba(255,255,255,0.3);
-      font-size: 0.8rem;
+      box-shadow: 0 0 12px rgba(185, 214, 49, 0.48);
     }
 
     @media (max-width: 480px) {
-      .pricing-grid {
-        grid-template-columns: 1fr;
+      .upgrade-container {
+        padding-right: 14px;
+        padding-left: 14px;
+      }
+
+      .plan-card {
+        border-radius: 24px;
+        padding: 17px;
+      }
+
+      .plan-head h2 {
+        font-size: 20px;
+      }
+
+      .price {
+        font-size: 29px;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .upgrade-container {
+        padding-top: 22px;
       }
     }
   </style>
 
   <script is:inline define:vars={{ 
     PUBLIC_API_URL: import.meta.env.PUBLIC_API_URL,
-    isLocalhost: ['localhost', '127.0.0.1'].includes(Astro.url.hostname) 
   }}>
-    const apiUrl = PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://backend-vit.up.railway.app');
-    const API_URL = isLocalhost ? 'http://localhost:3001' : '';
+    const productionApiUrl = 'https://backend-vit.up.railway.app';
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const configuredApiUrl = String(PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+    const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);
+    const apiUrl = configuredApiUrl && (isLocalhost || !configuredApiIsLocal)
+      ? configuredApiUrl
+      : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
+    const API_URL = apiUrl;
     const tokenStorageKey = 'nox_token';
 
     function getAuthToken() {
