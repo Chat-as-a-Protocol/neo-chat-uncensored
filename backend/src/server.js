@@ -57,6 +57,11 @@ const app = express();
 
 import redis from "./lib/redis.js";
 import { emailService } from "./services/email.js";
+import {
+  checkFlowPayHealth,
+  createFlowPayCharge,
+  formatFlowPayError,
+} from "./services/flowpay.js";
 import { ledgerService, LEDGER_TYPES } from "./services/ledger.js";
 import { paymentService } from "./services/payments.js";
 import { countTokensFromText } from "./utils/billing.js";
@@ -1235,9 +1240,6 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
   }
 
   try {
-    const flowpayUrl =
-      process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
-    const apiKey = process.env.FLOWPAY_API_KEY;
     const selected = plans.products?.pro_analyst;
     if (!selected) {
       return res.status(503).json({ error: "P.R.O product is not configured" });
@@ -1248,42 +1250,28 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
       ? process.env.FRONTEND_URL.split(",")[0]
       : "http://localhost:4321";
 
-    const response = await fetch(`${flowpayUrl}/api/create-charge`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        amount: selected.price,
-        currency: "BRL",
-        orderId: `nox_${randomUUID()}`,
+    const data = await createFlowPayCharge({
+      amount: selected.price,
+      currency: "BRL",
+      orderId: `nox_${randomUUID()}`,
+      userId: req.user.id,
+      callbackUrl: `${frontendBaseUrl}/success`,
+      metadata: {
+        ...getPaymentUserMetadata(req.user),
+        productId: selected.id,
+        personaId: selected.persona_id,
+        plan: selected.tier_upgrade,
+        tierUpgrade: selected.tier_upgrade,
         userId: req.user.id,
-        callbackUrl: `${frontendBaseUrl}/success`,
-        metadata: {
-          ...getPaymentUserMetadata(req.user),
-          productId: selected.id,
-          personaId: selected.persona_id,
-          plan: selected.tier_upgrade,
-          tierUpgrade: selected.tier_upgrade,
-          userId: req.user.id,
-          amountBrl: selected.price,
-          type: "product_purchase",
-        },
-      }),
+        amountBrl: selected.price,
+        type: "product_purchase",
+      },
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      logger.error("FlowPay API error response:", data);
-      throw new Error(data.message || "Failed to create FlowPay charge");
-    }
 
     res.json({ checkoutUrl: data.checkoutUrl });
   } catch (error) {
-    logger.error("FlowPay create-charge error:", error);
-    res.status(500).json({ error: "Failed to initiate payment" });
+    logger.error("FlowPay create-charge error", formatFlowPayError(error));
+    res.status(error.statusCode || 500).json({ error: "Failed to initiate payment" });
   }
 });
 
@@ -1306,44 +1294,32 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     const selected = plans.packages?.[pkg];
     if (!selected) return res.status(400).json({ error: "Invalid package" });
     
-    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
-    
     // Normalização canônica da URL de callback (conforme padrão /api/flowpay/create-charge)
     const frontendBaseUrl = process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(",")[0]
       : "http://localhost:4321";
 
-    const response = await fetch(`${flowpayUrl}/api/create-charge`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.FLOWPAY_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        amount: selected.price,
-        currency: "BRL",
-        orderId: `tokens_${randomUUID()}`,
+    const data = await createFlowPayCharge({
+      amount: selected.price,
+      currency: "BRL",
+      orderId: `tokens_${randomUUID()}`,
+      userId: req.user.id,
+      callbackUrl: `${frontendBaseUrl}/success`,
+      metadata: {
+        ...getPaymentUserMetadata(req.user),
+        packageId: selected.id || pkg,
+        tokens: selected.tokens,
+        price: selected.price,
+        tierUpgrade: selected.tier_upgrade,
         userId: req.user.id,
-        callbackUrl: `${frontendBaseUrl}/success`,
-        metadata: {
-          ...getPaymentUserMetadata(req.user),
-          packageId: selected.id || pkg,
-          tokens: selected.tokens,
-          price: selected.price,
-          tierUpgrade: selected.tier_upgrade,
-          userId: req.user.id,
-          type: "tokens_purchase"
-        }
-      })
+        type: "tokens_purchase"
+      }
     });
-    
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "FlowPay Error");
     
     res.json({ checkoutUrl: data.checkoutUrl });
   } catch (error) {
-    logger.error(`[Tokens] Purchase error: ${error.message}`);
-    res.status(500).json({ error: "Failed to create token purchase" });
+    logger.error("[Tokens] Purchase error", formatFlowPayError(error));
+    res.status(error.statusCode || 500).json({ error: "Failed to create token purchase" });
   }
 });
 
@@ -1364,42 +1340,31 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
     const selected = plans.products?.[productId];
     if (!selected) return res.status(400).json({ error: "Invalid product" });
 
-    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
     const frontendBaseUrl = process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(",")[0]
       : "http://localhost:4321";
 
-    const response = await fetch(`${flowpayUrl}/api/create-charge`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.FLOWPAY_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        amount: selected.price,
-        currency: "BRL",
-        orderId: `product_${randomUUID()}`,
+    const data = await createFlowPayCharge({
+      amount: selected.price,
+      currency: "BRL",
+      orderId: `product_${randomUUID()}`,
+      userId: req.user.id,
+      callbackUrl: `${frontendBaseUrl}/success`,
+      metadata: {
+        ...getPaymentUserMetadata(req.user),
+        productId: selected.id || productId,
+        personaId: selected.persona_id,
+        price: selected.price,
+        tierUpgrade: selected.tier_upgrade,
         userId: req.user.id,
-        callbackUrl: `${frontendBaseUrl}/success`,
-        metadata: {
-          ...getPaymentUserMetadata(req.user),
-          productId: selected.id || productId,
-          personaId: selected.persona_id,
-          price: selected.price,
-          tierUpgrade: selected.tier_upgrade,
-          userId: req.user.id,
-          type: "product_purchase",
-        },
-      }),
+        type: "product_purchase",
+      },
     });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "FlowPay Error");
 
     res.json({ checkoutUrl: data.checkoutUrl });
   } catch (error) {
-    logger.error(`[Products] Purchase error: ${error.message}`);
-    res.status(500).json({ error: "Failed to create product purchase" });
+    logger.error("[Products] Purchase error", formatFlowPayError(error));
+    res.status(error.statusCode || 500).json({ error: "Failed to create product purchase" });
   }
 });
 
@@ -1415,49 +1380,35 @@ const ensureFlowPayDiagnosticsEnabled = (_req, res, next) => {
 // 1. Health Check da API FlowPay
 app.get("/api/flowpay/health", authenticateToken, ensureFlowPayDiagnosticsEnabled, async (_req, res) => {
   try {
-    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
-    const response = await fetch(`${flowpayUrl}/api/health`, {
-      headers: { "Authorization": `Bearer ${process.env.FLOWPAY_API_KEY}` }
-    });
+    const health = await checkFlowPayHealth();
     
     res.json({ 
-      status: response.ok ? "online" : "offline",
-      statusCode: response.status,
+      status: health.ok ? "online" : "offline",
+      statusCode: health.status,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({ status: "error", error: error.message });
+    logger.error("FlowPay health error", formatFlowPayError(error));
+    res.status(error.statusCode || 500).json({ status: "error", error: "FlowPay health check failed" });
   }
 });
 
 // 2. Simulação de Cobrança (Sandbox)
 app.post("/api/flowpay/test-charge", authenticateToken, ensureFlowPayDiagnosticsEnabled, async (req, res) => {
   try {
-    const flowpayUrl = process.env.FLOWPAY_API_URL || "https://api.flowpay.cash";
-    
     // Normalização canônica da URL de callback
     const frontendBaseUrl = process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(",")[0]
       : "http://localhost:4321";
 
-    const response = await fetch(`${flowpayUrl}/api/create-charge`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.FLOWPAY_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        amount: 1, // R$ 1,00 para teste
-        currency: "BRL",
-        orderId: `test_${randomUUID()}`,
-        userId: req.user.id,
-        callbackUrl: `${frontendBaseUrl}/success`,
-        testMode: true // Flag vital para não gerar cobrança real
-      })
+    const data = await createFlowPayCharge({
+      amount: 1, // R$ 1,00 para teste
+      currency: "BRL",
+      orderId: `test_${randomUUID()}`,
+      userId: req.user.id,
+      callbackUrl: `${frontendBaseUrl}/success`,
+      testMode: true // Flag vital para não gerar cobrança real
     });
-    
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || "FlowPay test failed");
 
     res.json({ 
       success: true,
@@ -1466,8 +1417,8 @@ app.post("/api/flowpay/test-charge", authenticateToken, ensureFlowPayDiagnostics
       amount: 1
     });
   } catch (error) {
-    logger.error("FlowPay Test Charge Error:", error);
-    res.status(500).json({ success: false, error: error.message });
+    logger.error("FlowPay Test Charge Error", formatFlowPayError(error));
+    res.status(error.statusCode || 500).json({ success: false, error: "FlowPay test charge failed" });
   }
 });
 
