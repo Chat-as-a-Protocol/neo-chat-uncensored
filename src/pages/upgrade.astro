@@ -10,7 +10,6 @@ if (!token) {
 
 const packages = Object.values(plans.packages);
 const products = Object.values(plans.products || {});
-const guestTier = plans.tiers.guest;
 ---
 
 <Layout title="NØX - Upgrade">
@@ -22,23 +21,6 @@ const guestTier = plans.tiers.guest;
         <h1>Upgrade</h1>
       </header>
 
-      <section class="plan-card is-current" aria-label="Plano atual">
-        <div class="plan-head">
-          <div>
-            <span class="badge guest-badge">FREE</span>
-            <h2>{guestTier.name}</h2>
-            <p>Degustação</p>
-          </div>
-          <strong class="price">R$ 0</strong>
-        </div>
-
-        <ul class="features">
-          {guestTier.benefits.map((benefit) => (
-            <li>{benefit}</li>
-          ))}
-        </ul>
-      </section>
-      
       <section class="plans-stack" aria-label="Pacotes de tokens">
         {packages.map((pkg) => (
           <article class={`plan-card ${pkg.id === '10k' ? 'is-pro' : ''} ${pkg.id === '5k' ? 'is-popular' : ''}`}>
@@ -127,8 +109,6 @@ const guestTier = plans.tiers.guest;
       background:
         linear-gradient(180deg, rgba(6, 7, 10, 0.36), rgba(6, 7, 10, 0.78)),
         rgba(220, 226, 220, 0.2);
-      backdrop-filter: blur(3px) saturate(0.74);
-      -webkit-backdrop-filter: blur(3px) saturate(0.74);
     }
 
     .upgrade-shell {
@@ -143,17 +123,12 @@ const guestTier = plans.tiers.guest;
     }
 
     .upgrade-header {
-      position: sticky;
-      top: 0;
       z-index: 10;
       display: grid;
       grid-template-columns: 44px 1fr 44px;
       align-items: center;
       gap: 10px;
       padding: 8px 0 12px;
-      background: linear-gradient(180deg, rgba(220, 226, 220, 0.72), rgba(220, 226, 220, 0));
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
     }
 
     .back-link {
@@ -171,20 +146,18 @@ const guestTier = plans.tiers.guest;
 
     .nox-logo {
       justify-self: center;
-      width: 116px;
+      width: 180px;
       height: auto;
       object-fit: contain;
-      filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.34));
     }
 
     .upgrade-header h1 {
       grid-column: 1 / -1;
       margin: -4px 0 0;
       color: rgba(255, 255, 255, 0.94);
-      font-size: 24px;
+      font-size: 5px;
       font-weight: 700;
       text-align: center;
-      text-shadow: 0 2px 22px rgba(0, 0, 0, 0.55);
     }
 
     .plans-stack {
@@ -205,18 +178,7 @@ const guestTier = plans.tiers.guest;
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07)),
         rgba(18, 21, 24, 0.72);
-      box-shadow:
-        0 18px 50px rgba(0, 0, 0, 0.28),
-        inset 0 1px 0 rgba(255, 255, 255, 0.26);
-      backdrop-filter: blur(22px) saturate(1.16);
-      -webkit-backdrop-filter: blur(22px) saturate(1.16);
       color: #fff;
-    }
-
-    .plan-card.is-current {
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08)),
-        rgba(37, 41, 43, 0.68);
     }
 
     .plan-card.is-popular,
@@ -305,7 +267,6 @@ const guestTier = plans.tiers.guest;
       border-radius: 6px;
       font-size: 0.75rem;
       cursor: pointer;
-      transition: all 0.2s;
     }
 
     .btn-test {
@@ -314,10 +275,6 @@ const guestTier = plans.tiers.guest;
       border-color: var(--accent);
       color: var(--accent);
       font-weight: bold;
-    }
-
-    .btn-check:hover, .btn-test:hover {
-      background: rgba(255, 255, 255, 0.1);
     }
 
     .health-status, .test-result {
@@ -370,13 +327,6 @@ const guestTier = plans.tiers.guest;
       font-size: 14px;
       font-weight: 800;
       cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-token:hover {
-      background: var(--accent);
-      color: black;
-      border-color: var(--accent);
     }
 
     .price {
@@ -411,11 +361,6 @@ const guestTier = plans.tiers.guest;
       color: #000;
     }
 
-    .badge.guest-badge {
-      background: rgba(255, 255, 255, 0.12);
-      color: rgba(255, 255, 255, 0.82);
-    }
-
     .badge.pro-badge {
       background: var(--accent);
       color: #000;
@@ -446,7 +391,6 @@ const guestTier = plans.tiers.guest;
       height: 7px;
       border-radius: 999px;
       background: var(--accent);
-      box-shadow: 0 0 12px rgba(185, 214, 49, 0.48);
     }
 
     @media (max-width: 480px) {
@@ -466,12 +410,6 @@ const guestTier = plans.tiers.guest;
 
       .price {
         font-size: 29px;
-      }
-    }
-
-    @media (min-width: 768px) {
-      .upgrade-container {
-        padding-top: 22px;
       }
     }
   </style>
