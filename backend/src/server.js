@@ -7,6 +7,8 @@ import helmet from "helmet";
 
 import jwt from "jsonwebtoken";
 import crypto, { randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { createLogger, format, transports } from "winston";
 import { z } from "zod";
 
