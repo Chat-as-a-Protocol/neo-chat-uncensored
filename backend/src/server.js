@@ -10,10 +10,14 @@ import crypto, { randomUUID } from "node:crypto";
 import { createLogger, format, transports } from "winston";
 import { z } from "zod";
 
-import fs from "node:fs/promises";
-import path from "path";
+import { fileURLToPath } from "node:url";
 
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Considera que o arquivo está em backend/src/server.js, então a raiz está 2 níveis acima
+const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
+
+dotenv.config({ path: path.resolve(PROJECT_ROOT, "backend", ".env") });
 
 // ===== STARTUP VALIDATION =====
 if (process.env.NODE_ENV === "production") {
@@ -57,7 +61,8 @@ import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
 
 // Carregar Configuração de Planos (NEØ PROTOCOL)
-const plansPath = path.resolve(process.cwd(), "..", "shared", "plans.json");
+const plansPath = path.resolve(PROJECT_ROOT, "shared", "plans.json");
+const runtimePromptPath = path.resolve(PROJECT_ROOT, "shared", "runtime-prompt.md");
 let plans = { tiers: {}, packages: {} };
 try {
   const plansData = await fs.readFile(plansPath, "utf-8");
@@ -607,20 +612,23 @@ async function loadPersona(personaId, userTier = "free") {
     return manifest.prompt;
   }
 
-  // 2. Fallback para Persona Padrão
+  // 2. Fallback para Persona Padrão (NØX)
   if (!personaId || personaId === "nox") {
     try {
-      const promptPath = path.resolve(process.cwd(), "..", "shared", "runtime-prompt.md");
-      const prompt = await fs.readFile(promptPath, "utf-8");
-      return prompt;
+      const filePath = path.resolve(PROJECT_ROOT, "src", "content", "manifests", "nox.md");
+      const content = await fs.readFile(filePath, "utf-8");
+      const fmMatch = content.match(/^---\s*([\s\S]*?)\s*---\s*([\s\S]*)$/);
+      if (fmMatch) return fmMatch[2].trim();
+      return content;
     } catch (err) {
-      return "Protocolo NØX. Sem filtros.";
+      logger.warn(`[Persona] nox.md não encontrado em manifests, usando fallback.`);
+      return "Protocolo NØX. Sem filtros. Atuação soberana.";
     }
   }
 
   // 3. Carregamento de Manifestos Locais
   try {
-    const filePath = path.resolve(process.cwd(), "..", "src", "content", "manifests", `${personaId}.md`);
+    const filePath = path.resolve(PROJECT_ROOT, "src", "content", "manifests", `${personaId}.md`);
     const content = await fs.readFile(filePath, "utf-8");
 
     // Parser Nativo de Frontmatter (Regex)
@@ -648,8 +656,7 @@ async function loadPersona(personaId, userTier = "free") {
     if (err.message === "PRO_REQUIRED") throw err;
     logger.warn(`Could not load persona ${personaId}: ${err.message}`);
     // Fallback silencioso para o padrão
-    const promptPath = path.resolve(process.cwd(), "..", "shared", "runtime-prompt.md");
-    return await fs.readFile(promptPath, "utf-8").catch(() => "NØX ativo.");
+    return await fs.readFile(runtimePromptPath, "utf-8").catch(() => "NØX ativo.");
   }
 }
 
@@ -688,9 +695,10 @@ app.post(
 
       // Carregar Persona Dinâmica com Validação de Tier
       const userTier = req.userTier || "guest";
-      let systemPrompt;
+      // 1. Carregar Persona
+      let basePrompt;
       try {
-        systemPrompt = await loadPersona(personaId, userTier);
+        basePrompt = await loadPersona(personaId, userTier);
       } catch (err) {
         if (err.message === "PRO_REQUIRED") {
           return res.status(403).json({ 
@@ -701,9 +709,24 @@ app.post(
         throw err;
       }
 
+      // 2. Carregar Runtime Contract (NØX Core)
+      let finalSystemPrompt = basePrompt;
+      if (personaId && personaId !== "nox") {
+        try {
+          const runtimePrompt = await fs.readFile(runtimePromptPath, "utf-8");
+          // O contrato vem POR ÚLTIMO para ter precedência (Recency Bias da LLM)
+          finalSystemPrompt = `${basePrompt}\n\n---\n\n# NØX RUNTIME CONTRACT (STRICT ENFORCEMENT)\n${runtimePrompt}`;
+        } catch (err) {
+          logger.warn("[Chat] Falha ao carregar runtime-prompt para merge; usando apenas basePrompt.");
+        }
+      }
+
+      // 3. Montar Mensagens (Filtra qualquer tentativa de injeção de 'system' por parte do usuário)
+      const userMessages = messages.filter(m => m.role !== "system");
+      
       const finalMessages = [
-        ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
-        ...messages,
+        { role: "system", content: finalSystemPrompt },
+        ...userMessages,
       ];
 
       // Chamar Venice API
@@ -727,7 +750,7 @@ app.post(
               stream,
               max_tokens: req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens,
               venice_parameters: {
-                include_venice_system_prompt: true, // Usa o prompt nativo da Venice
+              include_venice_system_prompt: false, // Desabilitado para garantir dominância do NØX Contract
                 ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
               },
             }),
