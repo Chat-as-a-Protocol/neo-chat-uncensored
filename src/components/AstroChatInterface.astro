@@ -1,7 +1,7 @@
 <div class="chat-ui-shell">
   <header class="chat-header" aria-label="brand">
     <div class="brand-pill">
-      <span class="brand-name">NØX.AI</span>
+      <span class="brand-name">NØX</span>
       
 
       <div class="header-actions">
@@ -424,12 +424,11 @@
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble assistant-bubble typing-bubble is-visible';
 
-    const dots = document.createElement('div');
-    dots.className = 'typing-dots';
-    dots.setAttribute('aria-hidden', 'true');
-    dots.innerHTML = '<span></span><span></span><span></span>';
+    const thinking = document.createElement('div');
+    thinking.className = 'thinking-indicator';
+    thinking.innerHTML = '<span>pensando</span><span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>';
 
-    bubble.appendChild(dots);
+    bubble.appendChild(thinking);
     wrapper.appendChild(bubble);
 
     messagesContainer.appendChild(wrapper);
@@ -1253,31 +1252,46 @@
   }
 
   .typing-bubble {
-    min-width: 46px;
-    padding-top: 9px;
-    padding-bottom: 9px;
+    min-width: 100px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
   }
 
-  .typing-dots {
-    margin-top: 0;
-    display: inline-flex;
-    gap: 5px;
+  .thinking-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--accent);
+    font-family: 'Space Grotesk', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+    opacity: 0.8;
+    text-shadow: 0 0 10px rgba(185, 214, 49, 0.4);
   }
 
-  .typing-dots span {
-    width: 5px;
-    height: 5px;
-    border-radius: 999px;
-    background: rgba(241, 241, 245, 0.64);
-    animation: pulse 1s infinite;
+  .thinking-dots {
+    display: flex;
   }
 
-  .typing-dots span:nth-child(2) {
-    animation-delay: 0.16s;
+  .thinking-dots span {
+    animation: thinking-dots 0.8s infinite;
+    opacity: 0;
   }
 
-  .typing-dots span:nth-child(3) {
-    animation-delay: 0.32s;
+  .thinking-dots span:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  .thinking-dots span:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  @keyframes thinking-dots {
+    0%, 100% { opacity: 0; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(-2px); }
   }
 
   .error-bubble {

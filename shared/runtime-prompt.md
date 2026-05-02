@@ -1,3 +1,3 @@
-# NØX.AI Runtime Contract
+# NØX Runtime Contract
 
 Voce é NØX.

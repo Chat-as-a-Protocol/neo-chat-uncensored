@@ -50,6 +50,7 @@ const effectiveJwtSecret = JWT_SECRET || randomUUID();
 const app = express();
 
 import redis from "./lib/redis.js";
+import { emailService } from "./services/email.js";
 import { ledgerService, LEDGER_TYPES } from "./services/ledger.js";
 import { paymentService } from "./services/payments.js";
 import { countTokensFromText } from "./utils/billing.js";
@@ -160,9 +161,87 @@ const getLegacyUserId = (email) => {
   return "user_" + Buffer.from(email).toString("base64");
 };
 
+const isDeliverableEmail = (email) => {
+  return Boolean(email) && !String(email).endsWith("@guest.nox.local");
+};
+
+const getPaymentUserMetadata = (user) => {
+  if (!isDeliverableEmail(user?.email)) return {};
+  return {
+    userEmail: user.email,
+    userName: user.name || user.email.split("@")[0],
+  };
+};
+
 // Trust the first proxy hop (Railway, etc.) so req.ip is the real client IP,
 // which is required for express-rate-limit to work correctly behind a reverse proxy.
 app.set("trust proxy", 1);
+
+const resolveWebhookRecipient = async ({ userId, data = {}, metadata = {} }) => {
+  const email =
+    metadata.userEmail ||
+    metadata.email ||
+    data.userEmail ||
+    data.customerEmail ||
+    data.email;
+
+  if (isDeliverableEmail(email)) {
+    return {
+      email,
+      name: metadata.userName || metadata.name || data.userName || data.name,
+    };
+  }
+
+  if (!process.env.DATABASE_URL) return null;
+
+  try {
+    const result = await query("SELECT email, name FROM users WHERE id = $1", [userId]);
+    const user = result.rows[0];
+    if (!isDeliverableEmail(user?.email)) return null;
+    return { email: user.email, name: user.name };
+  } catch (err) {
+    logger.warn(`[Email] Unable to resolve recipient for user ${userId}: ${err.message}`);
+    return null;
+  }
+};
+
+const sendPaymentEmail = async ({
+  userId,
+  data,
+  metadata,
+  reference,
+  entitlement,
+  isTokenPurchase,
+  tierName,
+}) => {
+  try {
+    const recipient = await resolveWebhookRecipient({ userId, data, metadata });
+    if (!recipient) {
+      logger.info(`[Email] Skipped payment email for user ${userId}: recipient unavailable`);
+      return;
+    }
+
+    const result = isTokenPurchase
+      ? await emailService.sendPurchaseConfirmation(recipient.email, {
+          userName: recipient.name,
+          amount: entitlement.tokens,
+          reference,
+        })
+      : await emailService.sendTierUpgrade(recipient.email, {
+          userName: recipient.name,
+          tierName,
+        });
+
+    if (result?.skipped) {
+      logger.warn(`[Email] Skipped payment email for user ${userId}: ${result.reason}`);
+      return;
+    }
+
+    logger.info(`[Email] Payment email sent for user ${userId}`);
+  } catch (err) {
+    logger.error(`[Email] Payment email failed for user ${userId}: ${err.message}`);
+  }
+};
 
 // ===== WEBHOOKS (NΞØ Protocol) - MUST BE BEFORE express.json() =====
 
@@ -248,6 +327,7 @@ app.post(
         }
 
         let entry;
+        let tierName = "P.R.O";
         const entitlement = paymentService.resolveEntitlement(metadata, plans);
         const isTokenPurchase = entitlement.kind === "token_purchase";
 
@@ -272,6 +352,7 @@ app.post(
           );
         } else {
           const plan = await persistUserPlan(userId, entitlement.tierUpgrade);
+          tierName = plans.tiers?.[plan.planKey]?.name || plan.planKey || tierName;
           entry = await ledgerService.addEntry(
             userId,
             0, // Valor 0 conforme regra: Pro é controlado via Tier/Limit, não créditos no ledger
@@ -291,6 +372,16 @@ app.post(
         }
 
         await redis.set(`webhook_processed:${reference}`, "1", "EX", 86400);
+
+        await sendPaymentEmail({
+          userId,
+          data,
+          metadata,
+          reference,
+          entitlement,
+          isTokenPurchase,
+          tierName,
+        });
 
         const successMessage = isTokenPurchase ? "Tokens added successfully" : "Tier updated successfully";
         
@@ -963,6 +1054,7 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
         userId: req.user.id,
         callbackUrl: `${frontendBaseUrl}/success`,
         metadata: {
+          ...getPaymentUserMetadata(req.user),
           productId: selected.id,
           personaId: selected.persona_id,
           plan: selected.tier_upgrade,
@@ -1026,7 +1118,8 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
         orderId: `tokens_${randomUUID()}`,
         userId: req.user.id,
         callbackUrl: `${frontendBaseUrl}/success`,
-        metadata: { 
+        metadata: {
+          ...getPaymentUserMetadata(req.user),
           packageId: selected.id || pkg,
           tokens: selected.tokens,
           price: selected.price,
@@ -1082,6 +1175,7 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
         userId: req.user.id,
         callbackUrl: `${frontendBaseUrl}/success`,
         metadata: {
+          ...getPaymentUserMetadata(req.user),
           productId: selected.id || productId,
           personaId: selected.persona_id,
           price: selected.price,
