@@ -238,13 +238,15 @@
   }
 
   function persistAuthToken(token: string) {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
     localStorage.setItem(tokenStorageKey, token);
-    document.cookie = `${tokenStorageKey}=${token}; path=/; max-age=${tokenCookieMaxAge}; SameSite=Lax`;
+    document.cookie = `${tokenStorageKey}=${token}; path=/; max-age=${tokenCookieMaxAge}; SameSite=Lax${secure}`;
   }
 
   function clearAuthToken() {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
     localStorage.removeItem(tokenStorageKey);
-    document.cookie = `${tokenStorageKey}=; path=/; max-age=0; SameSite=Lax`;
+    document.cookie = `${tokenStorageKey}=; path=/; max-age=0; SameSite=Lax${secure}`;
   }
 
   function getStoredToken() {

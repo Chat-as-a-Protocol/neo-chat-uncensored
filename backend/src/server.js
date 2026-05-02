@@ -66,6 +66,7 @@ import { ledgerService, LEDGER_TYPES } from "./services/ledger.js";
 import { paymentService } from "./services/payments.js";
 import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
+import { parsePositiveInt } from "./utils/numbers.js";
 
 // Carregar Configuração de Planos (NEØ PROTOCOL)
 const plansPath = path.resolve(PROJECT_ROOT, "shared", "plans.json");
@@ -84,10 +85,7 @@ const FALLBACK_GUEST_PLAN = {
   maxOutputTokens: 384,
 };
 
-const parsePositiveInt = (value, fallback) => {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-};
+const VENICE_API_BASE = (process.env.VENICE_API_BASE || "https://api.venice.ai/api/v1").replace(/\/+$/, "");
 
 const normalizeAccessTier = (rawTier) => {
   if (rawTier === "premium" || rawTier === "paid_pro") return "pro";
@@ -124,12 +122,13 @@ const persistUserPlan = async (userId, tier) => {
 };
 
 // Logger
+const loggerTransports = [new transports.Console()];
+if (process.env.NODE_ENV !== "production") {
+  loggerTransports.push(new transports.File({ filename: "app.log" }));
+}
 const logger = createLogger({
   format: format.combine(format.timestamp(), format.json()),
-  transports: [
-    new transports.Console(),
-    new transports.File({ filename: "app.log" }),
-  ],
+  transports: loggerTransports,
 });
 
 // Middleware de Log de Acesso
@@ -438,50 +437,83 @@ app.post("/api/auth/guest", async (req, res) => {
   }
 });
 
-app.post("/api/auth/signup", async (req, res) => {
-  try {
-    const { email, name, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+// ===== AUTH RATE LIMITING & VALIDATION =====
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "Too many attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-    // Verify if user exists
-    const existing = await query("SELECT * FROM users WHERE email = $1", [email]);
+const loginSchema = z.object({
+  email: z.string().email().max(254),
+  password: z.string().min(1).max(128),
+});
+
+const signupSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(128),
+});
+
+// ===== AUTH ROUTES =====
+app.post("/api/auth/signup", authLimiter, async (req, res) => {
+  const parsed = signupSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid signup data. Password must be at least 8 characters." });
+  }
+
+  const { email, name, password } = parsed.data;
+  try {
+    const existing = await query("SELECT id FROM users WHERE email = $1", [email]);
     if (existing.rows.length > 0) {
-      return res.status(400).json({ error: "User already exists" });
+      return res.status(409).json({ error: "An account with this email already exists." });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(password, salt);
+    const password_hash = await bcrypt.hash(password, 12);
     const userId = getUserId(email);
 
     await query(
       "INSERT INTO users (id, email, name, password_hash, tier) VALUES ($1, $2, $3, $4, 'free')",
-      [userId, email, name, password_hash]
+      [userId, email, name || null, password_hash],
     );
 
     const token = jwt.sign({ id: userId, email, tier: "free" }, effectiveJwtSecret, { expiresIn: "7d" });
-    
-    res.status(201).json({ token, user: { id: userId, email, name, tier: "free" } });
+    res.status(201).json({ token, user: { id: userId, email, name: name || null, tier: "free" } });
   } catch (error) {
     logger.error("Signup error: " + error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+app.post("/api/auth/login", authLimiter, async (req, res) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid email or password." });
+  }
 
-    const result = await query("SELECT * FROM users WHERE email = $1", [email]);
+  const { email, password } = parsed.data;
+  try {
+    const result = await query(
+      "SELECT id, email, name, tier, password_hash FROM users WHERE email = $1",
+      [email],
+    );
     const user = result.rows[0];
 
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    // Timing-safe: always run bcrypt even when user is not found
+    const dummyHash = "$2b$12$K6/vXy0G.S7.fG7.k7.m7.O5O5O5O5O5O5O5O5O5O5O5O5O5O5O5";
+    const isValid = await bcrypt.compare(password, user?.password_hash || dummyHash);
 
-    const isValid = await bcrypt.compare(password, user.password_hash);
-    if (!isValid) return res.status(401).json({ error: "Invalid credentials" });
+    if (!user || !isValid) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
 
-    const token = jwt.sign({ id: user.id, email: user.email, tier: user.tier }, effectiveJwtSecret, { expiresIn: "7d" });
-
+    const token = jwt.sign(
+      { id: user.id, email: user.email, tier: user.tier },
+      effectiveJwtSecret,
+      { expiresIn: "7d" },
+    );
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, tier: user.tier } });
   } catch (error) {
     logger.error("Login error: " + error.message);
@@ -560,19 +592,18 @@ const checkQuota = async (req, res, next) => {
     // Validação de Contagem de Mensagens (Hardened Security)
     if (messageLimit !== null && messageLimit !== undefined) {
       const msgCountKey = `msg_count:${today}:${req.user.id}`;
-      const currentMsgs = parseInt(await redis.get(msgCountKey) || "0");
-      
-      if (currentMsgs >= messageLimit) {
-        logger.warn(`[Quota] Message limit reached for user ${req.user.id}: ${currentMsgs}/${messageLimit}`);
+      // Atomic INCR-first to avoid read-then-write race condition
+      const newCount = await redis.incr(msgCountKey);
+      if (newCount === 1) await redis.expire(msgCountKey, 86400);
+
+      if (newCount > messageLimit) {
+        logger.warn(`[Quota] Message limit reached for user ${req.user.id}: ${newCount - 1}/${messageLimit}`);
         return res.status(403).json({
           error: "Message limit reached",
           message: "Seus 3 desejos foram ouvidos. Conclua o cadastro para continuar.",
           upgradeUrl: "/signup"
         });
       }
-      // Incrementar contador (expira em 24h)
-      await redis.incr(msgCountKey);
-      await redis.expire(msgCountKey, 86400);
     }
 
     if (usage >= limit) {
@@ -742,7 +773,7 @@ app.post(
       let veniceResponse;
       try {
         veniceResponse = await fetch(
-          "https://api.venice.ai/api/v1/chat/completions",
+          `${VENICE_API_BASE}/chat/completions`,
           {
             method: "POST",
             headers: {
@@ -783,13 +814,14 @@ app.post(
         res.setHeader("Connection", "keep-alive");
 
         const reader = veniceResponse.body.getReader();
+        const chunkDecoder = new TextDecoder();
         let assistantContent = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = new TextDecoder().decode(value);
+          const chunk = chunkDecoder.decode(value, { stream: true });
           res.write(chunk);
 
           // Acumular conteúdo para billing preciso
@@ -816,7 +848,7 @@ app.post(
               req.user.id,
               -tokens,
               LEDGER_TYPES.TOKEN_CONSUMPTION,
-              "chat_" + Date.now()
+              "chat_" + randomUUID(),
             );
           } catch (err) {
             logger.error("Ledger error:", err);
@@ -835,7 +867,7 @@ app.post(
           .addEntry(
             req.user.id,
             -tokens,
-            "CONSUMPTION",
+            LEDGER_TYPES.TOKEN_CONSUMPTION,
             "venice_sync_" + randomUUID(),
           )
           .catch((err) => logger.error("Ledger error:", err));
@@ -873,7 +905,7 @@ app.get("/api/models", authenticateToken, async (req, res) => {
     } else {
       // Puxa os modelos reais da API da Venice (somente text)
       const veniceResponse = await fetch(
-        "https://api.venice.ai/api/v1/models?type=text",
+        `${VENICE_API_BASE}/models?type=text`,
         {
           headers: {
             Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
@@ -899,7 +931,6 @@ app.get("/api/models", authenticateToken, async (req, res) => {
 
     res.json({
       available: allModels,
-      allModelDetails: data,
       currentTier: userTier,
       defaultModel: process.env.VENICE_MODEL || "venice-uncensored-1-2",
     });
@@ -907,103 +938,6 @@ app.get("/api/models", authenticateToken, async (req, res) => {
     logger.error("Models fetch error:", error);
     res.status(500).json({ error: "Failed to load models" });
   }
-});
-
-// ===== AUTH ROUTES =====
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10,
-  message: { error: "Too many attempts. Please try again later." },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const loginSchema = z.object({
-  email: z.string().email().max(254),
-  password: z.string().min(1).max(128),
-});
-
-const signupSchema = z.object({
-  name: z.string().min(1).max(100),
-  email: z.string().email().max(254),
-  password: z.string().min(8).max(128),
-});
-
-app.post("/api/auth/login", authLimiter, async (req, res) => {
-  const parsed = loginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid email or password." });
-  }
-
-  const { email, password } = parsed.data;
-  
-  // Try new SHA-256 scheme first
-  let userId = getUserId(email);
-  let passwordHash = await redis.get(`password:${userId}`);
-
-  // Fallback to legacy base64 scheme
-  if (!passwordHash) {
-    const legacyId = getLegacyUserId(email);
-    const legacyHash = await redis.get(`password:${legacyId}`);
-    if (legacyHash) {
-      userId = legacyId;
-      passwordHash = legacyHash;
-    }
-  }
-
-  // Timing-safe check: use a real, valid bcrypt hash for non-existent users
-  const dummyHash = "$2b$12$K6/vXy0G.S7.fG7.k7.m7.O5O5O5O5O5O5O5O5O5O5O5O5O5O5O5";
-  const actualHash = passwordHash || dummyHash;
-  const valid = await bcrypt.compare(password, actualHash);
-
-  if (!passwordHash || !valid) {
-    return res.status(401).json({ error: "Invalid email or password." });
-  }
-
-  const tier = (await redis.get(`tier:${userId}`)) || "free";
-
-  const token = jwt.sign(
-    { id: userId, email, tier },
-    effectiveJwtSecret,
-    { expiresIn: "7d" },
-  );
-
-  res.json({ token, user: { id: userId, email, tier } });
-});
-
-app.post("/api/auth/signup", authLimiter, async (req, res) => {
-  const parsed = signupSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({
-      error: "Invalid signup data. Password must be at least 8 characters.",
-    });
-  }
-
-  const { email, name, password } = parsed.data;
-  const userId = getUserId(email);
-
-  // Reject if account already exists (check both schemes to be safe)
-  const existing = await redis.get(`password:${userId}`);
-  const legacyExisting = await redis.get(`password:${getLegacyUserId(email)}`);
-  
-  if (existing || legacyExisting) {
-    return res
-      .status(409)
-      .json({ error: "An account with this email already exists." });
-  }
-
-  const passwordHash = await bcrypt.hash(password, 12);
-  await redis.set(`password:${userId}`, passwordHash);
-
-  const token = jwt.sign(
-    { id: userId, email, name, tier: "free" },
-    effectiveJwtSecret,
-    { expiresIn: "7d" },
-  );
-
-  res
-    .status(201)
-    .json({ token, user: { id: userId, email, name, tier: "free" } });
 });
 
 // ===== MAGIC LINK AUTH =====
@@ -1190,31 +1124,36 @@ app.post("/api/auth/magic-link/verify", async (req, res) => {
 
 // ===== USAGE STATS & LEDGER =====
 app.get("/api/usage", authenticateToken, async (req, res) => {
-  const today = new Date().toISOString().split("T")[0];
-  const [usage, redisTier, redisLimit] = await Promise.all([
-    ledgerService.getDailyUsage(req.user.id, today),
-    redis.get(`tier:${req.user.id}`).catch(() => null),
-    redis.get(`limit:${req.user.id}`).catch(() => null),
-  ]);
-  const { accessTier, planKey, tierConfig } = getUserPlan({
-    redisTier,
-    jwtTier: req.user.tier,
-    isGuest: Boolean(req.user.guest),
-  });
-  const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
-  const limit = parsePositiveInt(redisLimit, defaultLimit);
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const [usage, redisTier, redisLimit] = await Promise.all([
+      ledgerService.getDailyUsage(req.user.id, today),
+      redis.get(`tier:${req.user.id}`).catch(() => null),
+      redis.get(`limit:${req.user.id}`).catch(() => null),
+    ]);
+    const { accessTier, planKey, tierConfig } = getUserPlan({
+      redisTier,
+      jwtTier: req.user.tier,
+      isGuest: Boolean(req.user.guest),
+    });
+    const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
+    const limit = parsePositiveInt(redisLimit, defaultLimit);
 
-  res.json({
-    today: parseInt(usage),
-    limit,
-    tier: accessTier,
-    plan: planKey,
-    remaining: limit - parseInt(usage),
-    maxOutputTokens: parsePositiveInt(
-      tierConfig.maxOutputTokens,
-      FALLBACK_GUEST_PLAN.maxOutputTokens,
-    ),
-  });
+    res.json({
+      today: parseInt(usage),
+      limit,
+      tier: accessTier,
+      plan: planKey,
+      remaining: limit - parseInt(usage),
+      maxOutputTokens: parsePositiveInt(
+        tierConfig.maxOutputTokens,
+        FALLBACK_GUEST_PLAN.maxOutputTokens,
+      ),
+    });
+  } catch (err) {
+    logger.error(`[Usage] Error fetching usage for user ${req.user?.id ?? "unknown"}:`, err);
+    res.status(503).json({ error: "Service temporarily unavailable" });
+  }
 });
 
 app.get("/health", (_req, res) => {

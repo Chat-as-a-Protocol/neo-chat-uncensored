@@ -1,11 +1,7 @@
 import { query } from "../utils/db.js";
+import { parsePositiveInt } from "../utils/numbers.js";
 
 const TOKEN_PURCHASE_TYPES = new Set(["tokens_purchase", "token_purchase"]);
-
-const parsePositiveInt = (value, fallback = 0) => {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-};
 
 const normalizeTierUpgrade = (tier) => {
   if (!tier) return null;
