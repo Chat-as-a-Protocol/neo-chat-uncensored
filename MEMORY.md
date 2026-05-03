@@ -44,6 +44,12 @@ Sintoma: Possibilidade de usuários ultrapassarem limites em requisições simul
 Causa: Lógica de `incr` seguida de `decr` permitia janelas de vazamento.
 Correção: Implementado incremento atômico puro. Se ultrapassar, a requisição é bloqueada imediatamente sem decremento compensatório.
 
+### Estabilidade PWA e Teclado Mobile
+
+Sintoma: Em modo PWA, o teclado virtual podia redimensionar a viewport, empurrar a interface e deixar o shell fora do lugar ao fechar.
+Causa: A altura global `--app-viewport-height` acompanhava `visualViewport.height`, que encolhe quando o teclado abre.
+Correção: A altura do app passou a ser estável; o teclado altera apenas `--keyboard-inset`, usado pelo compositor do chat para subir o input sem deslocar o shell.
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas
