@@ -288,10 +288,24 @@ const sendPaymentEmail = async ({
  */
 app.post(
   "/webhooks/flowpay",
-  express.raw({ type: "application/json" }),
+  express.raw({
+    type: (req) => {
+      const contentType = req.headers["content-type"];
+      return (
+        typeof contentType === "string" &&
+        contentType.toLowerCase().startsWith("application/json")
+      );
+    },
+  }),
   async (req, res) => {
     const signature = req.headers["x-nexus-signature"];
     const secret = process.env.FLOWPAY_WEBHOOK_SECRET;
+
+    if (!Buffer.isBuffer(req.body)) {
+      return res.status(400).json({
+        error: "Invalid webhook payload: expected raw buffer body",
+      });
+    }
 
     logger.info("[Webhook] Received FlowPay event from Nexus");
 
@@ -482,9 +496,6 @@ const signupSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
-const DUMMY_PASSWORD_HASH =
-  "$2a$12$JcratiN0Fcf3MuRPumDS5eo7Qe/JnM1yuRont/31p6BIWmP9z3QOa";
-
 app.post("/api/auth/guest", authLimiter, async (req, res) => {
   try {
     const rawDeviceId = String(req.body?.deviceId || randomUUID()).slice(
@@ -583,12 +594,17 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     );
     const user = result.rows[0];
 
+    if (!user || !user.password_hash) {
+      // Se não existe usuário ou não tem senha (conta Magic Link), falha 401
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
     const isValid = await bcrypt.compare(
       password,
-      user?.password_hash || DUMMY_PASSWORD_HASH,
+      user.password_hash,
     );
 
-    if (!user || !isValid) {
+    if (!isValid) {
       return res.status(401).json({ error: "Invalid email or password." });
     }
 
@@ -615,8 +631,19 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  
+  if (!authHeader) {
+    return res.status(401).json({ error: "Authorization header missing" });
+  }
 
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
+    return res.status(401).json({ 
+      error: "Authorization header must be in the format: Bearer <token>" 
+    });
+  }
+
+  const token = parts[1];
   const secret = effectiveJwtSecret;
 
   jwt.verify(token, secret, (err, user) => {
@@ -711,9 +738,8 @@ const checkQuota = async (req, res, next) => {
       if (newCount === 1) await redis.expire(msgCountKey, 2592000); // 30 dias para persistência
 
       if (newCount > messageLimit) {
-        await redis.decr(msgCountKey);
         logger.warn(
-          `[Quota] Message limit reached for user ${req.user.id}: ${messageLimit}/${messageLimit}`,
+          `[Quota] Message limit reached for user ${req.user.id}: ${newCount}/${messageLimit}`,
         );
 
         const isGuest = Boolean(req.user.guest);
@@ -966,12 +992,32 @@ app.post(
         const reader = veniceResponse.body.getReader();
         const chunkDecoder = new TextDecoder();
         let assistantContent = "";
+        let streamBuffer = "";
         const processStreamChunk = (chunk) => {
-          if (!chunk) return;
+          if (!chunk) {
+            // Process any remaining data in buffer
+            if (streamBuffer) {
+              const line = streamBuffer;
+              if (line.startsWith("data: ")) {
+                const dataStr = line.replace("data: ", "").trim();
+                if (dataStr !== "[DONE]") {
+                  try {
+                    const data = JSON.parse(dataStr);
+                    assistantContent += data.choices?.[0]?.delta?.content || "";
+                  } catch (e) {}
+                }
+              }
+            }
+            return;
+          }
+
           res.write(chunk);
 
-          // Acumular conteúdo para billing preciso
-          const lines = chunk.split("\n");
+          // Acumular conteúdo para billing preciso (Hardened)
+          streamBuffer += chunk;
+          const lines = streamBuffer.split("\n");
+          streamBuffer = lines.pop() || "";
+
           for (const line of lines) {
             if (line.startsWith("data: ")) {
               const dataStr = line.replace("data: ", "").trim();
@@ -980,7 +1026,7 @@ app.post(
                 const data = JSON.parse(dataStr);
                 assistantContent += data.choices?.[0]?.delta?.content || "";
               } catch (e) {
-                // Ignore incomplete chunks
+                // Buffer incompleto ou erro de parsing ignorado para não travar o stream
               }
             }
           }
@@ -989,10 +1035,9 @@ app.post(
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-
           processStreamChunk(chunkDecoder.decode(value, { stream: true }));
         }
-        processStreamChunk(chunkDecoder.decode());
+        processStreamChunk(null); // Sinaliza fim para processar buffer residual
 
         // Registrar consumo no ledger (Síncrono conforme solicitado)
         const tokens = countTokensFromText(assistantContent);
@@ -1165,13 +1210,10 @@ app.post("/api/auth/magic-link/request", magicLinkLimiter, async (req, res) => {
 
     if (!user) {
       const userId = getUserId(email);
-      // Generate a random unusable password hash for magic-link-only accounts
-      const randomPasswordHash = await import("node:crypto").then(
-        (m) => "$2b$12$" + m.randomBytes(22).toString("base64").slice(0, 53),
-      );
+      // Contas criadas via Magic Link começam sem senha (null)
       await query(
         "INSERT INTO users (id, email, name, password_hash, tier) VALUES ($1, $2, $3, $4, 'free') ON CONFLICT (email) DO NOTHING",
-        [userId, email, null, randomPasswordHash],
+        [userId, email, null, null],
       );
       // Re-fetch in case of race condition
       userResult = await query(

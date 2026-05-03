@@ -47,6 +47,7 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
             label="Senha" 
             placeholder="••••••••" 
             required 
+            autocomplete="new-password"
           />
 
           <p class="text-[10px] text-[var(--text-dim)] leading-relaxed text-center px-4">
@@ -81,7 +82,7 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
 
   signupForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!submitBtn) return;
+    if (!signupForm || !submitBtn) return;
 
     const formData = new FormData(signupForm);
     const data = Object.fromEntries(formData.entries());
@@ -115,9 +116,10 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
       } else {
         alert(result.error || 'Erro ao criar conta. Tente novamente.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Signup error:', error);
-      alert('Erro de conexão. Tente novamente mais tarde.');
+      const isTimeout = error.name === 'AbortError' || error.message?.toLowerCase().includes('timeout');
+      alert(isTimeout ? 'O servidor demorou muito para responder. Tente novamente.' : 'Erro de conexão. Verifique sua internet.');
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerText = 'Criar Conta';

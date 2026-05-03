@@ -57,6 +57,7 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
             label="Senha" 
             placeholder="••••••••" 
             required 
+            autocomplete="current-password"
           />
 
           <Button type="submit" class="mt-2" id="login-submit">
@@ -85,7 +86,7 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
 
         <!-- Magic link success state -->
         <div id="magic-link-sent" class="hidden flex-col items-center gap-4 py-4 text-center">
-          <div class="text-4xl">📬</div>
+          <div class="text-4xl">⧇</div>
           <p class="text-base font-semibold text-[var(--text-strong)]">Link enviado!</p>
           <p class="text-sm text-[var(--text-soft)] leading-relaxed">
             Verifique sua caixa de entrada. O link expira em <strong class="text-white">10 minutos</strong>.
@@ -149,7 +150,7 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
 
   loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!submitBtn) return;
+    if (!loginForm || !submitBtn) return;
 
     const formData = new FormData(loginForm);
     const data = Object.fromEntries(formData.entries());
@@ -173,9 +174,10 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
       } else {
         alert(result.error || 'Erro ao fazer login. Verifique suas credenciais.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      alert('Erro de conexão. Tente novamente mais tarde.');
+      const isTimeout = error.name === 'AbortError' || error.message?.toLowerCase().includes('timeout');
+      alert(isTimeout ? 'O servidor demorou muito para responder. Tente novamente.' : 'Erro de conexão. Verifique sua internet.');
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerText = 'Entrar';
@@ -207,9 +209,10 @@ if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
       } else {
         alert(result.error || 'Erro ao enviar o link. Tente novamente.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Magic link error:', error);
-      alert('Erro de conexão. Tente novamente mais tarde.');
+      const isTimeout = error.name === 'AbortError' || error.message?.toLowerCase().includes('timeout');
+      alert(isTimeout ? 'O servidor demorou muito para responder. Tente novamente.' : 'Erro de conexão. Verifique sua internet.');
     } finally {
       magicSubmitBtn.disabled = false;
       magicSubmitBtn.innerText = 'Enviar link de acesso';

@@ -17,38 +17,52 @@ const escapeHtml = (value = "") =>
     .replace(/'/g, "&#39;");
 
 /**
- * Template Base para E-mails NØX
- * Design: BG Black 85%, Bordas suaves, Logo Centralizado
+ * Template Base para E-mails NØX (Versão Hardened)
+ * Design: BG Black 85%, Acento Verde Limão (#b9d631), Estética de Terminal de Luxo
  */
 const renderTemplate = (title, content, action = null) => {
+  const ACCENT_COLOR = "#b9d631";
   return `
-    <div style="background-color: #050505; padding: 40px 20px; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f4f5f8; text-align: center;">
-      <div style="max-width: 500px; margin: 0 auto; background-color: #121212; background-color: rgba(0, 0, 0, 0.85); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
-        <div style="margin-bottom: 30px;">
-          <img src="${LOGO_URL}" alt="NØX" style="width: 64px; height: 64px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1);">
+    <div style="background-color: #050505; padding: 50px 20px; font-family: 'Space Grotesk', 'Manrope', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f4f5f8; text-align: center;">
+      <!-- Main Container -->
+      <div style="max-width: 500px; margin: 0 auto; background-color: #0c0c0c; background-image: linear-gradient(to bottom, #111111, #080808); border: 1px solid rgba(185, 214, 49, 0.2); border-radius: 24px; padding: 40px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);">
+        
+        <!-- Header / Logo -->
+        <div style="margin-bottom: 35px;">
+          <div style="display: inline-block; padding: 2px; background: linear-gradient(135deg, ${ACCENT_COLOR}, #444); border-radius: 16px;">
+            <img src="${LOGO_URL}" alt="NØX" style="width: 64px; height: 64px; border-radius: 14px; display: block; background: #000;">
+          </div>
         </div>
         
-        <h1 style="font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 20px; color: #fff;">${title}</h1>
+        <!-- Title -->
+        <h1 style="font-size: 26px; font-weight: 800; letter-spacing: 1px; margin: 0 0 25px 0; color: #fff; text-transform: uppercase;">
+          ${title}
+        </h1>
         
-        <div style="font-size: 16px; line-height: 1.6; color: #a3a4aa; margin-bottom: 30px; text-align: left;">
-          ${content}
+        <!-- Content Area -->
+        <div style="font-size: 16px; line-height: 1.7; color: #c8c9cf; margin-bottom: 35px; text-align: left;">
+          ${content
+            .replace(/background:\s*#1a1a1a;/g, `background: #111; border-left: 4px solid ${ACCENT_COLOR};`)
+            .replace(/border:\s*2px\s*solid\s*#fff;/g, `border: 1px solid ${ACCENT_COLOR}; background: rgba(185, 214, 49, 0.05);`)}
         </div>
 
-        ${
-          action
-            ? `
-          <div style="margin: 35px 0;">
-            <a href="${action.url}" style="background-color: #f4f5f8; color: #000; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 15px; display: inline-block; transition: all 0.2s ease;">
+        <!-- Action Button -->
+        ${action ? `
+          <div style="margin: 40px 0;">
+            <a href="${action.url}" style="background-color: ${ACCENT_COLOR}; color: #000; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 800; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(185, 214, 49, 0.3);">
               ${action.label}
             </a>
           </div>
-        `
-            : ""
-        }
+        ` : ''}
 
-        <div style="margin-top: 40px; padding-top: 25px; border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 11px; color: #444; letter-spacing: 1px;">
-          † NΞØ PROTOCOL †<br>
-          <span style="color: #222; margin-top: 8px; display: block;">NOX.AI — TERMINAL SOBERANO</span>
+        <!-- Footer -->
+        <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+          <div style="font-size: 10px; font-weight: 800; color: ${ACCENT_COLOR}; letter-spacing: 3px; margin-bottom: 10px;">
+            † NΞØ PROTOCOL †
+          </div>
+          <div style="font-size: 9px; color: #333; letter-spacing: 1px; text-transform: uppercase;">
+            TERMINAL SOBERANO — SEM FILTROS — NOX.AI
+          </div>
         </div>
       </div>
     </div>

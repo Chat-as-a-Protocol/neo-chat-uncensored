@@ -50,124 +50,124 @@ help:
 # --- 1. INITIALIZATION ---
 init:
 	@if [ ! -f .env ]; then \
-		echo "📝 Creating .env from example..."; \
+		echo "[ENV] Creating .env from example..."; \
 		cp .env.example .env; \
 	fi
 	$(MAKE) install
 
 install:
-	@echo "📦 Installing workspace dependencies..."
+	@echo "[SYNC] Installing workspace dependencies..."
 	$(PNPM) install
 
 # --- 2. DEVELOPMENT ---
 dev:
-	@echo "🚀 Starting NΞØ Ecosystem..."
+	@echo "[START] Starting NΞØ Ecosystem..."
 	@($(PNPM) dev) & (cd backend && $(PNPM) dev) & wait
 
 stop:
-	@echo "🛑 Killing processes on ports 3001 and 4321..."
+	@echo "[STOP] Killing processes on ports 3001 and 4321..."
 	@lsof -ti:3001 | xargs kill -9 2>/dev/null || true
 	@lsof -ti:4321 | xargs kill -9 2>/dev/null || true
-	@echo "✅ Ports cleared."
+	@echo "[OK] Ports cleared."
 
 dev-be:
-	@echo "🔌 Starting Backend..."
+	@echo "[BE] Starting Backend..."
 	cd backend && $(PNPM) dev
 
 dev-fe:
-	@echo "🎨 Starting Frontend..."
+	@echo "[FE] Starting Frontend..."
 	$(PNPM) dev
 
 logs:
-	@echo "📋 Streaming Backend Logs..."
+	@echo "[LOGS] Streaming Backend Logs..."
 	tail -f backend/app.log
 
 # --- 3. QUALITY & CHECK ---
 check: verify audit test lint
-	@echo "✅ All checks passed successfully."
+	@echo "[OK] All checks passed successfully."
 
 verify:
-	@echo "🔍 Verifying Project Integrity..."
-	@if [ ! -f .env ]; then echo "❌ Error: .env file missing!"; exit 1; fi
+	@echo "[VERIFY] Verifying Project Integrity..."
+	@if [ ! -f .env ]; then echo "[ERROR] Error: .env file missing!"; exit 1; fi
 	@if [ ! -f shared/runtime-prompt.md ]; then \
-		echo "⚠️  Warning: shared/runtime-prompt.md missing (Backend will use default prompt)."; \
+		echo "[WARN] Warning: shared/runtime-prompt.md missing (Backend will use default prompt)."; \
 	else \
 		echo "  - Runtime Prompt: OK"; \
 	fi
 	@echo "  - Environment: OK"
 	@echo "  - Node Version: `node -v`"
-	@echo "✅ Integrity verified."
+	@echo "[OK] Integrity verified."
 
 audit:
-	@echo "🛡️  Running Security Audit..."
+	@echo "[SEC] Running Security Audit..."
 	$(PNPM) audit
 
 test:
-	@echo "🧪 Running Backend Tests..."
+	@echo "[TEST] Running Backend Tests..."
 	@cd backend && node --test src/**/*.test.js
 
 lint:
-	@echo "✨ Linting (via Astro check)..."
+	@echo "[LINT] Linting (via Astro check)..."
 	@if [ -d node_modules/@astrojs/check ]; then \
 		$(PNPM) astro check; \
 	else \
-		echo "⚠️  Astro check ignorado (dependências pendentes)."; \
+		echo "[WARN] Astro check ignorado (dependências pendentes)."; \
 	fi
 
 clean:
-	@echo "🧹 Cleaning artifacts..."
+	@echo "[CLEAN] Cleaning artifacts..."
 	@$(MAKE) astro-clean
 	find . -name "node_modules" -type d -prune -exec rm -rf '{}' +
-	@echo "✨ Clean complete."
+	@echo "[OK] Clean complete."
 
 astro-clean:
-	@echo "🧼 Cleaning Astro cache/output..."
+	@echo "[PURGE] Cleaning Astro cache/output..."
 	rm -rf dist .astro
-	@echo "✨ Astro cache clean complete."
+	@echo "[OK] Astro cache clean complete."
 
 astro-rebuild: astro-clean
-	@echo "🏗️  Rebuilding Astro after clean..."
+	@echo "[BUILD] Rebuilding Astro after clean..."
 	$(PNPM) run build
 
 # --- 4. BUILD & PRODUCTION ---
 build:
-	@echo "🏗️  Building production assets..."
-	@echo "📦 Ensuring dependencies are synced..."
+	@echo "[BUILD] Building production assets..."
+	@echo "[SYNC] Ensuring dependencies are synced..."
 	$(PNPM) install
-	@echo "🧹 Resetting Astro build cache..."
+	@echo "[CLEAN] Resetting Astro build cache..."
 	rm -rf dist .astro
 	$(PNPM) run build
 
 push:
-	@echo "🚀 Starting Secure Push Protocol..."
+	@echo "[START] Starting Secure Push Protocol..."
 	@$(MAKE) check
 	@$(MAKE) build
-	@echo "✅ Full quality gate passed. Ready to commit."
+	@echo "[OK] Full quality gate passed. Ready to commit."
 	@git status
 
 # --- 5. GIT AUTOMATION ---
 # Uso: make save MSG="feat: minha mensagem"
 save:
-	@echo "🚀 Iniciando Protocolo de Sincronização Soberana..."
+	@echo "[START] Iniciando Protocolo de Sincronização Soberana..."
 	@$(MAKE) check
 	@$(MAKE) build
-	@echo "💾 Staging changes..."
+	@echo "[COMMIT] Staging changes..."
 	@git add .
 	@if [ -z "$(MSG)" ]; then \
-		echo "⚠️  Aviso: Nenhuma mensagem (MSG) fornecida. Usando padrão."; \
+		echo "[WARN] Aviso: Nenhuma mensagem (MSG) fornecida. Usando padrão."; \
 		git commit -m "chore: NΞØ Protocol automated synchronization"; \
 	else \
 		git commit -m "$(MSG)"; \
 	fi
-	@echo "🚀 Enviando para o Nexus (GitHub)..."
+	@echo "[START] Enviando para o Nexus (GitHub)..."
 	@git push origin main
-	@echo "✅ Sincronização concluída com sucesso."
+	@echo "[OK] Sincronização concluída com sucesso."
 
 # --- 6. UTILS ---
 seed:
-	@echo "🌱 Gerando usuário de teste..."
+	@echo "[SEED] Gerando usuário de teste..."
 	@node scripts/seed-test-user.js
 
 db-init:
-	@echo "🐘 Inicializando tabelas no PostgreSQL..."
+	@echo "[DB] Inicializando tabelas no PostgreSQL..."
 	@psql $(DATABASE_URL) -f backend/schema.sql

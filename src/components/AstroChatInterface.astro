@@ -60,7 +60,7 @@
 
   <div id="marketing-barrier" class="marketing-barrier" style="display: none;">
     <div class="marketing-content">
-      <div class="lamp-icon">🪔</div>
+      <div class="lamp-icon">◬</div>
       <h3>E aí, tá curtindo?...</h3>
       <p>Dá uma moral e cria uma conta, é grátis.</p>
       
@@ -248,8 +248,15 @@
     return guestId;
   }
 
+  function getCookie(name: string) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+  }
+
   function persistAuthToken(token: string) {
     const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    // Priorizamos Cookies para suporte a SSR, mas mantemos localStorage como fallback legado
     localStorage.setItem(tokenStorageKey, token);
     document.cookie = `${tokenStorageKey}=${token}; path=/; max-age=${tokenCookieMaxAge}; SameSite=Lax${secure}`;
   }
@@ -261,7 +268,8 @@
   }
 
   function getStoredToken() {
-    return localStorage.getItem(tokenStorageKey);
+    // Tenta primeiro o cookie (fonte da verdade para o servidor)
+    return getCookie(tokenStorageKey) || localStorage.getItem(tokenStorageKey);
   }
 
   async function ensureSession() {
@@ -907,10 +915,18 @@
       window.clearTimeout(marketingRedirectTimeout);
     }
 
-    // Animação de redirecionamento após 3 segundos
+    // Animação de redirecionamento após 4.5 segundos
     marketingRedirectTimeout = window.setTimeout(() => {
       window.location.href = '/signup?reason=limit_reached';
     }, 4500);
+
+    // Limpeza para View Transitions
+    document.addEventListener('astro:before-preparation', () => {
+      if (marketingRedirectTimeout) {
+        window.clearTimeout(marketingRedirectTimeout);
+        marketingRedirectTimeout = null;
+      }
+    }, { once: true });
   }
 
   function syncViewportHeight() {
