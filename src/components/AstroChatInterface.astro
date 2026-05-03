@@ -138,6 +138,14 @@
     upgradeUrl?: string;
   }
 
+  interface UsagePayload {
+    today?: number;
+    limit?: number;
+    tier?: string;
+    plan?: string;
+    remaining?: number;
+  }
+
   class ChatApiError extends Error {
     status: number;
     payload: ApiErrorPayload | null;
@@ -157,6 +165,9 @@
   let guestSessionPromise: Promise<string | null> | null = null;
   let isGuestAccess = true;
   let quotaSynced = false;
+  let quotaLocked = false;
+  let latestUsage: UsagePayload | null = null;
+  let marketingRedirectTimeout: number | null = null;
 
   // 1. Persistência: Tentar carregar do localStorage
   try {
@@ -302,6 +313,31 @@
     if (!token) return true;
     const session = decodeSessionToken(token);
     return Boolean(session?.guest || session?.tier === 'guest');
+  }
+
+  function isMobileComposerMode() {
+    return window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 820;
+  }
+
+  function syncSendAvailability() {
+    sendBtn.disabled = quotaLocked || isSending || input.value.trim() === '';
+  }
+
+  function setComposerLocked(locked: boolean) {
+    quotaLocked = locked;
+    form.classList.toggle('is-locked', locked);
+    input.disabled = locked;
+    syncSendAvailability();
+  }
+
+  function isUsageExhausted(data: UsagePayload) {
+    const today = Number(data.today);
+    const limit = Number(data.limit);
+    const remaining = Number.isFinite(Number(data.remaining))
+      ? Number(data.remaining)
+      : limit - today;
+
+    return Number.isFinite(today) && Number.isFinite(limit) && limit > 0 && remaining <= 0;
   }
 
   let streamingBubble: HTMLElement | null = null;
@@ -554,12 +590,17 @@
     if (!(error instanceof ChatApiError)) return false;
 
     if (error.status === 403 && error.payload?.error === 'Message limit reached') {
-      showMarketingBarrier();
+      showMarketingBarrier('message');
       return true;
     }
 
     if (error.status === 403 && error.payload?.error === 'Daily quota exceeded') {
-      appendQuotaMessage(error, failedMessage);
+      setComposerLocked(true);
+      if (isGuestSession()) {
+        showMarketingBarrier('quota');
+      } else {
+        appendQuotaMessage(error, failedMessage);
+      }
       return true;
     }
 
@@ -599,12 +640,30 @@
   async function sendMessage(userMessage: string, opts: ChatOptions = {}): Promise<void> {
     if (isSending) return;
 
+    if (quotaLocked) {
+      if (isGuestSession()) {
+        showMarketingBarrier('quota');
+      } else {
+        appendQuotaMessage(
+          new ChatApiError(403, {
+            error: 'Daily quota exceeded',
+            message: 'Limite diário atingido. Faça upgrade para continuar.',
+            usage: latestUsage?.today,
+            limit: latestUsage?.limit,
+            upgradeUrl: '/upgrade',
+          }, ''),
+          userMessage,
+        );
+      }
+      return;
+    }
+
     // Lógica de Marketing: 3 Desejos (Apenas para Guests)
     const isGuest = isGuestSession();
     const userMessagesCount = messages.filter(m => m.role === 'user').length;
 
     if (isGuest && userMessagesCount >= 3) {
-      showMarketingBarrier();
+      showMarketingBarrier('message');
       return;
     }
 
@@ -718,8 +777,10 @@
     } finally {
       isSending = false;
       hideTypingIndicator();
-      input.focus();
-      sendBtn.disabled = input.value.trim() === '';
+      if (!quotaLocked && !isMobileComposerMode()) {
+        input.focus();
+      }
+      syncSendAvailability();
       updateQuota();
     }
   }
@@ -737,30 +798,55 @@
       });
       if (!response.ok) return;
 
-      const data = await response.json();
-      isGuestAccess = data.plan === 'guest';
+      const data: UsagePayload = await response.json();
+      latestUsage = data;
+      isGuestAccess = data.plan === 'guest' || data.tier === 'guest';
       quotaSynced = true;
       const indicator = document.getElementById('quota-indicator');
       const count = indicator?.querySelector('.quota-count');
       if (count && indicator) {
-        count.textContent = `${data.today}/${data.limit}`;
+        const today = Number(data.today || 0);
+        const limit = Number(data.limit || 0);
+        const exhausted = isUsageExhausted(data);
+        const safeToday = Number.isFinite(today) && Number.isFinite(limit) && limit > 0
+          ? Math.min(Math.max(today, 0), limit)
+          : today;
+        const isProTier = data.tier === 'pro' || data.tier === 'premium' || data.plan === 'paid_pro';
+        const shouldShowUpgrade = !isProTier && Number.isFinite(today) && Number.isFinite(limit) && limit > 0 && today >= limit * 0.8;
+
+        count.textContent = `${safeToday}/${limit}`;
+
         const upgradePrompt = document.getElementById('upgrade-prompt');
-        if (data.today >= data.limit * 0.8) {
-          if (upgradePrompt) upgradePrompt.style.display = 'block';
-        } else {
-          if (upgradePrompt) upgradePrompt.style.display = 'none';
+        const upgradeButton = upgradePrompt?.querySelector('button');
+        if (upgradePrompt && upgradeButton instanceof HTMLButtonElement) {
+          if (shouldShowUpgrade) {
+            upgradeButton.textContent = isGuestAccess ? 'CADASTRO' : 'UPGRADE';
+            upgradeButton.onclick = () => {
+              window.location.href = isGuestAccess
+                ? '/signup?reason=limit_warning'
+                : '/upgrade';
+            };
+            upgradePrompt.style.display = 'block';
+          } else {
+            upgradePrompt.style.display = 'none';
+          }
         }
 
-        if (data.today >= data.limit) {
+        if (exhausted) {
           indicator.classList.add('is-exhausted');
+          setComposerLocked(true);
+          if (isGuestAccess) {
+            showMarketingBarrier('quota');
+          }
         } else {
           indicator.classList.remove('is-exhausted');
+          setComposerLocked(false);
         }
 
         // Hack de Soberania: Ocultar seletor se não for Pro
         const personaContainer = document.getElementById('persona-container');
         if (personaContainer) {
-          personaContainer.style.display = (data.tier === 'pro' || data.tier === 'premium') ? 'block' : 'none';
+          personaContainer.style.display = isProTier ? 'block' : 'none';
         }
       }
     } catch (err) {
@@ -772,7 +858,7 @@
   input.addEventListener('input', () => {
     input.style.height = 'auto';
     input.style.height = `${Math.min(input.scrollHeight, 170)}px`;
-    sendBtn.disabled = input.value.trim() === '';
+    syncSendAvailability();
   });
 
   input.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -791,23 +877,76 @@
 
     input.value = '';
     input.style.height = 'auto';
-    sendBtn.disabled = true;
+    syncSendAvailability();
+
+    if (isMobileComposerMode()) {
+      input.blur();
+    }
 
     await sendMessage(userMessage);
   });
 
-  function showMarketingBarrier() {
+  function showMarketingBarrier(reason: 'message' | 'quota' = 'message') {
     if (!marketingBarrierEl) return;
+    const title = marketingBarrierEl.querySelector('h3');
+    const copy = marketingBarrierEl.querySelector('p');
+    if (reason === 'quota') {
+      if (title) title.textContent = 'Créditos gratuitos encerrados';
+      if (copy) copy.textContent = 'Crie sua conta para continuar usando o NØX.';
+    } else {
+      if (title) title.textContent = 'Seus 3 desejos foram ouvidos...';
+      if (copy) copy.textContent = 'Mas os seus maiores sonhos só podem ser realizados ao concluir seu cadastro.';
+    }
+
     marketingBarrierEl.style.display = 'flex';
     input.blur();
     input.disabled = true;
     sendBtn.disabled = true;
-    
+
+    if (marketingRedirectTimeout) {
+      window.clearTimeout(marketingRedirectTimeout);
+    }
+
     // Animação de redirecionamento após 3 segundos
-    setTimeout(() => {
+    marketingRedirectTimeout = window.setTimeout(() => {
       window.location.href = '/signup?reason=limit_reached';
     }, 4500);
   }
+
+  function syncViewportHeight() {
+    const viewport = window.visualViewport;
+    const height = viewport?.height || window.innerHeight;
+    const keyboardOpen = Boolean(viewport && window.innerHeight - viewport.height > 120);
+
+    document.documentElement.style.setProperty('--app-viewport-height', `${height}px`);
+    document.body.classList.toggle('keyboard-open', keyboardOpen);
+
+    if (keyboardOpen) {
+      requestAnimationFrame(() => scrollToBottom(false));
+    }
+  }
+
+  input.addEventListener('focus', () => {
+    document.body.classList.add('chat-input-focused');
+    syncViewportHeight();
+    window.setTimeout(() => scrollToBottom(false), 120);
+  });
+
+  input.addEventListener('blur', () => {
+    document.body.classList.remove('chat-input-focused');
+    window.setTimeout(syncViewportHeight, 80);
+  });
+
+  messagesContainer.addEventListener('pointerdown', () => {
+    if (document.activeElement === input) {
+      input.blur();
+    }
+  }, { passive: true });
+
+  window.visualViewport?.addEventListener('resize', syncViewportHeight);
+  window.visualViewport?.addEventListener('scroll', syncViewportHeight);
+  window.addEventListener('resize', syncViewportHeight);
+  syncViewportHeight();
 
   ensureSession().then(() => updateQuota()).catch(() => updateQuota());
   requestAnimationFrame(() => scrollToBottom(false));
@@ -1065,6 +1204,20 @@
 
   .chat-form.send-pressed {
     animation: send-feedback 260ms ease;
+  }
+
+  .chat-form.is-locked textarea {
+    opacity: 0.62;
+  }
+
+  :global(body.chat-input-focused .scene-footer),
+  :global(body.keyboard-open .scene-footer) {
+    display: none;
+  }
+
+  :global(body.keyboard-open .scene-shell) {
+    height: var(--app-viewport-height, 100svh);
+    min-height: var(--app-viewport-height, 100svh);
   }
 
   .chat-form textarea {

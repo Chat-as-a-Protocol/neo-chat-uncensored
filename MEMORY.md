@@ -25,6 +25,10 @@ Updated: 2026-05-02
 - Redis fica para quota, cache, ledger fallback e compatibilidade operacional.
 - `shared/runtime-prompt.md` deve ser responsável, defensivo e auditável.
 - `VENICE_MODEL` é decisão operacional via env; não há fallback hardcoded no backend.
+- Guest com limite esgotado deve travar o composer e ir para cadastro.
+- Guest nunca deve receber badge visual `PRO`; CTA de limite usa cadastro.
+- No mobile/PWA, o composer não força foco depois do envio.
+- No mobile/PWA, footer some enquanto o teclado está aberto.
 
 ────────────────────────────────────────
 

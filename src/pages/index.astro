@@ -38,7 +38,8 @@ import SceneBackground from '../components/SceneBackground.astro';
   .scene-shell {
     position: relative;
     isolation: isolate;
-    height: 100dvh;
+    height: var(--app-viewport-height, 100svh);
+    min-height: var(--app-viewport-height, 100svh);
     padding: clamp(14px, 2.2vw, 28px);
     display: flex;
     flex-direction: column;

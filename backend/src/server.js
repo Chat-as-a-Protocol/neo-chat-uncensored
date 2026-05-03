@@ -603,11 +603,15 @@ const checkQuota = async (req, res, next) => {
 
     if (usage >= limit) {
       logger.warn(`[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`);
+      const isGuestQuota = Boolean(req.user.guest) || planKey === "guest";
       return res.status(403).json({
         error: "Daily quota exceeded",
+        message: isGuestQuota
+          ? "Créditos gratuitos encerrados. Crie sua conta para continuar."
+          : "Limite diário atingido. Faça upgrade para continuar.",
         usage,
         limit,
-        upgradeUrl: "/upgrade",
+        upgradeUrl: isGuestQuota ? "/signup?reason=limit_reached" : "/upgrade",
       });
     }
 
@@ -878,7 +882,7 @@ app.post(
           quota: {
             used: req.currentUsage + tokens,
             limit: req.dailyLimit,
-            remaining: req.dailyLimit - req.currentUsage - tokens,
+            remaining: Math.max(0, req.dailyLimit - req.currentUsage - tokens),
           },
         });
       }
@@ -1151,13 +1155,14 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
     });
     const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
     const limit = parsePositiveInt(redisLimit, defaultLimit);
+    const todayUsage = parseInt(usage);
 
     res.json({
-      today: parseInt(usage),
+      today: todayUsage,
       limit,
       tier: accessTier,
       plan: planKey,
-      remaining: limit - parseInt(usage),
+      remaining: Math.max(0, limit - todayUsage),
       maxOutputTokens: parsePositiveInt(
         tierConfig.maxOutputTokens,
         FALLBACK_GUEST_PLAN.maxOutputTokens,
