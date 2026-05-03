@@ -33,7 +33,7 @@ export class FlowPayApiError extends Error {
   constructor(message, options = {}) {
     super(message);
     this.name = "FlowPayApiError";
-    this.statusCode = options.statusCode || 502;
+    this.statusCode = options.statusCode || 500;
     this.providerStatus = options.providerStatus || null;
     this.providerBodyPreview = options.providerBodyPreview || null;
   }
@@ -115,8 +115,7 @@ export const createFlowPayCharge = async (
   const response = await fetchImpl(`${apiUrl}/api/create-charge`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "x-api-key": apiKey, // Adicionado para maior compatibilidade
+      "x-api-key": apiKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
