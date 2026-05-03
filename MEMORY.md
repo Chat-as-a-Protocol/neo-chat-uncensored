@@ -50,6 +50,21 @@ Sintoma: Em modo PWA, o teclado virtual podia redimensionar a viewport, empurrar
 Causa: A altura global `--app-viewport-height` acompanhava `visualViewport.height`, que encolhe quando o teclado abre.
 Correção: A altura do app passou a ser estável; o teclado altera apenas `--keyboard-inset`, usado pelo compositor do chat para subir o input sem deslocar o shell.
 
+### Blindagem de Conectividade e Ingress (2026-05-03)
+
+Sintoma: Erros de `TypeError: Failed to fetch` e `ERR_FAILED` (CORS) em produção.
+Causa: Preflight de CORS bloqueando subdomínios (www) e headers extras. Lógica de URL da API no frontend conflitando com domínios customizados.
+Correção:
+- Backend: Implementado **CORS Manual (Brute Force)** via middleware customizado no topo do Express. O pacote `cors` foi removido por ser inconsistente em preflights complexos com subdomínios. Agora os cabeçalhos são injetados manualmente para qualquer origem contendo `noxai.chat`.
+- Frontend: Resolução de `apiUrl` simplificada e adição de **Logs de Depuração** no `catch` da cota e da sessão para visibilidade total de falhas de rede.
+- PWA: Service Worker v4 resiliente (loop `try/catch` individual para assets) e correção de caminhos de ícones.
+
+### Alinhamento com Protocolo Nexus
+
+Sintoma: Webhooks fora do padrão de segurança do ecossistema.
+Causa: Necessidade de padronização com o Ingress do Nexus.
+Correção: Endpoint de webhook movido para `/api/webhooks/flowpay`. Adicionado suporte ao header legado `X-FlowPay-Signature` junto ao `X-Nexus-Signature`. Implementada idempotência antecipada no Redis (check antes do processamento).
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas

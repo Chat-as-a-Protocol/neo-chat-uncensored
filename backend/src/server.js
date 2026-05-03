@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import rateLimit from "express-rate-limit";
@@ -57,6 +56,26 @@ if (!JWT_SECRET) {
 const effectiveJwtSecret = JWT_SECRET || randomUUID();
 
 const app = express();
+
+// 0. CORS MANUAL (Brute Force) - Garante headers em todas as respostas
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Se for um dos nossos domínios, permitimos explicitamente
+  if (origin && (origin.includes("noxai.chat") || origin.includes("railway.app") || origin.includes("localhost") || origin.includes("127.0.0.1"))) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-nexus-signature, x-flowpay-signature, Accept, X-Requested-With, Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+
+  // Resposta imediata para Preflight (OPTIONS)
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  
+  next();
+});
 app.set("trust proxy", 1); // Confiar no proxy (Cloudflare/Railway) para pegar o IP real
 
 import redis from "./lib/redis.js";
@@ -154,68 +173,6 @@ app.use((req, res, next) => {
   });
   next();
 });
-
-// 1. CORS - Configuração de Confiança (Hardened)
-// NOTE: "" is added to the list. This allows the request to pass when no origin header is present
-// (which typically occurs with direct IP access, cURL, Postman, mobile apps, and some browsers).
-// In a production environment, ensure that only trusted clients can access the API.
-const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(",").map((o) => o.trim().replace(/\/$/, ""))
-  : [
-      "http://localhost:4321",
-      "http://localhost:3000",
-      "https://noxai.chat",
-      "https://www.noxai.chat",
-      "https://inspiring-vitality-production.up.railway.app",
-      "https://inspiring-vitality.up.railway.app",
-      "",
-    ];
-
-// Helper to check if origin is a valid trusted domain (NØX or Railway)
-const isTrustedDomain = (origin) => {
-  try {
-    const { host } = new URL(origin);
-    return (
-      host === "noxai.chat" ||
-      host.endsWith(".noxai.chat") ||
-      host.endsWith(".railway.app") ||
-      host.endsWith(".up.railway.app")
-    );
-  } catch {
-    return false;
-  }
-};
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Permitir requisições sem origin (como mobile apps ou curl)
-      if (!origin) return callback(null, true);
-
-      const isAllowed =
-        allowedOrigins.some((o) => o === origin) || isTrustedDomain(origin);
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        logger.warn(
-          `[CORS] Blocked request from unauthorized origin: ${origin}`,
-        );
-        callback(null, false);
-      }
-    },
-    credentials: true,
-    optionsSuccessStatus: 200,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "x-nexus-signature",
-      "Accept",
-      "X-Requested-With",
-      "Origin",
-    ],
-  }),
-);
 
 app.use(
   helmet({

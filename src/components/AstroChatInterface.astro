@@ -869,7 +869,7 @@
       }
     } catch (err) {
       // Network/CORS failures should not break chat UX.
-      console.warn('[Quota] usage unavailable', err);
+      console.warn(`[Quota] usage unavailable at ${apiUrl}/api/usage. Origin: ${window.location.origin}`, err);
     }
   }
 
@@ -973,7 +973,7 @@
   ensureSession()
     .then(() => updateQuota())
     .catch((err) => {
-      console.warn('[Init] Session failed, attempting quota fallback', err);
+      console.warn(`[Init] Session failed at ${apiUrl}/api/auth/guest. Origin: ${window.location.origin}`, err);
       return updateQuota();
     })
     .catch((err) => console.error('[Init] Critical failure in chat startup', err));

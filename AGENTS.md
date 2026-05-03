@@ -34,6 +34,8 @@ segurança > estabilidade > legibilidade > performance > estética
 - Planos: `shared/plans.json`.
 - Runtime prompt: `shared/runtime-prompt.md`.
 - Repo: `https://gitea.com/noxia/changeman.git`.
+- Webhook: `POST /api/webhooks/flowpay` (Hardened).
+- PWA: `v4` (Cache resiliente).
 
 ────────────────────────────────────────
 
@@ -47,6 +49,9 @@ segurança > estabilidade > legibilidade > performance > estética
 - Aplicar a menor alteração funcional possível.
 - Atualizar docs quando a mudança alterar contrato operacional.
 - Tratar `FLOWPAY_API_URL` e `PUBLIC_API_URL` como coisas diferentes.
+- **CORS**: **PROIBIDO** usar pacotes externos (`cors`). Usar injeção manual de headers no topo do `server.js` permitindo `includes("noxai.chat")`.
+- **PWA**: Incrementar `CACHE_NAME` em `sw.js` após qualquer mudança em assets estáticos.
+- **Webhooks**: Validar HMAC-SHA256 e suportar headers `X-Nexus-Signature` e `X-FlowPay-Signature`.
 
 ────────────────────────────────────────
 
