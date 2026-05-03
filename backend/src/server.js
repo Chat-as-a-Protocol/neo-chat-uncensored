@@ -189,7 +189,20 @@ app.use(
   }),
 );
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        "connect-src": ["'self'", "https://api.noxai.chat", "https://api.flowpay.cash", "*.railway.app", "*.up.railway.app"],
+        "img-src": ["'self'", "data:", "blob:", "https://*", "http://*"],
+        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "font-src": ["'self'", "https://fonts.gstatic.com"],
+      },
+    },
+  }),
+);
 // ===== UTILS =====
 const getUserId = (email) => {
   const emailLower = email.toLowerCase().trim();
