@@ -455,14 +455,30 @@ const products = Object.values(plans.products || {});
       resultEl.innerHTML = '<span class="loading">Creating sandbox charge...</span>';
       
       try {
-        const res = await fetch(`${API_URL}/api/flowpay/test-charge`, {
+        const response = await fetch(`${API_URL}/api/flowpay/test-charge`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}` 
           }
         });
-        const data = await res.json();
+
+        let errorMessage = 'Erro no servidor. Tente novamente mais tarde.';
+        try {
+          const data = await response.json();
+          if (data.details || data.error) {
+            errorMessage = data.details || data.error;
+          }
+        } catch (e) {
+          errorMessage = `Erro ${response.status}: ${response.statusText}`;
+        }
+
+        if (!response.ok) {
+          resultEl.innerHTML = `<div class="error-box">❌ ${errorMessage}</div>`;
+          return;
+        }
+
+        const data = await response.json();
         if (data.success) {
           resultEl.innerHTML = `
             <div class="success-box">
@@ -498,11 +514,25 @@ const products = Object.values(plans.products || {});
         });
         
         clearTimeout(timeoutId);
+
+        // Captura de erro aprimorada (Backend/FlowPay)
+        if (!response.ok) {
+          let errorMsg = 'Falha ao processar pagamento.';
+          try {
+            const errData = await response.json();
+            errorMsg = errData.details || errData.error || errorMsg;
+          } catch (e) {
+            errorMsg = `Erro ${response.status}: ${response.statusText}`;
+          }
+          alert(`NØX Billing: ${errorMsg}`);
+          return;
+        }
+
         const data = await response.json();
         if (data.checkoutUrl) {
           window.location.href = data.checkoutUrl;
         } else {
-          alert('Erro: ' + (data.error || 'Erro desconhecido'));
+          alert('Erro: ' + (data.error || 'Falha ao gerar link de pagamento'));
         }
       } catch (error) {
         clearTimeout(timeoutId);

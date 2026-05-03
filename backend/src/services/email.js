@@ -5,9 +5,6 @@ const FRONTEND_URL = (process.env.FRONTEND_URL || "https://noxai.chat")
   .trim()
   .replace(/\/$/, "");
 
-// Logo URL (Using nox_vert.webp as requested)
-const LOGO_URL = `${FRONTEND_URL}/nox_vert.webp`;
-
 const escapeHtml = (value = "") =>
   String(value)
     .replace(/&/g, "&amp;")

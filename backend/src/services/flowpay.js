@@ -112,9 +112,18 @@ export const createFlowPayCharge = async (
   const apiUrl = resolveFlowPayApiUrl(env);
   const apiKey = resolveFlowPayApiKey(env);
 
+  // Detectar se é uma chave Basic (Client_Id:Client_Secret em Base64)
+  const isBasicAuth = apiKey.startsWith('Q2xp');
+  const authHeader = isBasicAuth ? `Basic ${apiKey}` : `Bearer ${apiKey}`;
+
+  // Debug (Sanitizado)
+  const maskedKey = `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
+  console.log(`[FlowPay] Tentando criar cobrança em ${apiUrl}. AuthMode: ${isBasicAuth ? 'Basic' : 'Bearer'}. Key: ${maskedKey} (len: ${apiKey.length})`);
+
   const response = await fetchImpl(`${apiUrl}/api/create-charge`, {
     method: "POST",
     headers: {
+      "Authorization": authHeader,
       "x-api-key": apiKey,
       "Content-Type": "application/json",
     },
