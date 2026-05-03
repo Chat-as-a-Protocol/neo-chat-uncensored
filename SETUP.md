@@ -121,7 +121,8 @@ Backend Railway:
 ```env
 JWT_SECRET=...
 VENICE_API_KEY=...
-VENICE_MODEL=venice-uncensored-1-2
+VENICE_MODEL=<venice-model-id>
+# opcional: VENICE_API_BASE=https://api.venice.ai/api/v1
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 REDIS_URL=${{Redis.REDIS_URL}}
 FRONTEND_URL=https://noxai.chat
@@ -176,7 +177,8 @@ mas são normalizados antes de aplicar regra de acesso.
 
 - Secrets nunca entram no frontend.
 - `RESEND_API_KEY`, `FLOWPAY_API_KEY`, `JWT_SECRET`,
-  `DATABASE_URL` e `REDIS_URL` ficam no backend.
+  `VENICE_API_KEY`, `VENICE_MODEL`, `DATABASE_URL` e `REDIS_URL`
+  ficam no backend.
 - Webhooks validam assinatura `X-Nexus-Signature`.
 - Ledger usa idempotência por referência de pagamento.
 - FlowPay service rejeita resposta HTML e URL apontando

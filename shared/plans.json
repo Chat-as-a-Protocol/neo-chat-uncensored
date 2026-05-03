@@ -34,10 +34,10 @@
       "price": 499,
       "tier_upgrade": "paid_pro",
       "benefits": [
-        "Acesso ao NØX Analyst",
-        "Analise fria e focada em ROI",
-        "Diagnosticos tecnicos e planos de acao",
-        "Acesso ao tier P.R.O"
+        "Acesso ao núcleo de arquitetura do NØX",
+        "Suporte dev para ajudar na leitura fria de risco, ROI e oportunidade",
+        "Diagnóstico e testes para definir os próximos movimentos claros",
+        "Para enxergar o mapa antes de mover a peça"
       ]
     }
   },
@@ -49,9 +49,9 @@
       "price": 49,
       "tier_upgrade": "paid_basic",
       "benefits": [
-        "1k NØX registrados no ledger",
-        "Remove a barreira de 3 mensagens",
-        "Ativa acesso identificado"
+        "1.000 créditos para sair do modo visitante",
+        "Primeira camada real de execução com o NØX",
+        "Ideal para converter perguntas em direção real"
       ]
     },
     "5k": {
@@ -61,9 +61,9 @@
       "price": 79,
       "tier_upgrade": "paid_basic",
       "benefits": [
-        "5k NØX registrados no ledger",
-        "Remove a barreira de 3 mensagens",
-        "Mais margem para uso intensivo"
+        "5.000 créditos para atravessar barreiras rasas",
+        "Mais margem para clarear dúvidas, decisões e roadmap",
+        "Feito para quem quer extrair mais do NØX"
       ]
     },
     "10k": {
@@ -73,10 +73,9 @@
       "price": 149,
       "tier_upgrade": "paid_pro",
       "benefits": [
-        "10k NØX registrados no ledger",
-        "Acesso ao tier EL CHAPO",
-        "Respostas maiores por chamada",
-        "Sem trava de 3 mensagens"
+        "10.000 créditos para operar em modo detalhado",
+        "Mais espaço para refazer, reorganizar e refinar seus projetos",
+        "Ideal para transformar ideias em sistema completo"
       ]
     }
   }

@@ -5,7 +5,7 @@
 ========================================
           NØX · USER JOURNEY
 ========================================
-Status: active
+Status: release candidate
 Version: v4.1.0
 ========================================
 ```
@@ -20,6 +20,7 @@ Version: v4.1.0
 ┃ /login             ┃ Pública      ┃ Login e magic link
 ┃ /signup            ┃ Pública      ┃ Criação de conta identificada
 ┃ /auth/magic-link   ┃ Pública      ┃ Consumo do token de e-mail
+┃ /precos            ┃ Pública      ┃ Vitrine de preços
 ┃ /upgrade           ┃ Restrita     ┃ Pacotes pagos e P.R.O
 ┃ /conta             ┃ Restrita     ┃ Conta, uso e saldo
 ┃ /success           ┃ Restrita     ┃ Retorno pós-FlowPay
@@ -62,11 +63,19 @@ Fluxos:
 Depois disso,
 o usuário pode comprar pacote de tokens ou produto P.R.O.
 
+Base operacional:
+Postgres é a fonte canônica para usuários identificados.
+Redis permanece para quota, cache, ledger fallback e compatibilidade.
+O runtime prompt público é responsável, defensivo e auditável.
+
 ────────────────────────────────────────
 
 ## ⧖ Upgrade
 
+`/precos` é público e mostra valores antes do cadastro.
+
 `/upgrade` não exibe o conteúdo do Guest Mode.
+`/upgrade` é a superfície de ativação para usuário identificado.
 
 Fonte de verdade dos planos:
 
@@ -121,19 +130,22 @@ Resultado esperado:
 ────────────────────────────────────────
 └─ Quota calculada via ledger
 └─ Idempotência por referência de pagamento
-└─ Redis para estado rápido de tier, sessão e cache
-└─ Postgres para usuários, pagamentos e magic links
+└─ Redis para quota, cache, ledger fallback e compatibilidade
+└─ Postgres para usuários identificados, pagamentos e magic links
 └─ FlowPay service rejeita HTML e self-call
 └─ Resend isolado no backend
+└─ Modelo Venice definido por `VENICE_MODEL` no backend
 ```
 
 ────────────────────────────────────────
 
 ## ◬ Próximos Passos
 
-1. Validar compra real ponta a ponta em produção.
-2. Expor statement de ledger com UX clara em `/conta`.
-3. Refinar copy curta de conversão após barreira guest.
+1. Conferir variáveis backend no Railway antes do deploy.
+2. Fazer smoke test pós-deploy: signup, login, guest chat, `/api/usage`, magic link e `/conta`.
+3. Validar compra real ponta a ponta em produção.
+4. Confirmar webhook FlowPay via Nexus.
+5. Refinar UX do statement de ledger em `/conta`.
 
 ```text
 ▓▓▓ NØX

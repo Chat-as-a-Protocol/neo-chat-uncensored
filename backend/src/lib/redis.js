@@ -4,12 +4,14 @@ import path from "path";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
+export const IS_REAL_REDIS = Boolean(
+  process.env.NODE_ENV === "production" ||
+  process.env.REDIS_URL?.includes("railway"),
+);
+
 let redis;
 
-if (
-  process.env.NODE_ENV === "production" ||
-  process.env.REDIS_URL?.includes("railway")
-) {
+if (IS_REAL_REDIS) {
   redis = new Redis(process.env.REDIS_URL);
 } else {
   const store = new Map();

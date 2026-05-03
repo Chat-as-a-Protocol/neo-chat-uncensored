@@ -31,6 +31,11 @@ Email     Resend
 Deploy    Railway + Cloudflare
 ```
 
+Auth por senha usa Postgres como fonte canônica.
+Redis permanece para quota, cache, ledger fallback e compatibilidade operacional.
+O runtime prompt público é defensivo, responsável e auditável.
+`VENICE_MODEL` é configurado pelo backend via env, sem fallback hardcoded.
+
 ────────────────────────────────────────
 
 ## ⨷ Fronteiras
@@ -51,6 +56,7 @@ api.flowpay.cash -> provedor FlowPay
 - `/login`: login e magic link.
 - `/signup`: criação de conta.
 - `/auth/magic-link`: consumo do token de e-mail.
+- `/precos`: vitrine pública de preços.
 - `/upgrade`: pacotes pagos e produto P.R.O.
 - `/conta`: conta e uso.
 - `/success`: retorno pós-pagamento.

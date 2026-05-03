@@ -5,7 +5,7 @@
 ========================================
           NØX · EXECUTION BACKLOG
 ========================================
-Status: active
+Status: release candidate
 Updated: 2026-05-02
 ========================================
 ```
@@ -22,6 +22,7 @@ Updated: 2026-05-02
 ┃ Pagamentos         ┃ FlowPay service + webhook Nexus
 ┃ E-mail             ┃ Resend via backend
 ┃ Planos             ┃ shared/plans.json
+┃ Preços             ┃ /precos público, /upgrade identificado
 ┃ Guest Mode         ┃ Controlado, não exibido em /upgrade
 ┗━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -43,17 +44,48 @@ Updated: 2026-05-02
 - `/upgrade` mobile-first e sem card de Guest Mode.
 - Service FlowPay com erro seguro para HTML/self-call.
 - Testes unitários de ledger, billing, payments e FlowPay.
+- `/precos` público para descoberta comercial sem login.
 
 ────────────────────────────────────────
 
 ## ⨷ Pendente Imediato
 
-1. Validar compra real de pacote em produção.
-2. Confirmar webhook FlowPay via Nexus em produção.
-3. Verificar domínio Resend `send@noxai.chat`.
-4. Conferir `FRONTEND_URL` e `PUBLIC_API_URL` no Railway.
-5. Testar magic link em e-mail real.
-6. Revisar `/conta` para statement de ledger.
+1. Conferir variáveis do backend no Railway:
+   `JWT_SECRET`, `VENICE_API_KEY`, `VENICE_MODEL`, `FRONTEND_URL`,
+   `FLOWPAY_API_URL`, `FLOWPAY_API_KEY`, `FLOWPAY_WEBHOOK_SECRET`,
+   `DATABASE_URL`, `REDIS_URL`, `RESEND_API_KEY` e `RESEND_FROM_EMAIL`.
+2. Fazer smoke test pós-deploy:
+   signup, login, guest chat, `/api/usage`, magic link e `/conta`.
+3. Validar compra real de pacote em produção.
+4. Confirmar webhook FlowPay via Nexus em produção.
+5. Verificar domínio Resend `send@noxai.chat`.
+
+────────────────────────────────────────
+
+## ⧗ Security Release TODO
+
+Aplicado:
+
+- [x] Remover instruções de abuso do runtime prompt.
+- [x] Remover instruções de abuso dos manifests `nox` e `analyst`.
+- [x] Consolidar `/api/auth/login` e `/api/auth/signup` em handlers protegidos por rate limit e Zod.
+- [x] Manter Postgres como fonte canônica de usuários identificados.
+- [x] Corrigir streaming UTF-8 com `TextDecoder` persistente e `{ stream: true }`.
+- [x] Tornar limite de mensagens atômico com `INCR` antes da checagem e `DECR` em bloqueio.
+- [x] Adicionar `try/catch` e rate limit em `/api/usage`.
+- [x] Evitar log em arquivo no container de produção.
+- [x] Remover `allModelDetails` da resposta pública de `/api/models`.
+- [x] Adicionar `Secure` ao cookie de auth quando o app roda em HTTPS.
+- [x] Declarar `IS_REAL_REDIS` explicitamente.
+- [x] Deduplicar `parsePositiveInt`.
+- [x] Configurar limites explícitos no pool Postgres.
+
+Fechado para release:
+
+- [x] Smoke test manual depende do ambiente publicado e fica como gate pós-deploy.
+- [x] Plano de migração: Postgres é canônico para usuários identificados; contas antigas apenas no Redis não bloqueiam release e viram suporte/migração pontual se forem encontradas.
+- [x] Separação de `backend/src/server.js` fica explicitamente pós-liberação para evitar rewrite em véspera de release.
+- [x] Renderer Markdown completo não entra antes do release; manter formatter atual e avaliar dependência depois.
 
 ────────────────────────────────────────
 
@@ -63,6 +95,9 @@ Updated: 2026-05-02
 - Atualizar comentários antigos de tier em `backend/schema.sql`.
 - Separar helpers de URL pública do frontend em módulo único.
 - Melhorar mensagens de erro no checkout sem revelar detalhes internos.
+- Separar `backend/src/server.js` em rotas e middlewares.
+- Avaliar renderer Markdown completo no frontend.
+- Criar migração assistida se aparecer usuário legado existente apenas no Redis.
 
 ────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import redis from "../lib/redis.js";
+import redis, { IS_REAL_REDIS } from "../lib/redis.js";
 import { query } from "../utils/db.js";
 
 // Tipos de transação canônicos do NØX Ledger
@@ -12,7 +12,7 @@ export const LEDGER_TYPES = {
 const shouldUsePostgres = (userId) =>
   Boolean(process.env.DATABASE_URL) &&
   !String(userId).startsWith("guest_") &&
-  typeof redis._flush !== "function";
+  IS_REAL_REDIS;
 
 const mapPostgresEntry = (row) => ({
   id: row.id,

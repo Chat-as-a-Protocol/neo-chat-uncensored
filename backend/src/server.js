@@ -26,6 +26,7 @@ if (process.env.NODE_ENV === "production") {
   const required = [
     "JWT_SECRET",
     "VENICE_API_KEY",
+    "VENICE_MODEL",
     "FRONTEND_URL",
     "FLOWPAY_API_KEY",
   ];
@@ -38,7 +39,7 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const { JWT_SECRET, VENICE_MODEL } = process.env;
 if (!JWT_SECRET) {
   if (process.env.NODE_ENV === "production") {
     // startup validation above already handles this, but guard defensively
@@ -66,6 +67,7 @@ import { ledgerService, LEDGER_TYPES } from "./services/ledger.js";
 import { paymentService } from "./services/payments.js";
 import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
+import { parsePositiveInt } from "./utils/numbers.js";
 
 // Carregar Configuração de Planos (NEØ PROTOCOL)
 const plansPath = path.resolve(PROJECT_ROOT, "shared", "plans.json");
@@ -84,10 +86,8 @@ const FALLBACK_GUEST_PLAN = {
   maxOutputTokens: 384,
 };
 
-const parsePositiveInt = (value, fallback) => {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-};
+const VENICE_API_BASE = (process.env.VENICE_API_BASE || "https://api.venice.ai/api/v1").replace(/\/+$/, "");
+const VENICE_MODEL_NAME = VENICE_MODEL?.trim();
 
 const normalizeAccessTier = (rawTier) => {
   if (rawTier === "premium" || rawTier === "paid_pro") return "pro";
@@ -124,12 +124,14 @@ const persistUserPlan = async (userId, tier) => {
 };
 
 // Logger
+const loggerTransports = [new transports.Console()];
+if (process.env.NODE_ENV !== "production") {
+  loggerTransports.push(new transports.File({ filename: "app.log" }));
+}
+
 const logger = createLogger({
   format: format.combine(format.timestamp(), format.json()),
-  transports: [
-    new transports.Console(),
-    new transports.File({ filename: "app.log" }),
-  ],
+  transports: loggerTransports,
 });
 
 // Middleware de Log de Acesso
@@ -143,7 +145,7 @@ app.use((req, res, next) => {
 // 1. CORS deve vir primeiro para lidar com Preflight (OPTIONS)
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",").map(o => o.trim().replace(/\/$/, ""))
-  : ["http://localhost:4321", "http://localhost:3000", "https://laughter.up.railway.app"];
+  : ["http://localhost:4321", "http://localhost:3000", "https://noxai.chat"];
 
 app.use(
   cors({
@@ -415,6 +417,27 @@ app.post(
 app.use(express.json());
 
 // ===== AUTH ROUTES =====
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "Too many attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const loginSchema = z.object({
+  email: z.string().email().max(254),
+  password: z.string().min(1).max(128),
+});
+
+const signupSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(128),
+});
+
+const DUMMY_PASSWORD_HASH = "$2a$12$JcratiN0Fcf3MuRPumDS5eo7Qe/JnM1yuRont/31p6BIWmP9z3QOa";
+
 app.post("/api/auth/guest", async (req, res) => {
   try {
     const rawDeviceId = String(req.body?.deviceId || randomUUID()).slice(0, 128);
@@ -438,47 +461,55 @@ app.post("/api/auth/guest", async (req, res) => {
   }
 });
 
-app.post("/api/auth/signup", async (req, res) => {
-  try {
-    const { email, name, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+app.post("/api/auth/signup", authLimiter, async (req, res) => {
+  const parsed = signupSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid signup data. Password must be at least 8 characters." });
+  }
 
-    // Verify if user exists
-    const existing = await query("SELECT * FROM users WHERE email = $1", [email]);
+  const { email, name, password } = parsed.data;
+  try {
+    const existing = await query("SELECT id FROM users WHERE email = $1", [email]);
     if (existing.rows.length > 0) {
-      return res.status(400).json({ error: "User already exists" });
+      return res.status(409).json({ error: "An account with this email already exists." });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(password, salt);
+    const password_hash = await bcrypt.hash(password, 12);
     const userId = getUserId(email);
 
     await query(
       "INSERT INTO users (id, email, name, password_hash, tier) VALUES ($1, $2, $3, $4, 'free')",
-      [userId, email, name, password_hash]
+      [userId, email, name || null, password_hash],
     );
 
     const token = jwt.sign({ id: userId, email, tier: "free" }, effectiveJwtSecret, { expiresIn: "7d" });
-    
-    res.status(201).json({ token, user: { id: userId, email, name, tier: "free" } });
+
+    res.status(201).json({ token, user: { id: userId, email, name: name || null, tier: "free" } });
   } catch (error) {
     logger.error("Signup error: " + error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+app.post("/api/auth/login", authLimiter, async (req, res) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid email or password." });
+  }
 
-    const result = await query("SELECT * FROM users WHERE email = $1", [email]);
+  const { email, password } = parsed.data;
+  try {
+    const result = await query(
+      "SELECT id, email, name, tier, password_hash FROM users WHERE email = $1",
+      [email],
+    );
     const user = result.rows[0];
 
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    const isValid = await bcrypt.compare(password, user?.password_hash || DUMMY_PASSWORD_HASH);
 
-    const isValid = await bcrypt.compare(password, user.password_hash);
-    if (!isValid) return res.status(401).json({ error: "Invalid credentials" });
+    if (!user || !isValid) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
 
     const token = jwt.sign({ id: user.id, email: user.email, tier: user.tier }, effectiveJwtSecret, { expiresIn: "7d" });
 
@@ -553,26 +584,25 @@ const checkQuota = async (req, res, next) => {
       isGuest: Boolean(req.user.guest),
     });
     const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
-    const messageLimit = tierConfig.messageLimit;
+    const { messageLimit } = tierConfig;
     
     const limit = parsePositiveInt(redisLimit, defaultLimit);
 
     // Validação de Contagem de Mensagens (Hardened Security)
     if (messageLimit !== null && messageLimit !== undefined) {
       const msgCountKey = `msg_count:${today}:${req.user.id}`;
-      const currentMsgs = parseInt(await redis.get(msgCountKey) || "0");
-      
-      if (currentMsgs >= messageLimit) {
-        logger.warn(`[Quota] Message limit reached for user ${req.user.id}: ${currentMsgs}/${messageLimit}`);
+      const newCount = await redis.incr(msgCountKey);
+      if (newCount === 1) await redis.expire(msgCountKey, 86400);
+
+      if (newCount > messageLimit) {
+        await redis.decr(msgCountKey);
+        logger.warn(`[Quota] Message limit reached for user ${req.user.id}: ${messageLimit}/${messageLimit}`);
         return res.status(403).json({
           error: "Message limit reached",
           message: "Seus 3 desejos foram ouvidos. Conclua o cadastro para continuar.",
           upgradeUrl: "/signup"
         });
       }
-      // Incrementar contador (expira em 24h)
-      await redis.incr(msgCountKey);
-      await redis.expire(msgCountKey, 86400);
     }
 
     if (usage >= limit) {
@@ -677,7 +707,6 @@ app.post(
     try {
       const {
         messages,
-        model = process.env.VENICE_MODEL || "venice-uncensored-1-2",
         temperature = 0.7,
         stream = true,
         personaId = "nox",
@@ -693,12 +722,15 @@ app.post(
             }),
           )
           .max(50),
-        model: z.string().optional(),
         stream: z.boolean().optional(),
         personaId: z.string().optional(),
       });
 
       schema.parse(req.body);
+
+      if (!VENICE_MODEL_NAME) {
+        return res.status(503).json({ error: "AI model is not configured" });
+      }
 
       // Carregar Persona Dinâmica com Validação de Tier
       const userTier = req.userTier || "guest";
@@ -742,7 +774,7 @@ app.post(
       let veniceResponse;
       try {
         veniceResponse = await fetch(
-          "https://api.venice.ai/api/v1/chat/completions",
+          `${VENICE_API_BASE}/chat/completions`,
           {
             method: "POST",
             headers: {
@@ -751,13 +783,13 @@ app.post(
               Accept: stream ? "text/event-stream" : "application/json",
             },
             body: JSON.stringify({
-              model,
+              model: VENICE_MODEL_NAME,
               messages: finalMessages,
               temperature,
               stream,
               max_tokens: req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens,
               venice_parameters: {
-              include_venice_system_prompt: false, // Desabilitado para garantir dominância do NØX Contract
+                include_venice_system_prompt: false, // Desabilitado para garantir dominância do NØX Contract
                 ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
               },
             }),
@@ -783,13 +815,10 @@ app.post(
         res.setHeader("Connection", "keep-alive");
 
         const reader = veniceResponse.body.getReader();
+        const chunkDecoder = new TextDecoder();
         let assistantContent = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = new TextDecoder().decode(value);
+        const processStreamChunk = (chunk) => {
+          if (!chunk) return;
           res.write(chunk);
 
           // Acumular conteúdo para billing preciso
@@ -806,7 +835,15 @@ app.post(
               }
             }
           }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          processStreamChunk(chunkDecoder.decode(value, { stream: true }));
         }
+        processStreamChunk(chunkDecoder.decode());
 
         // Registrar consumo no ledger (Síncrono conforme solicitado)
         const tokens = countTokensFromText(assistantContent);
@@ -816,7 +853,7 @@ app.post(
               req.user.id,
               -tokens,
               LEDGER_TYPES.TOKEN_CONSUMPTION,
-              "chat_" + Date.now()
+              "chat_" + randomUUID(),
             );
           } catch (err) {
             logger.error("Ledger error:", err);
@@ -835,7 +872,7 @@ app.post(
           .addEntry(
             req.user.id,
             -tokens,
-            "CONSUMPTION",
+            LEDGER_TYPES.TOKEN_CONSUMPTION,
             "venice_sync_" + randomUUID(),
           )
           .catch((err) => logger.error("Ledger error:", err));
@@ -864,6 +901,10 @@ app.post(
 // ===== MODELOS DISPONÍVEIS =====
 app.get("/api/models", authenticateToken, async (req, res) => {
   try {
+    if (!VENICE_MODEL_NAME) {
+      return res.status(503).json({ error: "AI model is not configured" });
+    }
+
     const userTier = (await redis.get(`tier:${req.user.id}`)) || "free";
 
     const cachedModels = await redis.get('models_cache');
@@ -873,7 +914,7 @@ app.get("/api/models", authenticateToken, async (req, res) => {
     } else {
       // Puxa os modelos reais da API da Venice (somente text)
       const veniceResponse = await fetch(
-        "https://api.venice.ai/api/v1/models?type=text",
+        `${VENICE_API_BASE}/models?type=text`,
         {
           headers: {
             Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
@@ -901,7 +942,7 @@ app.get("/api/models", authenticateToken, async (req, res) => {
       available: allModels,
       allModelDetails: data,
       currentTier: userTier,
-      defaultModel: process.env.VENICE_MODEL || "venice-uncensored-1-2",
+      defaultModel: VENICE_MODEL_NAME,
     });
   } catch (error) {
     logger.error("Models fetch error:", error);
@@ -1189,32 +1230,45 @@ app.post("/api/auth/magic-link/verify", async (req, res) => {
 });
 
 // ===== USAGE STATS & LEDGER =====
-app.get("/api/usage", authenticateToken, async (req, res) => {
-  const today = new Date().toISOString().split("T")[0];
-  const [usage, redisTier, redisLimit] = await Promise.all([
-    ledgerService.getDailyUsage(req.user.id, today),
-    redis.get(`tier:${req.user.id}`).catch(() => null),
-    redis.get(`limit:${req.user.id}`).catch(() => null),
-  ]);
-  const { accessTier, planKey, tierConfig } = getUserPlan({
-    redisTier,
-    jwtTier: req.user.tier,
-    isGuest: Boolean(req.user.guest),
-  });
-  const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
-  const limit = parsePositiveInt(redisLimit, defaultLimit);
+const usageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => req.user.id,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-  res.json({
-    today: parseInt(usage),
-    limit,
-    tier: accessTier,
-    plan: planKey,
-    remaining: limit - parseInt(usage),
-    maxOutputTokens: parsePositiveInt(
-      tierConfig.maxOutputTokens,
-      FALLBACK_GUEST_PLAN.maxOutputTokens,
-    ),
-  });
+app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const [usage, redisTier, redisLimit] = await Promise.all([
+      ledgerService.getDailyUsage(req.user.id, today),
+      redis.get(`tier:${req.user.id}`).catch(() => null),
+      redis.get(`limit:${req.user.id}`).catch(() => null),
+    ]);
+    const { accessTier, planKey, tierConfig } = getUserPlan({
+      redisTier,
+      jwtTier: req.user.tier,
+      isGuest: Boolean(req.user.guest),
+    });
+    const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
+    const limit = parsePositiveInt(redisLimit, defaultLimit);
+
+    res.json({
+      today: parseInt(usage),
+      limit,
+      tier: accessTier,
+      plan: planKey,
+      remaining: limit - parseInt(usage),
+      maxOutputTokens: parsePositiveInt(
+        tierConfig.maxOutputTokens,
+        FALLBACK_GUEST_PLAN.maxOutputTokens,
+      ),
+    });
+  } catch (err) {
+    logger.error(`[Usage] Error fetching usage for user ${req.user?.id ?? "unknown"}: ${err.message}`);
+    res.status(503).json({ error: "Service temporarily unavailable" });
+  }
 });
 
 app.get("/health", (_req, res) => {

@@ -52,8 +52,13 @@ import Card from '../../components/ui/Card.astro';
 </Layout>
 
 <script>
+  const productionApiUrl = 'https://api.noxai.chat';
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  const apiUrl = (import.meta as any).env?.PUBLIC_API_URL || (isLocalhost ? 'http://localhost:3001' : 'https://api.noxai.chat');
+  const configuredApiUrl = String((import.meta as any).env?.PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+  const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);
+  const apiUrl = configuredApiUrl && (isLocalhost || !configuredApiIsLocal)
+    ? configuredApiUrl
+    : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
 
   const stateLoading = document.getElementById('state-loading') as HTMLDivElement;
   const stateSuccess = document.getElementById('state-success') as HTMLDivElement;
