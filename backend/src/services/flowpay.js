@@ -116,6 +116,7 @@ export const createFlowPayCharge = async (
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
+      "x-api-key": apiKey, // Adicionado para maior compatibilidade
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),

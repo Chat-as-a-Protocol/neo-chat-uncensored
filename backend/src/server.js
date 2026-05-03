@@ -1535,9 +1535,10 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
       : "http://localhost:4321";
 
     const data = await createFlowPayCharge({
-      amount: selected.price,
-      currency: "BRL",
-      orderId: `nox_${randomUUID()}`,
+      valor: selected.price,      // Gateway espera 'valor'
+      moeda: "BRL",               // Gateway espera 'moeda'
+      id_transacao: `nox_${randomUUID()}`, // Gateway espera 'id_transacao'
+      wallet: "pix",              // Forçar pix
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
@@ -1587,9 +1588,10 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
       : "http://localhost:4321";
 
     const data = await createFlowPayCharge({
-      amount: selected.price,
-      currency: "BRL",
-      orderId: `tokens_${randomUUID()}`,
+      valor: selected.price,      // Gateway espera 'valor'
+      moeda: "BRL",               // Gateway espera 'moeda'
+      id_transacao: `tokens_${randomUUID()}`, // Gateway espera 'id_transacao'
+      wallet: "pix",              // Forçar pix conforme pix-provider.ts
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {

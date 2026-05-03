@@ -5,8 +5,8 @@ const FRONTEND_URL = (process.env.FRONTEND_URL || "https://noxai.chat")
   .trim()
   .replace(/\/$/, "");
 
-// Logo URL (PWA icon for consistency and high quality)
-const LOGO_URL = "https://noxai.chat/pwaicon/apple-icon-120x120.png";
+// Logo URL (Using nox_vert.webp as requested)
+const LOGO_URL = `${FRONTEND_URL}/nox_vert.webp`;
 
 const escapeHtml = (value = "") =>
   String(value)
@@ -27,11 +27,8 @@ const renderTemplate = (title, content, action = null) => {
       <!-- Main Container -->
       <div style="max-width: 500px; margin: 0 auto; background-color: #0c0c0c; background-image: linear-gradient(to bottom, #111111, #080808); border: 1px solid rgba(185, 214, 49, 0.2); border-radius: 24px; padding: 40px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);">
         
-        <!-- Header / Logo -->
-        <div style="margin-bottom: 35px;">
-          <div style="display: inline-block; padding: 2px; background: linear-gradient(135deg, ${ACCENT_COLOR}, #444); border-radius: 16px;">
-            <img src="${LOGO_URL}" alt="NØX" style="width: 64px; height: 64px; border-radius: 14px; display: block; background: #000;">
-          </div>
+        <!-- Header / Title -->
+        <div style="margin-bottom: 25px;">
         </div>
         
         <!-- Title -->
@@ -55,8 +52,13 @@ const renderTemplate = (title, content, action = null) => {
           </div>
         ` : ''}
 
+        <!-- Brand / Logo (Moved to bottom and increased) -->
+        <div style="margin: 40px 0 20px 0;">
+          <img src="${LOGO_URL}" alt="NØX" style="width: 140px; height: auto; display: inline-block;">
+        </div>
+
         <!-- Footer -->
-        <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+        <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
           <div style="font-size: 10px; font-weight: 800; color: ${ACCENT_COLOR}; letter-spacing: 3px; margin-bottom: 10px;">
             † NΞØ PROTOCOL †
           </div>
