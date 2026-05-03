@@ -174,7 +174,7 @@ const allowedOrigins = process.env.FRONTEND_URL
 // Helper to check if origin is a valid railway subdomain
 const isRailwayDomain = (origin) => {
   try {
-    const host = new URL(origin).host;
+    const { host } = new URL(origin);
     return host.endsWith('.railway.app');
   } catch {
     return false;
