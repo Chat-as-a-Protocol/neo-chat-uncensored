@@ -550,6 +550,15 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
       { expiresIn: "7d" },
     );
 
+    // Enviar Boas-vindas (Non-blocking)
+    emailService
+      .sendWelcomeEmail(email, { userName: name })
+      .catch((err) =>
+        logger.error(
+          `[Signup] Welcome email failed for ${email}: ${err.message}`,
+        ),
+      );
+
     res.status(201).json({
       token,
       user: { id: userId, email, name: name || null, tier: "free" },
@@ -653,8 +662,6 @@ const createUserRateLimit = () =>
 
 // ===== CHECK QUOTA MIDDLEWARE =====
 const checkQuota = async (req, res, next) => {
-  const today = new Date().toISOString().split("T")[0];
-
   try {
     // Busca paralela para reduzir latência (Hot Path)
     const [usage, redisTier, redisLimit] = await Promise.all([
@@ -665,8 +672,7 @@ const checkQuota = async (req, res, next) => {
 
     const isGuest = Boolean(req.user.guest);
     const clientIp =
-      req.headers["x-forwarded-for"]?.split(",")[0] ||
-      req.socket.remoteAddress;
+      req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
 
     // Camada 2: Proteção por IP para Guests (Prevenir Browser Grinding)
     if (isGuest) {
@@ -1173,6 +1179,15 @@ app.post("/api/auth/magic-link/request", magicLinkLimiter, async (req, res) => {
         [email],
       );
       user = userResult.rows[0];
+
+      // Enviar Boas-vindas para novo usuário via Magic Link (Non-blocking)
+      emailService
+        .sendWelcomeEmail(email, { userName: null })
+        .catch((err) =>
+          logger.error(
+            `[MagicLink] Welcome email failed for ${email}: ${err.message}`,
+          ),
+        );
     }
 
     if (!user) {
@@ -1307,6 +1322,89 @@ app.post("/api/auth/magic-link/verify", async (req, res) => {
   } catch (err) {
     logger.error(`[MagicLink] Verify error: ${err.message}`);
     return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ===== PASSWORD RESET FLOW =====
+
+/**
+ * POST /api/auth/password-reset/request
+ * Solicita redefinição de senha
+ */
+app.post("/api/auth/password-reset/request", authLimiter, async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "E-mail é obrigatório." });
+
+  try {
+    const userResult = await query(
+      "SELECT id, email FROM users WHERE email = $1",
+      [email],
+    );
+    const user = userResult.rows[0];
+
+    // Por segurança, não informamos se o e-mail existe ou não
+    if (!user) {
+      return res.json({
+        success: true,
+        message: "Se o e-mail existir, você receberá instruções.",
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
+
+    await redis.setex(`pwd_reset:${token}`, 1800, user.id);
+
+    // Opcional: Salvar no DB para persistência longa
+    await query(
+      "INSERT INTO magic_link_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
+      [user.id, token, expiresAt],
+    );
+
+    await emailService.sendPasswordReset(email, { token });
+
+    logger.info(`[PasswordReset] Request for ${email}`);
+    res.json({
+      success: true,
+      message: "Instruções enviadas para seu e-mail.",
+    });
+  } catch (err) {
+    logger.error(`[PasswordReset] Request error: ${err.message}`);
+    res.status(500).json({ error: "Erro interno ao processar solicitação." });
+  }
+});
+
+/**
+ * POST /api/auth/password-reset/complete
+ * Define a nova senha
+ */
+app.post("/api/auth/password-reset/complete", authLimiter, async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword || newPassword.length < 8) {
+    return res
+      .status(400)
+      .json({ error: "Token e nova senha (min 8 chars) são obrigatórios." });
+  }
+
+  try {
+    const userId = await redis.get(`pwd_reset:${token}`);
+    if (!userId) {
+      return res.status(401).json({ error: "Token inválido ou expirado." });
+    }
+
+    const password_hash = await bcrypt.hash(newPassword, 12);
+    await query("UPDATE users SET password_hash = $1 WHERE id = $2", [
+      password_hash,
+      userId,
+    ]);
+
+    await redis.del(`pwd_reset:${token}`);
+
+    logger.info(`[PasswordReset] Completed for user ${userId}`);
+    res.json({ success: true, message: "Senha redefinida com sucesso." });
+  } catch (err) {
+    logger.error(`[PasswordReset] Complete error: ${err.message}`);
+    res.status(500).json({ error: "Erro interno ao redefinir senha." });
   }
 });
 
