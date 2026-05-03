@@ -613,12 +613,21 @@ const products = Object.values(plans.products || {});
       const code = document.getElementById('pix-code');
       if (!(code instanceof HTMLTextAreaElement) || !code.value) return;
 
+      const selectPixCode = () => {
+        code.focus();
+        code.select();
+        code.setSelectionRange(0, code.value.length);
+      };
+
+      if (!navigator.clipboard?.writeText) {
+        selectPixCode();
+        return;
+      }
+
       try {
         await navigator.clipboard.writeText(code.value);
       } catch {
-        code.select();
-        // Fallback para navegadores legados (notação de colchetes para evitar avisos de depreciação)
-        document['execCommand']('copy');
+        selectPixCode();
       }
     }
 
