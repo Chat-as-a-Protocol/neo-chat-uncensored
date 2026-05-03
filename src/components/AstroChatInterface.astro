@@ -688,6 +688,9 @@
     try {
       const token = await ensureSession();
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout no frontend
+
       const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -699,7 +702,10 @@
           personaId: (document.getElementById('persona-select') as HTMLSelectElement)?.value || 'nox',
           stream: true,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (response.status === 401) {
         clearAuthToken();
@@ -777,9 +783,12 @@
       }
 
       if (!handleChatApiError(err, userMessage)) {
-        const message = err instanceof ChatApiError && err.payload?.message
-          ? err.payload.message
-          : 'Erro ao processar a mensagem.';
+        let message = 'Erro ao processar a mensagem.';
+        if (err instanceof ChatApiError && err.payload?.message) {
+          message = err.payload.message;
+        } else if (err instanceof Error && (err.name === 'AbortError' || err.message?.includes('timeout'))) {
+          message = 'O servidor demorou muito para responder. Tente novamente.';
+        }
         appendErrorMessage(userMessage, message);
       }
     } finally {
@@ -964,7 +973,14 @@
   window.addEventListener('resize', syncViewportHeight);
   syncViewportHeight();
 
-  ensureSession().then(() => updateQuota()).catch(() => updateQuota());
+  ensureSession()
+    .then(() => updateQuota())
+    .catch((err) => {
+      console.warn('[Init] Session failed, attempting quota fallback', err);
+      return updateQuota();
+    })
+    .catch((err) => console.error('[Init] Critical failure in chat startup', err));
+
   requestAnimationFrame(() => scrollToBottom(false));
 </script>
 

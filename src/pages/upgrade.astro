@@ -483,6 +483,9 @@ const products = Object.values(plans.products || {});
       const token = getAuthToken();
       if (!token) return window.location.href = '/login';
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       try {
         const response = await fetch(`${apiUrl}/api/tokens/purchase`, {
           method: 'POST',
@@ -490,23 +493,30 @@ const products = Object.values(plans.products || {});
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ package: packageType })
+          body: JSON.stringify({ package: packageType }),
+          signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
         const data = await response.json();
         if (data.checkoutUrl) {
           window.location.href = data.checkoutUrl;
         } else {
-          alert('Error: ' + (data.error || 'Unknown error'));
+          alert('Erro: ' + (data.error || 'Erro desconhecido'));
         }
       } catch (error) {
-        alert('Connection error. Please try again.');
+        clearTimeout(timeoutId);
+        const isTimeout = error.name === 'AbortError';
+        alert(isTimeout ? 'O servidor demorou muito para responder. Tente novamente.' : 'Erro de conexão. Verifique sua internet.');
       }
     }
 
     window.buyProduct = async function(productId) {
       const token = getAuthToken();
       if (!token) return window.location.href = '/login';
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       try {
         const response = await fetch(`${apiUrl}/api/products/purchase`, {
@@ -515,17 +525,21 @@ const products = Object.values(plans.products || {});
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ productId })
+          body: JSON.stringify({ productId }),
+          signal: controller.signal
         });
 
+        clearTimeout(timeoutId);
         const data = await response.json();
         if (data.checkoutUrl) {
           window.location.href = data.checkoutUrl;
         } else {
-          alert('Error: ' + (data.error || 'Unknown error'));
+          alert('Erro: ' + (data.error || 'Erro desconhecido'));
         }
       } catch (error) {
-        alert('Connection error. Please try again.');
+        clearTimeout(timeoutId);
+        const isTimeout = error.name === 'AbortError';
+        alert(isTimeout ? 'O servidor demorou muito para responder. Tente novamente.' : 'Erro de conexão. Verifique sua internet.');
       }
     }
   </script>
