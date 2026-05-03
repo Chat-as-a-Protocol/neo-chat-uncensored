@@ -1,6 +1,7 @@
 import { query } from "../utils/db.js";
 import { parsePositiveInt } from "../utils/numbers.js";
 
+
 const TOKEN_PURCHASE_TYPES = new Set(["tokens_purchase", "token_purchase"]);
 
 const normalizeTierUpgrade = (tier) => {
@@ -41,8 +42,14 @@ const findProductByMetadata = (metadata, products) => {
 };
 
 export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
-  const packages = plans.packages || {};
-  const products = plans.products || {};
+  if (!metadata || typeof metadata !== "object") {
+    console.error("[Payments] Error: resolveFlowPayEntitlement called with null/invalid metadata");
+    return { kind: "unknown", tokens: 0, tierUpgrade: null, packageId: null };
+  }
+
+  const safePlans = plans || {};
+  const packages = safePlans.packages || {};
+  const products = safePlans.products || {};
   const purchaseType = String(metadata.type || "pro_subscription").toLowerCase();
 
   if (TOKEN_PURCHASE_TYPES.has(purchaseType)) {
@@ -71,8 +78,7 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
           metadata.tier_upgrade ||
           selectedProduct?.tier_upgrade ||
           metadata.plan,
-      ) ||
-      "paid_pro",
+      ) || null, // REMOVED FAIL-OPEN: No longer defaults to paid_pro on invalid data
     packageId: null,
     productId:
       selectedProduct?.id ||
@@ -99,32 +105,37 @@ export const paymentService = {
       return { persisted: false, reason: "database_unconfigured" };
     }
 
-    const result = await query(
-      `INSERT INTO payments (
-        provider,
-        provider_reference,
-        user_id,
-        amount_brl,
-        currency,
-        status,
-        metadata
-      )
-      VALUES ('flowpay', $1, $2, $3, $4, $5, $6::jsonb)
-      ON CONFLICT (provider_reference)
-      DO UPDATE SET
-        status = EXCLUDED.status,
-        metadata = payments.metadata || EXCLUDED.metadata
-      RETURNING id, provider_reference, user_id, amount_brl, currency, status, metadata, created_at`,
-      [
-        providerReference,
-        userId,
-        Number.isFinite(amountBrl) ? amountBrl : 0,
-        currency,
-        status,
-        JSON.stringify(metadata),
-      ],
-    );
+    try {
+      const result = await query(
+        `INSERT INTO payments (
+          provider,
+          provider_reference,
+          user_id,
+          amount_brl,
+          currency,
+          status,
+          metadata
+        )
+        VALUES ('flowpay', $1, $2, $3, $4, $5, $6::jsonb)
+        ON CONFLICT (provider_reference)
+        DO UPDATE SET
+          status = EXCLUDED.status,
+          metadata = payments.metadata || EXCLUDED.metadata
+        RETURNING id, provider_reference, user_id, amount_brl, currency, status, metadata, created_at`,
+        [
+          providerReference,
+          userId,
+          Number.isFinite(amountBrl) ? amountBrl : 0,
+          currency,
+          status,
+          JSON.stringify(metadata),
+        ],
+      );
 
-    return { persisted: true, payment: result.rows[0] };
+      return { persisted: true, payment: result.rows[0] };
+    } catch (err) {
+      console.error(`[Payments] Database error recording payment ${providerReference}:`, err.message);
+      return { persisted: false, reason: "database_error", error: err.message };
+    }
   },
 };

@@ -155,9 +155,18 @@ app.use((req, res, next) => {
 });
 
 // 1. CORS - Configuração de Confiança (Hardened)
+// NOTE: "" is added to the list. This allows the request to pass when no origin header is present
+// (which typically occurs with direct IP access, cURL, Postman, mobile apps, and some browsers).
+// In a production environment, ensure that only trusted clients can access the API.
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",").map((o) => o.trim().replace(/\/$/, ""))
-  : ["http://localhost:4321", "http://localhost:3000", "https://noxai.chat"];
+  : [
+      "http://localhost:4321",
+      "http://localhost:3000",
+      "https://noxai.chat",
+      "https://laughter.up.railway.app",
+      "",
+    ];
 
 app.use(
   cors({
