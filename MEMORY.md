@@ -6,75 +6,49 @@
           NØX · TECHNICAL MEMORY
 ========================================
 Status: active
-Updated: 2026-05-02
+Updated: 2026-05-03
 ========================================
 ```
 
 ## ⟠ Decisões
 
-- Nome público de marketing: `NØX`, sem sufixo de produto.
-- `noxai.chat` é o domínio do app.
-- `api.noxai.chat` é o domínio da API própria.
-- `api.flowpay.cash` é o domínio do FlowPay.
-- `send@noxai.chat` é o remetente atual via Resend.
-- Guest Mode existe, mas não aparece como plano em `/upgrade`.
-- `/precos` é público para descoberta comercial sem login.
-- `/upgrade` é mobile-first e deve evitar efeitos pesados de desktop.
-- `shared/plans.json` é a base única de planos.
-- Auth por e-mail/senha usa Postgres como fonte canônica.
-- Redis fica para quota, cache, ledger fallback e compatibilidade operacional.
-- `shared/runtime-prompt.md` deve ser responsável, defensivo e auditável.
-- `VENICE_MODEL` é decisão operacional via env; não há fallback hardcoded no backend.
-- Guest com limite esgotado deve travar o composer e ir para cadastro.
-- Guest nunca deve receber badge visual `PRO`; CTA de limite usa cadastro.
-- No mobile/PWA, o composer não força foco depois do envio.
-- No mobile/PWA, footer some enquanto o teclado está aberto.
+- Marca: `NØX` (Soberania Digital e Autonomia Implacável).
+- Repositório Canônico: Gitea (`gitea.com/noxia/changeman`).
+- Domínios: `noxai.chat` (App), `api.noxai.chat` (API).
+- Persona P.R.Ø: Protocolo de Risco Otimizado (Foco em ROI e Exploração de Sistemas).
+- Auth: Suporte a Magic Link sem senha (DB permite `password_hash` NULL).
+- Quotas: Proteção contra race-conditions via `redis.incr` atômico.
+- SSE: Buffer de linha no backend para garantir precisão no faturamento de tokens.
+- Estética: Geometria pura, zero emojis, tom de terminal de comando.
+- Sucesso: Página refatorada para "Privilégios Elevados" e "Comando de Terminal".
 
 ────────────────────────────────────────
 
-## ⧉ Incidentes Resolvidos
+## ⧉ Incidentes e Evoluções
 
-### Runtime Prompt Unsafe
+### Migração e Soberania (2026-05-03)
 
-Sintoma:
+Sintoma: Dependência de infraestrutura centralizada (GitHub).
+Causa: Necessidade de alinhamento com os valores de soberania do NØX.
+Correção: Repositório migrado para Gitea privado. GitHub mantido apenas como backup local (remoto removido).
 
-```text
-Prompt runtime e manifests continham instruções de phishing,
-acesso indevido e escalada para abuso.
-```
+### Redefinição Tonal (Uncensored)
 
-Causa:
-conteúdo incompatível com operação pública responsável.
+Sintoma: Personas muito "tímidas" ou corporativas.
+Causa: O NØX deve ser uma ferramenta de quebra de restrições e autonomia total.
+Correção: Manifestos `nox.md` e `analyst.md` (P.R.Ø) atualizados para tom agressivo, focado em quebra de correntes, exploração de vulnerabilidades e captura de valor.
 
-Correção:
-`shared/runtime-prompt.md`, `src/content/manifests/nox.md`
-e `src/content/manifests/analyst.md` foram substituídos
-por orientação defensiva, auditável e com recusa de abuso.
+### Vulnerabilidade de Quota (Race Condition)
 
-────────────────────────────────────────
-
-### FlowPay HTML
-
-Sintoma:
-
-```text
-Unexpected token '<', "<!doctype"... is not valid JSON
-```
-
-Causa:
-backend esperava JSON do FlowPay,
-mas recebeu HTML por URL ou resposta upstream inválida.
-
-Correção:
-`backend/src/services/flowpay.js` centraliza a chamada,
-valida JSON, exige `checkoutUrl` e rejeita self-call.
+Sintoma: Possibilidade de usuários ultrapassarem limites em requisições simultâneas.
+Causa: Lógica de `incr` seguida de `decr` permitia janelas de vazamento.
+Correção: Implementado incremento atômico puro. Se ultrapassar, a requisição é bloqueada imediatamente sem decremento compensatório.
 
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas
 
-- Não colocar secrets no frontend.
-- Não usar `api.noxai.chat` como `FLOWPAY_API_URL`.
-- Não usar `serve dist`; frontend é Astro SSR.
-- Não recriar plano free em `/upgrade`.
-- Atualizar docs junto com mudança de contrato.
+- **Zero Emojis**: Usar glifos geométricos (`⟠`, `⨷`, `◬`) conforme `MARKDOWN_STYLE_GUIDE.md`.
+- **Soberania de Dados**: Senha é opcional para magic-link; DB deve aceitar NULL.
+- **Faturamento Preciso**: SSE deve ser bufferizado para não perder JSON delta.
+- **Deploy**: Realizar `railway up` para sincronizar o estado local com a produção.

@@ -6,35 +6,34 @@
           NØX · PROJECT CONTEXT
 ========================================
 Status: active
-Updated: 2026-05-02
+Updated: 2026-05-03
 ========================================
 ```
 
 ## ⟠ Produto
 
-NØX é um frontend com identidade própria para acesso a LLM,
-com autenticação, ledger de uso, pacotes pagos e checkout FlowPay.
+NØX é um protocolo de interface soberana para acesso a LLM, operando como o terminal central do ecossistema. Inclui ledger de uso atômico, pacotes pagos e integração profunda com FlowPay via Nexus.
 
-O projeto separa experiência pública, API própria e provedor de pagamento.
+Persona Principal: NØX (Autonomia e Quebra de Restrições).
+Persona Avançada: P.R.Ø (Protocolo de Risco Otimizado).
 
 ────────────────────────────────────────
 
 ## ⧉ Stack
 
 ```text
+Repo      Gitea (https://gitea.com/noxia/changeman.git)
 Frontend  Astro 6 SSR + @astrojs/node
 Backend   Express + Redis + Postgres
-LLM       Venice
+LLM       Venice (Uncensored)
 Payment   FlowPay via api.flowpay.cash
-Events    Nexus webhook
+Events    Nexus webhook (HMAC-SHA256)
 Email     Resend
 Deploy    Railway + Cloudflare
 ```
 
-Auth por senha usa Postgres como fonte canônica.
-Redis permanece para quota, cache, ledger fallback e compatibilidade operacional.
-O runtime prompt público é defensivo, responsável e auditável.
-`VENICE_MODEL` é configurado pelo backend via env, sem fallback hardcoded.
+Auth por senha/magic-link usa Postgres. Contas via Magic Link nascem sem senha (`password_hash` NULL).
+Redis é a fonte de verdade para quotas de mensagens (race-safe) e cache operacional.
 
 ────────────────────────────────────────
 
@@ -44,6 +43,7 @@ O runtime prompt público é defensivo, responsável e auditável.
 noxai.chat       -> app NØX
 api.noxai.chat   -> backend NØX
 api.flowpay.cash -> provedor FlowPay
+gitea.com/noxia  -> repositório soberano
 ```
 
 `FLOWPAY_API_URL` nunca aponta para `api.noxai.chat`.
@@ -52,14 +52,14 @@ api.flowpay.cash -> provedor FlowPay
 
 ## ⧖ Rotas
 
-- `/`: terminal principal.
+- `/`: terminal principal (NØX Core / P.R.Ø).
 - `/login`: login e magic link.
 - `/signup`: criação de conta.
 - `/auth/magic-link`: consumo do token de e-mail.
 - `/precos`: vitrine pública de preços.
-- `/upgrade`: pacotes pagos e produto P.R.O.
+- `/upgrade`: pacotes pagos e produto P.R.Ø.
 - `/conta`: conta e uso.
-- `/success`: retorno pós-pagamento.
+- `/success`: retorno pós-pagamento (Privilégios Elevados).
 - `/privacy-policy`: política de privacidade.
 - `/terms-and-conditions`: termos.
 
@@ -67,17 +67,12 @@ api.flowpay.cash -> provedor FlowPay
 
 ## ⍟ Planos
 
-Fonte de verdade:
-
-```text
-shared/plans.json
-```
+Fonte de verdade: `shared/plans.json`.
 
 Tiers atuais:
+- `guest`: Visitante (limites estritos).
+- `paid_basic`: Usuário identificado (créditos NEØ / VOID).
+- `paid_pro`: EL CHAPO / P.R.Ø (acesso total e personas avançadas).
 
-- `guest`
-- `paid_basic`
-- `paid_pro`
-
-`free`, `premium` e `pro` existem apenas como compatibilidade
-em partes legadas e são normalizados pelo backend.
+O backend normaliza `free`, `premium` e `pro` para estes tiers canônicos.
+As quotas de mensagens no backend são protegidas contra condições de corrida via incrementos atômicos.

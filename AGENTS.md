@@ -33,6 +33,7 @@ segurança > estabilidade > legibilidade > performance > estética
 - Backend: Express em `backend/src/server.js`.
 - Planos: `shared/plans.json`.
 - Runtime prompt: `shared/runtime-prompt.md`.
+- Repo: `https://gitea.com/noxia/changeman.git`.
 
 ────────────────────────────────────────
 

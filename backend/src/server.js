@@ -69,7 +69,7 @@ import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
 import { parsePositiveInt } from "./utils/numbers.js";
 
-// Carregar Configuração de Planos (NEØ PROTOCOL)
+// Carregar Configuração de Planos (NØX)
 const plansPath = path.resolve(PROJECT_ROOT, "shared", "plans.json");
 const runtimePromptPath = path.resolve(
   PROJECT_ROOT,
@@ -152,7 +152,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 1. CORS deve vir primeiro para lidar com Preflight (OPTIONS)
+// 1. CORS - Configuração de Confiança (Hardened)
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",").map((o) => o.trim().replace(/\/$/, ""))
   : ["http://localhost:4321", "http://localhost:3000", "https://noxai.chat"];
@@ -162,13 +162,17 @@ app.use(
     origin: (origin, callback) => {
       // Permitir requisições sem origin (como mobile apps ou curl)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      
+      const isAllowed = allowedOrigins.some(o => o === origin);
+      if (isAllowed) {
         callback(null, true);
       } else {
-        callback(null, false);
+        logger.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true,
+    optionsSuccessStatus: 200, // Sugestão da Correção Oficial
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-nexus-signature"],
   }),
