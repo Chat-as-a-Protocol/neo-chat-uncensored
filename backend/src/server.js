@@ -57,12 +57,29 @@ const effectiveJwtSecret = JWT_SECRET || randomUUID();
 
 const app = express();
 
+const getEnvOrigins = () => {
+  const envValue = process.env.FRONTEND_URL || "";
+  return envValue.split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean);
+};
+
+const allowedOrigins = [
+  ...new Set([
+    ...getEnvOrigins(),
+    "https://noxai.chat",
+    "https://www.noxai.chat",
+    "https://inspiring-vitality-production.up.railway.app",
+    "https://inspiring-vitality.up.railway.app",
+  ]),
+];
+
 // 0. CORS MANUAL (Brute Force) - Garante headers em todas as respostas
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
+  const { method, headers: { origin } } = req;
   
-  // Se for um dos nossos domínios, permitimos explicitamente
-  if (origin && (origin.includes("noxai.chat") || origin.includes("railway.app") || origin.includes("localhost") || origin.includes("127.0.0.1"))) {
+  // Verificação estrita contra a lista oficial
+  const isAllowed = origin && allowedOrigins.includes(origin.replace(/\/$/, ""));
+  
+  if (isAllowed) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-nexus-signature, x-flowpay-signature, Accept, X-Requested-With, Origin");
@@ -70,7 +87,7 @@ app.use((req, res, next) => {
   }
 
   // Resposta imediata para Preflight (OPTIONS)
-  if (req.method === "OPTIONS") {
+  if (method === "OPTIONS") {
     return res.status(200).end();
   }
   

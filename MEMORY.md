@@ -55,7 +55,7 @@ Correção: A altura do app passou a ser estável; o teclado altera apenas `--ke
 Sintoma: Erros de `TypeError: Failed to fetch` e `ERR_FAILED` (CORS) em produção.
 Causa: Preflight de CORS bloqueando subdomínios (www) e headers extras. Lógica de URL da API no frontend conflitando com domínios customizados.
 Correção:
-- Backend: Implementado **CORS Manual (Brute Force)** via middleware customizado no topo do Express. O pacote `cors` foi removido por ser inconsistente em preflights complexos com subdomínios. Agora os cabeçalhos são injetados manualmente para qualquer origem contendo `noxai.chat`.
+- Backend: Implementado **CORS Manual (Brute Force)** via middleware customizado. Restaurada a lista estrita de **`allowedOrigins`** (noxai.chat e Railway) para garantir segurança e integridade, removendo lógicas permissivas de `includes` ou `localhost` em produção.
 - Frontend: Resolução de `apiUrl` simplificada e adição de **Logs de Depuração** no `catch` da cota e da sessão para visibilidade total de falhas de rede.
 - PWA: Service Worker v4 resiliente (loop `try/catch` individual para assets) e correção de caminhos de ícones.
 
