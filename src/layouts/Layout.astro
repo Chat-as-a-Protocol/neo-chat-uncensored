@@ -20,7 +20,13 @@ const { title } = Astro.props;
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NØX" />
     <meta name="generator" content={Astro.generator} />
+    
+    <!-- Preload Critical Assets -->
+    <link rel="preload" href="/bg_escuro.webp" as="image" />
+    <link rel="preload" href="/nox_vert.webp" as="image" />
+
     <title>{title}</title>
     <meta name="description" content="Chat AI uncensored - Privado e sem filtros" />
     
@@ -42,7 +48,18 @@ const { title } = Astro.props;
     <script is:inline define:vars={{ isProd: import.meta.env.PROD }}>
       if (isProd && 'serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(err => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            // Detecta atualizações no Service Worker
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'activated') {
+                  // Força o reload para carregar a nova versão do app
+                  window.location.reload();
+                }
+              });
+            });
+          }).catch(err => {
             console.error('SW registration failed: ', err);
           });
         });

@@ -1,72 +1,72 @@
-const CACHE_NAME = 'nox-chat-v2';
+const CACHE_NAME = 'nox-chat-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
   '/favicon.svg',
-  '/pwaicon/android-icon-192x192.png'
+  '/favicon.png',
+  '/bg_escuro.webp',
+  '/nox_vert.webp',
+  '/pwaicon/icon-192.png',
+  '/pwaicon/icon-512.png'
 ];
 
+// Instalação com log de progresso
 self.addEventListener('install', (event) => {
+  console.log('[SW] Instalando v4...');
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const url of ASSETS_TO_CACHE) {
+        try {
+          await cache.add(url);
+        } catch (err) {
+          console.warn(`[SW] Skip cache: ${url}`);
+        }
+      }
     })
   );
   self.skipWaiting();
 });
 
+// Ativação e Limpeza de Caches Antigos
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then((keys) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('[SW] Removendo cache antigo:', key);
+            return caches.delete(key);
           }
         })
       );
     })
   );
+  return self.clients.claim();
 });
 
+// Estratégia de Fetch: Stale-While-Revalidate para Assets, Network-First para API
 self.addEventListener('fetch', (event) => {
-  // 1. Ignorar requisições não-GET (Chat, Auth, etc)
-  if (event.request.method !== 'GET') return;
+  const { request } = event;
+  const url = new URL(request.url);
 
-  const requestUrl = new URL(event.request.url);
+  // 1. Não interferir em chamadas de API ou Auth (Sempre rede)
+  if (url.pathname.includes('/api/')) return;
 
-  // 2. Estratégia de Cache para Assets do Mesmo Domínio
-  if (requestUrl.origin === self.location.origin) {
+  // 2. Estratégia para Assets (Imagens, Scripts, Estilos)
+  if (request.method === 'GET') {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Só cacheia se a resposta for válida e do mesmo domínio
-          if (response && response.status === 200 && response.type === 'basic') {
-            const responseToCache = response.clone();
-            event.waitUntil(
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseToCache);
-              })
-            );
+      caches.match(request).then((cachedResponse) => {
+        const fetchPromise = fetch(request).then((networkResponse) => {
+          // Só cacheia se for uma resposta válida do nosso domínio
+          if (networkResponse && networkResponse.status === 200 && url.origin === self.location.origin) {
+            const cacheCopy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, cacheCopy));
           }
-          return response;
-        })
-        .catch(async () => {
-          // Fallback Offline
-          const cachedResponse = await caches.match(event.request);
-          if (cachedResponse) return cachedResponse;
+          return networkResponse;
+        }).catch(() => cachedResponse);
 
-          // Se for uma navegação (mudança de página), retorna o App Shell (/)
-          if (event.request.mode === 'navigate') {
-            return await caches.match('/');
-          }
-
-          // Fallback genérico
-          return new Response('Offline: Resource not in cache', {
-            status: 503,
-            statusText: 'Service Unavailable'
-          });
-        })
+        return cachedResponse || fetchPromise;
+      })
     );
   }
 });

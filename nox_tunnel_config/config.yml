@@ -1,7 +1,0 @@
-tunnel: b5d53693-e393-4590-925a-70f295514d9d
-credentials-file: /Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/nox_tunnel_config/credentials.json
-
-ingress:
-  - hostname: api.noxai.chat
-    service: http://localhost:3001
-  - service: http_status:404

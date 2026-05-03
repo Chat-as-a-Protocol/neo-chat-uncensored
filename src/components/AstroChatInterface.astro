@@ -110,10 +110,7 @@
   const productionApiUrl = 'https://api.noxai.chat';
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const configuredApiUrl = String(import.meta.env.PUBLIC_API_URL || '').trim().replace(/\/$/, '');
-  const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);
-  const apiUrl = configuredApiUrl && (isLocalhost || !configuredApiIsLocal)
-    ? configuredApiUrl
-    : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
+  const apiUrl = configuredApiUrl || (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
   const autoscrollThreshold = 56;
   const tokenStorageKey = 'nox_token';
   const tokenCookieMaxAge = 7 * 24 * 60 * 60;
@@ -790,6 +787,8 @@
           message = err.payload.message;
         } else if (err instanceof Error && (err.name === 'AbortError' || err.message?.includes('timeout'))) {
           message = 'O servidor demorou muito para responder. Tente novamente.';
+        } else if (err instanceof TypeError && err.message.includes('fetch')) {
+          message = 'Erro de conexão ou bloqueio de segurança (CORS). Verifique sua internet ou VPN.';
         }
         appendErrorMessage(userMessage, message);
       }

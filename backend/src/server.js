@@ -57,8 +57,7 @@ if (!JWT_SECRET) {
 const effectiveJwtSecret = JWT_SECRET || randomUUID();
 
 const app = express();
-app.set('trust proxy', 1); // Confiar no proxy (Cloudflare/Railway) para pegar o IP real
-
+app.set("trust proxy", 1); // Confiar no proxy (Cloudflare/Railway) para pegar o IP real
 
 import redis from "./lib/redis.js";
 import { emailService } from "./services/email.js";
@@ -166,16 +165,22 @@ const allowedOrigins = process.env.FRONTEND_URL
       "http://localhost:4321",
       "http://localhost:3000",
       "https://noxai.chat",
+      "https://www.noxai.chat",
       "https://inspiring-vitality-production.up.railway.app",
       "https://inspiring-vitality.up.railway.app",
       "",
     ];
 
-// Helper to check if origin is a valid railway subdomain
-const isRailwayDomain = (origin) => {
+// Helper to check if origin is a valid trusted domain (NØX or Railway)
+const isTrustedDomain = (origin) => {
   try {
     const { host } = new URL(origin);
-    return host.endsWith('.railway.app');
+    return (
+      host === "noxai.chat" ||
+      host.endsWith(".noxai.chat") ||
+      host.endsWith(".railway.app") ||
+      host.endsWith(".up.railway.app")
+    );
   } catch {
     return false;
   }
@@ -186,19 +191,29 @@ app.use(
     origin: (origin, callback) => {
       // Permitir requisições sem origin (como mobile apps ou curl)
       if (!origin) return callback(null, true);
-      
-      const isAllowed = allowedOrigins.some(o => o === origin) || isRailwayDomain(origin);
+
+      const isAllowed =
+        allowedOrigins.some((o) => o === origin) || isTrustedDomain(origin);
       if (isAllowed) {
         callback(null, true);
       } else {
-        logger.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+        logger.warn(
+          `[CORS] Blocked request from unauthorized origin: ${origin}`,
+        );
+        callback(null, false);
       }
     },
     credentials: true,
-    optionsSuccessStatus: 200, // Sugestão da Correção Oficial
+    optionsSuccessStatus: 200,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-nexus-signature"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-nexus-signature",
+      "Accept",
+      "X-Requested-With",
+      "Origin",
+    ],
   }),
 );
 
@@ -207,10 +222,26 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://static.cloudflareinsights.com"],
-        "connect-src": ["'self'", "https://api.noxai.chat", "https://api.flowpay.cash", "*.railway.app", "*.up.railway.app", "https://cloudflareinsights.com"],
+        "script-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "https://static.cloudflareinsights.com",
+        ],
+        "connect-src": [
+          "'self'",
+          "https://api.noxai.chat",
+          "https://api.flowpay.cash",
+          "*.railway.app",
+          "*.up.railway.app",
+          "https://cloudflareinsights.com",
+        ],
         "img-src": ["'self'", "data:", "blob:", "https://*", "http://*"],
-        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "style-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com",
+        ],
         "font-src": ["'self'", "https://fonts.gstatic.com"],
       },
     },
@@ -259,9 +290,10 @@ const resolveFlowPayWebhookUserId = async ({ data = {}, metadata = {} }) => {
   if (!isDeliverableEmail(payerId) || !process.env.DATABASE_URL) return null;
 
   try {
-    const result = await query("SELECT id FROM users WHERE email = $1 LIMIT 1", [
-      payerId.toLowerCase(),
-    ]);
+    const result = await query(
+      "SELECT id FROM users WHERE email = $1 LIMIT 1",
+      [payerId.toLowerCase()],
+    );
     return result.rows[0]?.id || null;
   } catch (err) {
     logger.warn(`[Webhook] Unable to resolve payer ${payerId}: ${err.message}`);
@@ -679,10 +711,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password." });
     }
 
-    const isValid = await bcrypt.compare(
-      password,
-      user.password_hash,
-    );
+    const isValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isValid) {
       return res.status(401).json({ error: "Invalid email or password." });
@@ -711,15 +740,15 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  
+
   if (!authHeader) {
     return res.status(401).json({ error: "Authorization header missing" });
   }
 
   const parts = authHeader.split(" ");
   if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
-    return res.status(401).json({ 
-      error: "Authorization header must be in the format: Bearer <token>" 
+    return res.status(401).json({
+      error: "Authorization header must be in the format: Bearer <token>",
     });
   }
 
@@ -742,7 +771,8 @@ const createUserRateLimit = () =>
     windowMs: 1 * 60 * 1000, // 1 minuto
     max: async (req) => {
       try {
-        const rawTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+        const rawTier =
+          (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
         const userTier = normalizeAccessTier(rawTier);
         const isPaid = userTier === "pro" || userTier === "paid_basic";
         return isPaid ? 60 : 10;
@@ -1615,10 +1645,10 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
 
     const customerFields = getFlowPayCustomerFields(req.user);
     const data = await createFlowPayCharge({
-      valor: selected.price,      // Gateway espera 'valor'
-      moeda: "BRL",               // Gateway espera 'moeda'
+      valor: selected.price, // Gateway espera 'valor'
+      moeda: "BRL", // Gateway espera 'moeda'
       id_transacao: buildFlowPayTransactionId("product", selected.id),
-      wallet: "pix",              // Forçar pix
+      wallet: "pix", // Forçar pix
       product_id: selected.id,
       ...customerFields,
       userId: req.user.id,
@@ -1662,10 +1692,11 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     }
 
     const purchaseSchema = z.object({
-      package: z.string().min(1)
+      package: z.string().min(1),
     });
     const parsed = purchaseSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "Invalid request format" });
+    if (!parsed.success)
+      return res.status(400).json({ error: "Invalid request format" });
 
     const { package: pkg } = parsed.data;
     const selected = plans.packages?.[pkg];
@@ -1678,10 +1709,10 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
 
     const customerFields = getFlowPayCustomerFields(req.user);
     const data = await createFlowPayCharge({
-      valor: selected.price,      // Gateway espera 'valor'
-      moeda: "BRL",               // Gateway espera 'moeda'
+      valor: selected.price, // Gateway espera 'valor'
+      moeda: "BRL", // Gateway espera 'moeda'
       id_transacao: buildFlowPayTransactionId("tokens", selected.id || pkg),
-      wallet: "pix",              // Forçar pix conforme pix-provider.ts
+      wallet: "pix", // Forçar pix conforme pix-provider.ts
       product_id: `nox_tokens_${selected.id || pkg}`,
       ...customerFields,
       userId: req.user.id,
@@ -1699,19 +1730,23 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    const errorDetails = error instanceof Error ? { message: error.message, stack: error.stack } : error;
+    const errorDetails =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : error;
     logger.error("[Tokens] Purchase critical failure:", errorDetails);
-    
+
     try {
       const formatted = formatFlowPayError(error);
       // Se o erro for 401 vindo da FlowPay, retornamos 502 para o frontend
       // Isso evita que o frontend ache que o usuário deslogou do NØX
-      const finalStatus = error.statusCode === 401 ? 502 : (error.statusCode || 500);
-      
-      res.status(finalStatus).json({ 
+      const finalStatus =
+        error.statusCode === 401 ? 502 : error.statusCode || 500;
+
+      res.status(finalStatus).json({
         error: "Failed to create token purchase",
         details: formatted.message,
-        gatewayStatus: error.statusCode
+        gatewayStatus: error.statusCode,
       });
     } catch (innerError) {
       logger.error("[Tokens] Failed to format FlowPay error:", innerError);
@@ -1735,10 +1770,11 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
     }
 
     const productSchema = z.object({
-      productId: z.string().min(1)
+      productId: z.string().min(1),
     });
     const parsed = productSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "Invalid request format" });
+    if (!parsed.success)
+      return res.status(400).json({ error: "Invalid request format" });
 
     const { productId } = parsed.data;
     const selected = plans.products?.[productId];
@@ -1752,7 +1788,10 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
     const data = await createFlowPayCharge({
       valor: selected.price,
       moeda: "BRL",
-      id_transacao: buildFlowPayTransactionId("product", selected.id || productId),
+      id_transacao: buildFlowPayTransactionId(
+        "product",
+        selected.id || productId,
+      ),
       wallet: "pix",
       product_id: selected.id || productId,
       ...customerFields,
