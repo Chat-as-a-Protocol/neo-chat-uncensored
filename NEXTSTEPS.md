@@ -101,6 +101,18 @@ Fechado para release:
 
 ────────────────────────────────────────
 
+## ⧉ Pós-release Comercial
+
+- Criar e-mails de confirmação segmentados por plano/pacote.
+- Incluir dicas práticas de uso conforme o nível comprado.
+- Definir comandos reais antes de divulgar:
+  `/fast`, `/medium`, `/deep` ou equivalentes.
+- Ensinar economia de créditos, clareza de pedido e melhor retorno do NØX.
+- Manter o tom como onboarding inteligente, sem prometer suporte humano direto.
+- Usar o e-mail pós-compra para reforçar valor percebido logo após o pagamento.
+
+────────────────────────────────────────
+
 ## ⧗ Validação
 
 Antes de push:

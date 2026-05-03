@@ -171,10 +171,6 @@ const getUserId = (email) => {
   return "user_" + crypto.createHash("sha256").update(emailLower).digest("hex").slice(0, 32);
 };
 
-const getLegacyUserId = (email) => {
-  return "user_" + Buffer.from(email).toString("base64");
-};
-
 const isDeliverableEmail = (email) => {
   return Boolean(email) && !String(email).endsWith("@guest.nox.local");
 };
@@ -948,103 +944,6 @@ app.get("/api/models", authenticateToken, async (req, res) => {
     logger.error("Models fetch error:", error);
     res.status(500).json({ error: "Failed to load models" });
   }
-});
-
-// ===== AUTH ROUTES =====
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10,
-  message: { error: "Too many attempts. Please try again later." },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const loginSchema = z.object({
-  email: z.string().email().max(254),
-  password: z.string().min(1).max(128),
-});
-
-const signupSchema = z.object({
-  name: z.string().min(1).max(100),
-  email: z.string().email().max(254),
-  password: z.string().min(8).max(128),
-});
-
-app.post("/api/auth/login", authLimiter, async (req, res) => {
-  const parsed = loginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid email or password." });
-  }
-
-  const { email, password } = parsed.data;
-  
-  // Try new SHA-256 scheme first
-  let userId = getUserId(email);
-  let passwordHash = await redis.get(`password:${userId}`);
-
-  // Fallback to legacy base64 scheme
-  if (!passwordHash) {
-    const legacyId = getLegacyUserId(email);
-    const legacyHash = await redis.get(`password:${legacyId}`);
-    if (legacyHash) {
-      userId = legacyId;
-      passwordHash = legacyHash;
-    }
-  }
-
-  // Timing-safe check: use a real, valid bcrypt hash for non-existent users
-  const dummyHash = "$2b$12$K6/vXy0G.S7.fG7.k7.m7.O5O5O5O5O5O5O5O5O5O5O5O5O5O5O5";
-  const actualHash = passwordHash || dummyHash;
-  const valid = await bcrypt.compare(password, actualHash);
-
-  if (!passwordHash || !valid) {
-    return res.status(401).json({ error: "Invalid email or password." });
-  }
-
-  const tier = (await redis.get(`tier:${userId}`)) || "free";
-
-  const token = jwt.sign(
-    { id: userId, email, tier },
-    effectiveJwtSecret,
-    { expiresIn: "7d" },
-  );
-
-  res.json({ token, user: { id: userId, email, tier } });
-});
-
-app.post("/api/auth/signup", authLimiter, async (req, res) => {
-  const parsed = signupSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({
-      error: "Invalid signup data. Password must be at least 8 characters.",
-    });
-  }
-
-  const { email, name, password } = parsed.data;
-  const userId = getUserId(email);
-
-  // Reject if account already exists (check both schemes to be safe)
-  const existing = await redis.get(`password:${userId}`);
-  const legacyExisting = await redis.get(`password:${getLegacyUserId(email)}`);
-  
-  if (existing || legacyExisting) {
-    return res
-      .status(409)
-      .json({ error: "An account with this email already exists." });
-  }
-
-  const passwordHash = await bcrypt.hash(password, 12);
-  await redis.set(`password:${userId}`, passwordHash);
-
-  const token = jwt.sign(
-    { id: userId, email, name, tier: "free" },
-    effectiveJwtSecret,
-    { expiresIn: "7d" },
-  );
-
-  res
-    .status(201)
-    .json({ token, user: { id: userId, email, name, tier: "free" } });
 });
 
 // ===== MAGIC LINK AUTH =====
