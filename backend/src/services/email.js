@@ -21,7 +21,7 @@ const escapeHtml = (value = "") =>
  * Design: BG Black 85%, Acento Verde Limão (#d4ff1a), Estética de Terminal de Luxo
  */
 const renderTemplate = (title, content, action = null) => {
-  const ACCENT_COLOR = "#d4ff1a";
+  const ACCENT_COLOR = "#a9fe25";
   return `
     <div style="background-color: #050505; padding: 50px 20px; font-family: 'Space Grotesk', 'Manrope', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f4f5f8; text-align: center;">
       <!-- Main Container -->
@@ -39,18 +39,28 @@ const renderTemplate = (title, content, action = null) => {
         <!-- Content Area -->
         <div style="font-size: 16px; line-height: 1.7; color: #c8c9cf; margin-bottom: 35px; text-align: left;">
           ${content
-            .replace(/background:\s*#1a1a1a;/g, `background: #111; border-left: 4px solid ${ACCENT_COLOR};`)
-            .replace(/border:\s*2px\s*solid\s*#fff;/g, `border: 1px solid ${ACCENT_COLOR}; background: rgba(212, 255, 26, 0.05);`)}
+            .replace(
+              /background:\s*#1a1a1a;/g,
+              `background: #111; border-left: 4px solid ${ACCENT_COLOR};`,
+            )
+            .replace(
+              /border:\s*2px\s*solid\s*#fff;/g,
+              `border: 1px solid ${ACCENT_COLOR}; background: rgba(212, 255, 26, 0.05);`,
+            )}
         </div>
 
         <!-- Action Button -->
-        ${action ? `
+        ${
+          action
+            ? `
           <div style="margin: 40px 0;">
             <a href="${action.url}" style="background-color: ${ACCENT_COLOR}; color: #000; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 800; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(212, 255, 26, 0.3);">
               ${action.label}
             </a>
           </div>
-        ` : ''}
+        `
+            : ""
+        }
 
         <!-- Brand / Logo (Moved to bottom and increased) -->
         <div style="margin: 40px 0 20px 0;">
@@ -60,10 +70,10 @@ const renderTemplate = (title, content, action = null) => {
         <!-- Footer -->
         <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
           <div style="font-size: 10px; font-weight: 800; color: ${ACCENT_COLOR}; letter-spacing: 3px; margin-bottom: 10px;">
-            † NΞØ PROTOCOL †
+            † NØX †
           </div>
           <div style="font-size: 9px; color: #333; letter-spacing: 1px; text-transform: uppercase;">
-            TERMINAL SOBERANO — SEM FILTROS — NOX.AI
+            terminal $ >_ SEM CENSURA — NØX
           </div>
         </div>
       </div>

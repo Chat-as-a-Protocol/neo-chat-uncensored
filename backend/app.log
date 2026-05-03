@@ -61,3 +61,4 @@
 {"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T08:48:25.429Z"}
 {"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T09:30:58.602Z"}
 {"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T09:30:58.605Z"}
+{"level":"info","message":"NØX Backend running on port 3001","timestamp":"2026-05-03T07:37:11.887Z"}

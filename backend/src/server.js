@@ -1578,7 +1578,13 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
       });
     }
 
-    const { package: pkg } = req.body;
+    const purchaseSchema = z.object({
+      package: z.string().min(1)
+    });
+    const parsed = purchaseSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid request format" });
+
+    const { package: pkg } = parsed.data;
     const selected = plans.packages?.[pkg];
     if (!selected) return res.status(400).json({ error: "Invalid package" });
 
@@ -1628,7 +1634,13 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
       });
     }
 
-    const { productId } = req.body;
+    const productSchema = z.object({
+      productId: z.string().min(1)
+    });
+    const parsed = productSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid request format" });
+
+    const { productId } = parsed.data;
     const selected = plans.products?.[productId];
     if (!selected) return res.status(400).json({ error: "Invalid product" });
 
@@ -1637,9 +1649,10 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
       : "http://localhost:4321";
 
     const data = await createFlowPayCharge({
-      amount: selected.price,
-      currency: "BRL",
-      orderId: `product_${randomUUID()}`,
+      valor: selected.price,
+      moeda: "BRL",
+      id_transacao: `product_${randomUUID()}`,
+      wallet: "pix",
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
@@ -1707,9 +1720,10 @@ app.post(
         : "http://localhost:4321";
 
       const data = await createFlowPayCharge({
-        amount: 1, // R$ 1,00 para teste
-        currency: "BRL",
-        orderId: `test_${randomUUID()}`,
+        valor: 1, // R$ 1,00 para teste
+        moeda: "BRL",
+        id_transacao: `test_${randomUUID()}`,
+        wallet: "pix",
         userId: req.user.id,
         callbackUrl: `${frontendBaseUrl}/success`,
         testMode: true, // Flag vital para não gerar cobrança real
