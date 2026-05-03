@@ -601,7 +601,7 @@ const products = Object.values(plans.products || {});
 
       if (showPixCharge(data)) return;
 
-      alert('Erro: ' + (data.error || 'Falha ao gerar Pix FlowPay'));
+      alert('Ops! Tivemos um imprevisto ao gerar seu Pix. Por favor, tente novamente em alguns instantes.');
     }
 
     window.closePixResult = function() {
@@ -719,8 +719,13 @@ const products = Object.values(plans.products || {});
         const data = await readJsonResponse(response);
 
         if (!response.ok) {
-          const errorMsg = data.details || data.error || `Erro ${response.status}: ${response.statusText}`;
-          alert(`NØX Billing: ${errorMsg}`);
+          // Mapeamento de erros técnicos para mensagens elegantes
+          const isAuthError = data.error?.toLowerCase().includes('autenticação') || response.status === 401;
+          const userFriendlyMsg = isAuthError 
+            ? 'Estamos ajustando nosso sistema de pagamentos. Por favor, tente novamente em breve.'
+            : 'Não foi possível iniciar o pagamento agora. Tente novamente em instantes.';
+            
+          alert(`NØX: ${userFriendlyMsg}`);
           return;
         }
 

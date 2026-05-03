@@ -73,7 +73,16 @@ const { title } = Astro.props;
         };
 
         window.__noxSyncViewport = syncViewport;
-        syncViewport();
+
+        // Evita forced layout warning rodando na próxima frame se o documento ainda estiver carregando
+        if (document.readyState === 'loading') {
+          window.addEventListener('DOMContentLoaded', () => {
+            requestAnimationFrame(syncViewport);
+          });
+        } else {
+          requestAnimationFrame(syncViewport);
+        }
+
         window.visualViewport?.addEventListener('resize', syncViewport);
         window.visualViewport?.addEventListener('scroll', syncViewport);
         window.addEventListener('resize', syncViewport);

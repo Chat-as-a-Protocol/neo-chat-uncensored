@@ -90,6 +90,7 @@ const readFlowPayJson = async (response) => {
     throw new FlowPayApiError(
       data.error || data.message || `FlowPay request failed with ${response.status}`,
       {
+        statusCode: response.status,
         providerStatus: response.status,
         providerBodyPreview: bodyPreview(rawBody),
       },
@@ -141,17 +142,33 @@ export const createFlowPayCharge = async (
   const apiUrl = resolveFlowPayApiUrl(env);
   const apiKey = resolveFlowPayApiKey(env);
 
+  // Diagnostic Log (Safe: only prefix and length)
+  const keyPrefix = apiKey.slice(0, 4);
+  const isJWT = apiKey.startsWith('ey');
+  console.log(`[FlowPay] Attempting charge. URL: ${apiUrl}, KeyPrefix: ${keyPrefix}***, Length: ${apiKey.length}, isJWT: ${isJWT}`);
+
   // Detectar se é uma chave Basic (Client_Id:Client_Secret em Base64)
   const isBasicAuth = apiKey.startsWith('Q2xp');
-  const authHeader = isBasicAuth ? `Basic ${apiKey}` : `Bearer ${apiKey}`;
+
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  // Lógica de Autenticação Estrita:
+  // 1. Se for Basic (ClientId:Secret), usamos Authorization Basic
+  // 2. Se for um JWT (Sessão), usamos Authorization Bearer
+  // 3. Caso contrário, tratamos como API Key pura usando x-api-key
+  if (isBasicAuth) {
+    headers["Authorization"] = `Basic ${apiKey}`;
+  } else if (isJWT) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  } else {
+    headers["x-api-key"] = apiKey;
+  }
 
   const response = await fetchImpl(`${apiUrl}/api/create-charge`, {
     method: "POST",
-    headers: {
-      "Authorization": authHeader,
-      "x-api-key": apiKey,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -172,11 +189,20 @@ export const checkFlowPayHealth = async (
 ) => {
   const apiUrl = resolveFlowPayApiUrl(env);
   const apiKey = resolveFlowPayApiKey(env);
+  const isBasicAuth = apiKey.startsWith('Q2xp');
+  const isJWT = apiKey.startsWith('ey');
+  const headers = {};
+
+  if (isBasicAuth) {
+    headers["Authorization"] = `Basic ${apiKey}`;
+  } else if (isJWT) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  } else {
+    headers["x-api-key"] = apiKey;
+  }
 
   const response = await fetchImpl(`${apiUrl}/api/health`, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers,
   });
 
   return {
