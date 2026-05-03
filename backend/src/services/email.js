@@ -18,14 +18,14 @@ const escapeHtml = (value = "") =>
 
 /**
  * Template Base para E-mails NØX (Versão Hardened)
- * Design: BG Black 85%, Acento Verde Limão (#b9d631), Estética de Terminal de Luxo
+ * Design: BG Black 85%, Acento Verde Limão (#d4ff1a), Estética de Terminal de Luxo
  */
 const renderTemplate = (title, content, action = null) => {
-  const ACCENT_COLOR = "#b9d631";
+  const ACCENT_COLOR = "#d4ff1a";
   return `
     <div style="background-color: #050505; padding: 50px 20px; font-family: 'Space Grotesk', 'Manrope', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f4f5f8; text-align: center;">
       <!-- Main Container -->
-      <div style="max-width: 500px; margin: 0 auto; background-color: #0c0c0c; background-image: linear-gradient(to bottom, #111111, #080808); border: 1px solid rgba(185, 214, 49, 0.2); border-radius: 24px; padding: 40px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);">
+      <div style="max-width: 500px; margin: 0 auto; background-color: #0c0c0c; background-image: linear-gradient(to bottom, #111111, #080808); border: 1px solid rgba(212, 255, 26, 0.2); border-radius: 24px; padding: 40px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);">
         
         <!-- Header / Title -->
         <div style="margin-bottom: 25px;">
@@ -40,13 +40,13 @@ const renderTemplate = (title, content, action = null) => {
         <div style="font-size: 16px; line-height: 1.7; color: #c8c9cf; margin-bottom: 35px; text-align: left;">
           ${content
             .replace(/background:\s*#1a1a1a;/g, `background: #111; border-left: 4px solid ${ACCENT_COLOR};`)
-            .replace(/border:\s*2px\s*solid\s*#fff;/g, `border: 1px solid ${ACCENT_COLOR}; background: rgba(185, 214, 49, 0.05);`)}
+            .replace(/border:\s*2px\s*solid\s*#fff;/g, `border: 1px solid ${ACCENT_COLOR}; background: rgba(212, 255, 26, 0.05);`)}
         </div>
 
         <!-- Action Button -->
         ${action ? `
           <div style="margin: 40px 0;">
-            <a href="${action.url}" style="background-color: ${ACCENT_COLOR}; color: #000; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 800; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(185, 214, 49, 0.3);">
+            <a href="${action.url}" style="background-color: ${ACCENT_COLOR}; color: #000; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 800; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(212, 255, 26, 0.3);">
               ${action.label}
             </a>
           </div>
