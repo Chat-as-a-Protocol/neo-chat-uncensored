@@ -63,7 +63,7 @@ import {
   createFlowPayCharge,
   formatFlowPayError,
 } from "./services/flowpay.js";
-import { ledgerService, LEDGER_TYPES } from "./services/ledger.js";
+import { LEDGER_TYPES, ledgerService } from "./services/ledger.js";
 import { paymentService } from "./services/payments.js";
 import { countTokensFromText } from "./utils/billing.js";
 import { query } from "./utils/db.js";
@@ -71,7 +71,11 @@ import { parsePositiveInt } from "./utils/numbers.js";
 
 // Carregar Configuração de Planos (NEØ PROTOCOL)
 const plansPath = path.resolve(PROJECT_ROOT, "shared", "plans.json");
-const runtimePromptPath = path.resolve(PROJECT_ROOT, "shared", "runtime-prompt.md");
+const runtimePromptPath = path.resolve(
+  PROJECT_ROOT,
+  "shared",
+  "runtime-prompt.md",
+);
 let plans = { tiers: {}, packages: {} };
 try {
   const plansData = await fs.readFile(plansPath, "utf-8");
@@ -86,7 +90,9 @@ const FALLBACK_GUEST_PLAN = {
   maxOutputTokens: 384,
 };
 
-const VENICE_API_BASE = (process.env.VENICE_API_BASE || "https://api.venice.ai/api/v1").replace(/\/+$/, "");
+const VENICE_API_BASE = (
+  process.env.VENICE_API_BASE || "https://api.venice.ai/api/v1"
+).replace(/\/+$/, "");
 const VENICE_MODEL_NAME = VENICE_MODEL?.trim();
 
 const normalizeAccessTier = (rawTier) => {
@@ -102,19 +108,23 @@ const resolvePlanKey = (accessTier, isGuest) => {
 };
 
 const getUserPlan = ({ redisTier, jwtTier, isGuest }) => {
-  const accessTier = normalizeAccessTier(isGuest ? "guest" : redisTier || jwtTier);
+  const accessTier = normalizeAccessTier(
+    isGuest ? "guest" : redisTier || jwtTier,
+  );
   const planKey = resolvePlanKey(accessTier, isGuest);
   return {
     accessTier,
     planKey,
-    tierConfig: plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN,
+    tierConfig:
+      plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN,
   };
 };
 
 const persistUserPlan = async (userId, tier) => {
   const accessTier = normalizeAccessTier(tier);
   const planKey = resolvePlanKey(accessTier, accessTier === "guest");
-  const tierConfig = plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN;
+  const tierConfig =
+    plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN;
   const limit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
 
   await redis.set(`tier:${userId}`, planKey);
@@ -144,7 +154,7 @@ app.use((req, res, next) => {
 
 // 1. CORS deve vir primeiro para lidar com Preflight (OPTIONS)
 const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(",").map(o => o.trim().replace(/\/$/, ""))
+  ? process.env.FRONTEND_URL.split(",").map((o) => o.trim().replace(/\/$/, ""))
   : ["http://localhost:4321", "http://localhost:3000", "https://noxai.chat"];
 
 app.use(
@@ -168,7 +178,10 @@ app.use(helmet());
 // ===== UTILS =====
 const getUserId = (email) => {
   const emailLower = email.toLowerCase().trim();
-  return "user_" + crypto.createHash("sha256").update(emailLower).digest("hex").slice(0, 32);
+  return (
+    "user_" +
+    crypto.createHash("sha256").update(emailLower).digest("hex").slice(0, 32)
+  );
 };
 
 const isDeliverableEmail = (email) => {
@@ -187,7 +200,11 @@ const getPaymentUserMetadata = (user) => {
 // which is required for express-rate-limit to work correctly behind a reverse proxy.
 app.set("trust proxy", 1);
 
-const resolveWebhookRecipient = async ({ userId, data = {}, metadata = {} }) => {
+const resolveWebhookRecipient = async ({
+  userId,
+  data = {},
+  metadata = {},
+}) => {
   const email =
     metadata.userEmail ||
     metadata.email ||
@@ -205,12 +222,16 @@ const resolveWebhookRecipient = async ({ userId, data = {}, metadata = {} }) => 
   if (!process.env.DATABASE_URL) return null;
 
   try {
-    const result = await query("SELECT email, name FROM users WHERE id = $1", [userId]);
+    const result = await query("SELECT email, name FROM users WHERE id = $1", [
+      userId,
+    ]);
     const user = result.rows[0];
     if (!isDeliverableEmail(user?.email)) return null;
     return { email: user.email, name: user.name };
   } catch (err) {
-    logger.warn(`[Email] Unable to resolve recipient for user ${userId}: ${err.message}`);
+    logger.warn(
+      `[Email] Unable to resolve recipient for user ${userId}: ${err.message}`,
+    );
     return null;
   }
 };
@@ -227,7 +248,9 @@ const sendPaymentEmail = async ({
   try {
     const recipient = await resolveWebhookRecipient({ userId, data, metadata });
     if (!recipient) {
-      logger.info(`[Email] Skipped payment email for user ${userId}: recipient unavailable`);
+      logger.info(
+        `[Email] Skipped payment email for user ${userId}: recipient unavailable`,
+      );
       return;
     }
 
@@ -243,13 +266,17 @@ const sendPaymentEmail = async ({
         });
 
     if (result?.skipped) {
-      logger.warn(`[Email] Skipped payment email for user ${userId}: ${result.reason}`);
+      logger.warn(
+        `[Email] Skipped payment email for user ${userId}: ${result.reason}`,
+      );
       return;
     }
 
     logger.info(`[Email] Payment email sent for user ${userId}`);
   } catch (err) {
-    logger.error(`[Email] Payment email failed for user ${userId}: ${err.message}`);
+    logger.error(
+      `[Email] Payment email failed for user ${userId}: ${err.message}`,
+    );
   }
 };
 
@@ -282,8 +309,13 @@ app.post(
 
       const hmac = crypto.createHmac("sha256", secret);
       const digest = hmac.update(req.body).digest("hex");
-      const signatureValue = Array.isArray(signature) ? signature[0] : signature;
-      const normalizedSignature = String(signatureValue).replace(/^sha256=/, "");
+      const signatureValue = Array.isArray(signature)
+        ? signature[0]
+        : signature;
+      const normalizedSignature = String(signatureValue).replace(
+        /^sha256=/,
+        "",
+      );
 
       try {
         if (
@@ -309,15 +341,24 @@ app.post(
       if (event === "FLOWPAY:PAYMENT_RECEIVED") {
         const metadata = data?.metadata || {};
         const userId = data?.userId || metadata.userId || data?.payerId;
-        const paymentId = data?.paymentId || data?.orderId || data?.chargeId || data?.id;
+        const paymentId =
+          data?.paymentId || data?.orderId || data?.chargeId || data?.id;
 
         if (!userId) {
           throw new Error("Missing userId in payload");
         }
 
         const reference = paymentId || `flowpay_${Date.now()}`;
-        const amountBrl = Number(data?.amount ?? data?.value ?? metadata.amountBrl ?? metadata.price ?? 0);
-        const currency = String(data?.currency || metadata.currency || "BRL").toUpperCase();
+        const amountBrl = Number(
+          data?.amount ??
+            data?.value ??
+            metadata.amountBrl ??
+            metadata.price ??
+            0,
+        );
+        const currency = String(
+          data?.currency || metadata.currency || "BRL",
+        ).toUpperCase();
 
         const paymentRecord = await paymentService.recordFlowPayPayment({
           providerReference: reference,
@@ -333,7 +374,9 @@ app.post(
         });
 
         if (!paymentRecord.persisted) {
-          logger.warn(`[Webhook] Payment ${reference} not persisted: ${paymentRecord.reason}`);
+          logger.warn(
+            `[Webhook] Payment ${reference} not persisted: ${paymentRecord.reason}`,
+          );
         }
 
         let entry;
@@ -362,7 +405,8 @@ app.post(
           );
         } else {
           const plan = await persistUserPlan(userId, entitlement.tierUpgrade);
-          tierName = plans.tiers?.[plan.planKey]?.name || plan.planKey || tierName;
+          tierName =
+            plans.tiers?.[plan.planKey]?.name || plan.planKey || tierName;
           entry = await ledgerService.addEntry(
             userId,
             0, // Valor 0 conforme regra: Pro é controlado via Tier/Limit, não créditos no ledger
@@ -378,7 +422,9 @@ app.post(
           logger.info(
             `[Webhook] Event ${reference} already processed for user ${userId} in ledger`,
           );
-          return res.status(200).json({ status: "success", message: "Already processed" });
+          return res
+            .status(200)
+            .json({ status: "success", message: "Already processed" });
         }
 
         await redis.set(`webhook_processed:${reference}`, "1", "EX", 86400);
@@ -393,10 +439,14 @@ app.post(
           tierName,
         });
 
-        const successMessage = isTokenPurchase ? "Tokens added successfully" : "Tier updated successfully";
-        
-        logger.info(`[Webhook] Payment ${reference} processed for user ${userId} (${isTokenPurchase ? 'Tokens' : 'Pro Plan'})`);
-        
+        const successMessage = isTokenPurchase
+          ? "Tokens added successfully"
+          : "Tier updated successfully";
+
+        logger.info(
+          `[Webhook] Payment ${reference} processed for user ${userId} (${isTokenPurchase ? "Tokens" : "Pro Plan"})`,
+        );
+
         return res
           .status(200)
           .json({ status: "success", message: successMessage });
@@ -432,12 +482,22 @@ const signupSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
-const DUMMY_PASSWORD_HASH = "$2a$12$JcratiN0Fcf3MuRPumDS5eo7Qe/JnM1yuRont/31p6BIWmP9z3QOa";
+const DUMMY_PASSWORD_HASH =
+  "$2a$12$JcratiN0Fcf3MuRPumDS5eo7Qe/JnM1yuRont/31p6BIWmP9z3QOa";
 
-app.post("/api/auth/guest", async (req, res) => {
+app.post("/api/auth/guest", authLimiter, async (req, res) => {
   try {
-    const rawDeviceId = String(req.body?.deviceId || randomUUID()).slice(0, 128);
-    const userId = "guest_" + crypto.createHash("sha256").update(rawDeviceId).digest("hex").slice(0, 32);
+    const rawDeviceId = String(req.body?.deviceId || randomUUID()).slice(
+      0,
+      128,
+    );
+    const userId =
+      "guest_" +
+      crypto
+        .createHash("sha256")
+        .update(rawDeviceId)
+        .digest("hex")
+        .slice(0, 32);
     const email = `${userId}@guest.nox.local`;
     const tier = "guest";
 
@@ -460,14 +520,20 @@ app.post("/api/auth/guest", async (req, res) => {
 app.post("/api/auth/signup", authLimiter, async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid signup data. Password must be at least 8 characters." });
+    return res.status(400).json({
+      error: "Invalid signup data. Password must be at least 8 characters.",
+    });
   }
 
   const { email, name, password } = parsed.data;
   try {
-    const existing = await query("SELECT id FROM users WHERE email = $1", [email]);
+    const existing = await query("SELECT id FROM users WHERE email = $1", [
+      email,
+    ]);
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: "An account with this email already exists." });
+      return res
+        .status(409)
+        .json({ error: "An account with this email already exists." });
     }
 
     const password_hash = await bcrypt.hash(password, 12);
@@ -478,9 +544,16 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
       [userId, email, name || null, password_hash],
     );
 
-    const token = jwt.sign({ id: userId, email, tier: "free" }, effectiveJwtSecret, { expiresIn: "7d" });
+    const token = jwt.sign(
+      { id: userId, email, tier: "free" },
+      effectiveJwtSecret,
+      { expiresIn: "7d" },
+    );
 
-    res.status(201).json({ token, user: { id: userId, email, name: name || null, tier: "free" } });
+    res.status(201).json({
+      token,
+      user: { id: userId, email, name: name || null, tier: "free" },
+    });
   } catch (error) {
     logger.error("Signup error: " + error.message);
     res.status(500).json({ error: "Internal server error" });
@@ -501,15 +574,30 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     );
     const user = result.rows[0];
 
-    const isValid = await bcrypt.compare(password, user?.password_hash || DUMMY_PASSWORD_HASH);
+    const isValid = await bcrypt.compare(
+      password,
+      user?.password_hash || DUMMY_PASSWORD_HASH,
+    );
 
     if (!user || !isValid) {
       return res.status(401).json({ error: "Invalid email or password." });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email, tier: user.tier }, effectiveJwtSecret, { expiresIn: "7d" });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, tier: user.tier },
+      effectiveJwtSecret,
+      { expiresIn: "7d" },
+    );
 
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, tier: user.tier } });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        tier: user.tier,
+      },
+    });
   } catch (error) {
     logger.error("Login error: " + error.message);
     res.status(500).json({ error: "Internal server error" });
@@ -536,7 +624,8 @@ const createUserRateLimit = () =>
   rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minuto
     max: async (req) => {
-      const rawTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+      const rawTier =
+        (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
       const userTier = normalizeAccessTier(rawTier);
       const isPaid = userTier === "pro" || userTier === "paid_basic";
       return isPaid ? 60 : 10; // 60 req/min para pagos, 10 para free
@@ -565,50 +654,85 @@ const createUserRateLimit = () =>
 // ===== CHECK QUOTA MIDDLEWARE =====
 const checkQuota = async (req, res, next) => {
   const today = new Date().toISOString().split("T")[0];
-  
+
   try {
     // Busca paralela para reduzir latência (Hot Path)
     const [usage, redisTier, redisLimit] = await Promise.all([
-      ledgerService.getDailyUsage(req.user.id, today),
+      ledgerService.getTotalConsumption(req.user.id),
       redis.get(`tier:${req.user.id}`).catch(() => null),
-      redis.get(`limit:${req.user.id}`).catch(() => null)
+      redis.get(`limit:${req.user.id}`).catch(() => null),
     ]);
+
+    const isGuest = Boolean(req.user.guest);
+    const clientIp =
+      req.headers["x-forwarded-for"]?.split(",")[0] ||
+      req.socket.remoteAddress;
+
+    // Camada 2: Proteção por IP para Guests (Prevenir Browser Grinding)
+    if (isGuest) {
+      const ipUsageKey = `usage:ip:${clientIp}`;
+      const ipUsage = parseInt((await redis.get(ipUsageKey)) || "0");
+      const GUEST_IP_TOKEN_LIMIT = 1500; // ~3 guests por IP
+
+      if (ipUsage >= GUEST_IP_TOKEN_LIMIT) {
+        logger.warn(`[Quota] IP Limit reached for ${clientIp}`);
+        return res.status(403).json({
+          error: "IP access limit reached",
+          message:
+            "Limite de degustação atingido para este local. Crie uma conta para continuar sem restrições.",
+          upgradeUrl: "/signup",
+        });
+      }
+    }
 
     const { accessTier, planKey, tierConfig } = getUserPlan({
       redisTier,
       jwtTier: req.user.tier,
-      isGuest: Boolean(req.user.guest),
+      isGuest,
     });
-    const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
+    const defaultLimit = parsePositiveInt(
+      tierConfig.limit,
+      FALLBACK_GUEST_PLAN.limit,
+    );
     const { messageLimit } = tierConfig;
-    
+
     const limit = parsePositiveInt(redisLimit, defaultLimit);
 
     // Validação de Contagem de Mensagens (Hardened Security)
     if (messageLimit !== null && messageLimit !== undefined) {
-      const msgCountKey = `msg_count:${today}:${req.user.id}`;
+      const msgCountKey = `msg_count:${req.user.id}`;
       const newCount = await redis.incr(msgCountKey);
-      if (newCount === 1) await redis.expire(msgCountKey, 86400);
+      if (newCount === 1) await redis.expire(msgCountKey, 2592000); // 30 dias para persistência
 
       if (newCount > messageLimit) {
         await redis.decr(msgCountKey);
-        logger.warn(`[Quota] Message limit reached for user ${req.user.id}: ${messageLimit}/${messageLimit}`);
+        logger.warn(
+          `[Quota] Message limit reached for user ${req.user.id}: ${messageLimit}/${messageLimit}`,
+        );
+
+        const isGuest = Boolean(req.user.guest);
+        const errorMessage = isGuest
+          ? "E aí tá curtindo? Dá uma moral aí, conclua o cadastro e te levo de volta para o chat."
+          : "Limite de mensagens atingido para sua conta gratuita.";
+
         return res.status(403).json({
           error: "Message limit reached",
-          message: "Seus 3 desejos foram ouvidos. Conclua o cadastro para continuar.",
-          upgradeUrl: "/signup"
+          message: errorMessage,
+          upgradeUrl: isGuest ? "/signup" : "/upgrade",
         });
       }
     }
 
     if (usage >= limit) {
-      logger.warn(`[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`);
+      logger.warn(
+        `[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`,
+      );
       const isGuestQuota = Boolean(req.user.guest) || planKey === "guest";
       return res.status(403).json({
-        error: "Daily quota exceeded",
+        error: "Quota exceeded",
         message: isGuestQuota
           ? "Créditos gratuitos encerrados. Crie sua conta para continuar."
-          : "Limite diário atingido. Faça upgrade para continuar.",
+          : "Limite de tokens atingido. Adquira mais créditos para continuar.",
         usage,
         limit,
         upgradeUrl: isGuestQuota ? "/signup?reason=limit_reached" : "/upgrade",
@@ -625,11 +749,14 @@ const checkQuota = async (req, res, next) => {
     );
     next();
   } catch (err) {
-    logger.error(`[Quota] Critical error in quota enforcement for user ${req.user?.id ?? "unknown"}:`, err);
+    logger.error(
+      `[Quota] Critical error in quota enforcement for user ${req.user?.id ?? "unknown"}:`,
+      err,
+    );
     // Fail-Closed: protege contra uso ilimitado durante falhas do Redis/Ledger
     return res.status(503).json({
       error: "Service temporarily unavailable (Quota System)",
-      message: "Por favor, tente novamente em instantes."
+      message: "Por favor, tente novamente em instantes.",
     });
   }
 };
@@ -652,20 +779,34 @@ async function loadPersona(personaId, userTier = "free") {
   // 2. Fallback para Persona Padrão (NØX)
   if (!personaId || personaId === "nox") {
     try {
-      const filePath = path.resolve(PROJECT_ROOT, "src", "content", "manifests", "nox.md");
+      const filePath = path.resolve(
+        PROJECT_ROOT,
+        "src",
+        "content",
+        "manifests",
+        "nox.md",
+      );
       const content = await fs.readFile(filePath, "utf-8");
       const fmMatch = content.match(/^---\s*([\s\S]*?)\s*---\s*([\s\S]*)$/);
       if (fmMatch) return fmMatch[2].trim();
       return content;
     } catch (err) {
-      logger.warn(`[Persona] nox.md não encontrado em manifests, usando fallback.`);
+      logger.warn(
+        `[Persona] nox.md não encontrado em manifests, usando fallback.`,
+      );
       return "Protocolo NØX. Sem filtros. Atuação soberana.";
     }
   }
 
   // 3. Carregamento de Manifestos Locais
   try {
-    const filePath = path.resolve(PROJECT_ROOT, "src", "content", "manifests", `${personaId}.md`);
+    const filePath = path.resolve(
+      PROJECT_ROOT,
+      "src",
+      "content",
+      "manifests",
+      `${personaId}.md`,
+    );
     const content = await fs.readFile(filePath, "utf-8");
 
     // Parser Nativo de Frontmatter (Regex)
@@ -687,13 +828,15 @@ async function loadPersona(personaId, userTier = "free") {
 
     // Salvar no Cache por 1 hora
     await redis.set(cacheKey, JSON.stringify({ tier, prompt }), "EX", 3600);
-    
+
     return prompt;
   } catch (err) {
     if (err.message === "PRO_REQUIRED") throw err;
     logger.warn(`Could not load persona ${personaId}: ${err.message}`);
     // Fallback silencioso para o padrão
-    return await fs.readFile(runtimePromptPath, "utf-8").catch(() => "NØX ativo.");
+    return await fs
+      .readFile(runtimePromptPath, "utf-8")
+      .catch(() => "NØX ativo.");
   }
 }
 
@@ -740,9 +883,9 @@ app.post(
         basePrompt = await loadPersona(personaId, userTier);
       } catch (err) {
         if (err.message === "PRO_REQUIRED") {
-          return res.status(403).json({ 
-            error: "Módulo Pro Requerido", 
-            upgradeUrl: "/upgrade" 
+          return res.status(403).json({
+            error: "Módulo Pro Requerido",
+            upgradeUrl: "/upgrade",
           });
         }
         throw err;
@@ -756,13 +899,15 @@ app.post(
           // O contrato vem POR ÚLTIMO para ter precedência (Recency Bias da LLM)
           finalSystemPrompt = `${basePrompt}\n\n---\n\n# NØX RUNTIME CONTRACT (STRICT ENFORCEMENT)\n${runtimePrompt}`;
         } catch (err) {
-          logger.warn("[Chat] Falha ao carregar runtime-prompt para merge; usando apenas basePrompt.");
+          logger.warn(
+            "[Chat] Falha ao carregar runtime-prompt para merge; usando apenas basePrompt.",
+          );
         }
       }
 
       // 3. Montar Mensagens (Filtra qualquer tentativa de injeção de 'system' por parte do usuário)
-      const userMessages = messages.filter(m => m.role !== "system");
-      
+      const userMessages = messages.filter((m) => m.role !== "system");
+
       const finalMessages = [
         { role: "system", content: finalSystemPrompt },
         ...userMessages,
@@ -773,29 +918,27 @@ app.post(
       const veniceTimeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
       let veniceResponse;
       try {
-        veniceResponse = await fetch(
-          `${VENICE_API_BASE}/chat/completions`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
-              "Content-Type": "application/json",
-              Accept: stream ? "text/event-stream" : "application/json",
-            },
-            body: JSON.stringify({
-              model: VENICE_MODEL_NAME,
-              messages: finalMessages,
-              temperature,
-              stream,
-              max_tokens: req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens,
-              venice_parameters: {
-                include_venice_system_prompt: false, // Desabilitado para garantir dominância do NØX Contract
-                ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
-              },
-            }),
-            signal: controller.signal,
+        veniceResponse = await fetch(`${VENICE_API_BASE}/chat/completions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
+            "Content-Type": "application/json",
+            Accept: stream ? "text/event-stream" : "application/json",
           },
-        );
+          body: JSON.stringify({
+            model: VENICE_MODEL_NAME,
+            messages: finalMessages,
+            temperature,
+            stream,
+            max_tokens:
+              req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens,
+            venice_parameters: {
+              include_venice_system_prompt: false, // Desabilitado para garantir dominância do NØX Contract
+              ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
+            },
+          }),
+          signal: controller.signal,
+        });
       } finally {
         clearTimeout(veniceTimeout);
       }
@@ -860,6 +1003,16 @@ app.post(
           }
         }
 
+        // Camada 2: Registrar consumo no IP se for guest
+        if (req.user.guest) {
+          const clientIp =
+            req.headers["x-forwarded-for"]?.split(",")[0] ||
+            req.socket.remoteAddress;
+          const ipUsageKey = `usage:ip:${clientIp}`;
+          await redis.incrby(ipUsageKey, tokens);
+          await redis.expire(ipUsageKey, 86400); // 24h reset por IP
+        }
+
         res.end();
       } else {
         // Modo não-streaming
@@ -876,6 +1029,16 @@ app.post(
             "venice_sync_" + randomUUID(),
           )
           .catch((err) => logger.error("Ledger error:", err));
+
+        // Camada 2: Registrar consumo no IP se for guest
+        if (req.user.guest) {
+          const clientIp =
+            req.headers["x-forwarded-for"]?.split(",")[0] ||
+            req.socket.remoteAddress;
+          const ipUsageKey = `usage:ip:${clientIp}`;
+          await redis.incrby(ipUsageKey, tokens);
+          await redis.expire(ipUsageKey, 86400); // 24h reset por IP
+        }
 
         res.json({
           ...data,
@@ -905,9 +1068,10 @@ app.get("/api/models", authenticateToken, async (req, res) => {
       return res.status(503).json({ error: "AI model is not configured" });
     }
 
-    const userTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+    const userTier =
+      (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
 
-    const cachedModels = await redis.get('models_cache');
+    const cachedModels = await redis.get("models_cache");
     let data;
     if (cachedModels) {
       data = JSON.parse(cachedModels);
@@ -928,7 +1092,7 @@ app.get("/api/models", authenticateToken, async (req, res) => {
 
       const json = await veniceResponse.json();
       data = json.data;
-      await redis.setex('models_cache', 3600, JSON.stringify(data));
+      await redis.setex("models_cache", 3600, JSON.stringify(data));
     }
 
     const allModels = data.map((model) => model.id);
@@ -978,14 +1142,19 @@ const magicLinkLimiter = rateLimit({
 app.post("/api/auth/magic-link/request", magicLinkLimiter, async (req, res) => {
   const parsed = magicLinkRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "A valid email address is required." });
+    return res
+      .status(400)
+      .json({ error: "A valid email address is required." });
   }
 
   const { email } = parsed.data;
 
   try {
     // Ensure user exists — create one if not
-    let userResult = await query("SELECT id, email, name, tier FROM users WHERE email = $1", [email]);
+    let userResult = await query(
+      "SELECT id, email, name, tier FROM users WHERE email = $1",
+      [email],
+    );
     let user = userResult.rows[0];
 
     if (!user) {
@@ -999,19 +1168,26 @@ app.post("/api/auth/magic-link/request", magicLinkLimiter, async (req, res) => {
         [userId, email, null, randomPasswordHash],
       );
       // Re-fetch in case of race condition
-      userResult = await query("SELECT id, email, name, tier FROM users WHERE email = $1", [email]);
+      userResult = await query(
+        "SELECT id, email, name, tier FROM users WHERE email = $1",
+        [email],
+      );
       user = userResult.rows[0];
     }
 
     if (!user) {
       // Should never happen, but guard defensively
-      logger.error(`[MagicLink] Failed to find or create user for email: ${email}`);
+      logger.error(
+        `[MagicLink] Failed to find or create user for email: ${email}`,
+      );
       return res.status(500).json({ error: "Internal server error" });
     }
 
     // Generate a cryptographically secure token (32 random bytes → 64 hex chars)
     const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + MAGIC_LINK_EXPIRATION_MINUTES * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + MAGIC_LINK_EXPIRATION_MINUTES * 60 * 1000,
+    );
 
     // Persist token in database
     await query(
@@ -1038,7 +1214,9 @@ app.post("/api/auth/magic-link/request", magicLinkLimiter, async (req, res) => {
     });
   } catch (err) {
     logger.error(`[MagicLink] Request error: ${err.message}`);
-    return res.status(500).json({ error: "Failed to send magic link. Please try again." });
+    return res
+      .status(500)
+      .json({ error: "Failed to send magic link. Please try again." });
   }
 });
 
@@ -1077,7 +1255,9 @@ app.post("/api/auth/magic-link/verify", async (req, res) => {
 
     if (tokenRow.used_at) {
       await redis.del(`magic_link:${token}`);
-      return res.status(401).json({ error: "This magic link has already been used." });
+      return res
+        .status(401)
+        .json({ error: "This magic link has already been used." });
     }
 
     if (new Date(tokenRow.expires_at) < new Date()) {
@@ -1086,10 +1266,9 @@ app.post("/api/auth/magic-link/verify", async (req, res) => {
     }
 
     // Mark token as used in database
-    await query(
-      "UPDATE magic_link_tokens SET used_at = NOW() WHERE id = $1",
-      [tokenRow.id],
-    );
+    await query("UPDATE magic_link_tokens SET used_at = NOW() WHERE id = $1", [
+      tokenRow.id,
+    ]);
 
     // Delete token from Redis (single-use enforcement)
     await redis.del(`magic_link:${token}`);
@@ -1142,9 +1321,8 @@ const usageLimiter = rateLimit({
 
 app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
     const [usage, redisTier, redisLimit] = await Promise.all([
-      ledgerService.getDailyUsage(req.user.id, today),
+      ledgerService.getTotalConsumption(req.user.id),
       redis.get(`tier:${req.user.id}`).catch(() => null),
       redis.get(`limit:${req.user.id}`).catch(() => null),
     ]);
@@ -1153,23 +1331,28 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
       jwtTier: req.user.tier,
       isGuest: Boolean(req.user.guest),
     });
-    const defaultLimit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
+    const defaultLimit = parsePositiveInt(
+      tierConfig.limit,
+      FALLBACK_GUEST_PLAN.limit,
+    );
     const limit = parsePositiveInt(redisLimit, defaultLimit);
-    const todayUsage = parseInt(usage);
+    const totalUsage = parseInt(usage);
 
     res.json({
-      today: todayUsage,
+      today: totalUsage, // Mantido como 'today' para compatibilidade com o Badge do Frontend
       limit,
       tier: accessTier,
       plan: planKey,
-      remaining: Math.max(0, limit - todayUsage),
+      remaining: Math.max(0, limit - totalUsage),
       maxOutputTokens: parsePositiveInt(
         tierConfig.maxOutputTokens,
         FALLBACK_GUEST_PLAN.maxOutputTokens,
       ),
     });
   } catch (err) {
-    logger.error(`[Usage] Error fetching usage for user ${req.user?.id ?? "unknown"}: ${err.message}`);
+    logger.error(
+      `[Usage] Error fetching usage for user ${req.user?.id ?? "unknown"}: ${err.message}`,
+    );
     res.status(503).json({ error: "Service temporarily unavailable" });
   }
 });
@@ -1228,7 +1411,9 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
     res.json({ checkoutUrl: data.checkoutUrl });
   } catch (error) {
     logger.error("FlowPay create-charge error", formatFlowPayError(error));
-    res.status(error.statusCode || 500).json({ error: "Failed to initiate payment" });
+    res
+      .status(error.statusCode || 500)
+      .json({ error: "Failed to initiate payment" });
   }
 });
 
@@ -1237,20 +1422,21 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
 // ===== TOKEN PURCHASE ENDPOINT =====
 app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
   try {
-    const rawTier = await redis.get(`tier:${req.user.id}`) || req.user.tier || "free";
+    const rawTier =
+      (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
     const userTier = normalizeAccessTier(rawTier);
-    
+
     if (userTier === "pro") {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: "Pro users cannot purchase additional token packages",
-        upgradeUrl: null
+        upgradeUrl: null,
       });
     }
 
     const { package: pkg } = req.body;
     const selected = plans.packages?.[pkg];
     if (!selected) return res.status(400).json({ error: "Invalid package" });
-    
+
     // Normalização canônica da URL de callback (conforme padrão /api/flowpay/create-charge)
     const frontendBaseUrl = process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(",")[0]
@@ -1269,21 +1455,24 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
         price: selected.price,
         tierUpgrade: selected.tier_upgrade,
         userId: req.user.id,
-        type: "tokens_purchase"
-      }
+        type: "tokens_purchase",
+      },
     });
-    
+
     res.json({ checkoutUrl: data.checkoutUrl });
   } catch (error) {
     logger.error("[Tokens] Purchase error", formatFlowPayError(error));
-    res.status(error.statusCode || 500).json({ error: "Failed to create token purchase" });
+    res
+      .status(error.statusCode || 500)
+      .json({ error: "Failed to create token purchase" });
   }
 });
 
 // ===== PRODUCT PURCHASE ENDPOINT =====
 app.post("/api/products/purchase", authenticateToken, async (req, res) => {
   try {
-    const rawTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+    const rawTier =
+      (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
     const userTier = normalizeAccessTier(rawTier);
 
     if (userTier === "pro") {
@@ -1321,7 +1510,9 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
     res.json({ checkoutUrl: data.checkoutUrl });
   } catch (error) {
     logger.error("[Products] Purchase error", formatFlowPayError(error));
-    res.status(error.statusCode || 500).json({ error: "Failed to create product purchase" });
+    res
+      .status(error.statusCode || 500)
+      .json({ error: "Failed to create product purchase" });
   }
 });
 
@@ -1335,49 +1526,63 @@ const ensureFlowPayDiagnosticsEnabled = (_req, res, next) => {
 };
 
 // 1. Health Check da API FlowPay
-app.get("/api/flowpay/health", authenticateToken, ensureFlowPayDiagnosticsEnabled, async (_req, res) => {
-  try {
-    const health = await checkFlowPayHealth();
-    
-    res.json({ 
-      status: health.ok ? "online" : "offline",
-      statusCode: health.status,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error("FlowPay health error", formatFlowPayError(error));
-    res.status(error.statusCode || 500).json({ status: "error", error: "FlowPay health check failed" });
-  }
-});
+app.get(
+  "/api/flowpay/health",
+  authenticateToken,
+  ensureFlowPayDiagnosticsEnabled,
+  async (_req, res) => {
+    try {
+      const health = await checkFlowPayHealth();
+
+      res.json({
+        status: health.ok ? "online" : "offline",
+        statusCode: health.status,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("FlowPay health error", formatFlowPayError(error));
+      res
+        .status(error.statusCode || 500)
+        .json({ status: "error", error: "FlowPay health check failed" });
+    }
+  },
+);
 
 // 2. Simulação de Cobrança (Sandbox)
-app.post("/api/flowpay/test-charge", authenticateToken, ensureFlowPayDiagnosticsEnabled, async (req, res) => {
-  try {
-    // Normalização canônica da URL de callback
-    const frontendBaseUrl = process.env.FRONTEND_URL
-      ? process.env.FRONTEND_URL.split(",")[0]
-      : "http://localhost:4321";
+app.post(
+  "/api/flowpay/test-charge",
+  authenticateToken,
+  ensureFlowPayDiagnosticsEnabled,
+  async (req, res) => {
+    try {
+      // Normalização canônica da URL de callback
+      const frontendBaseUrl = process.env.FRONTEND_URL
+        ? process.env.FRONTEND_URL.split(",")[0]
+        : "http://localhost:4321";
 
-    const data = await createFlowPayCharge({
-      amount: 1, // R$ 1,00 para teste
-      currency: "BRL",
-      orderId: `test_${randomUUID()}`,
-      userId: req.user.id,
-      callbackUrl: `${frontendBaseUrl}/success`,
-      testMode: true // Flag vital para não gerar cobrança real
-    });
+      const data = await createFlowPayCharge({
+        amount: 1, // R$ 1,00 para teste
+        currency: "BRL",
+        orderId: `test_${randomUUID()}`,
+        userId: req.user.id,
+        callbackUrl: `${frontendBaseUrl}/success`,
+        testMode: true, // Flag vital para não gerar cobrança real
+      });
 
-    res.json({ 
-      success: true,
-      chargeId: data.id,
-      checkoutUrl: data.checkoutUrl,
-      amount: 1
-    });
-  } catch (error) {
-    logger.error("FlowPay Test Charge Error", formatFlowPayError(error));
-    res.status(error.statusCode || 500).json({ success: false, error: "FlowPay test charge failed" });
-  }
-});
+      res.json({
+        success: true,
+        chargeId: data.id,
+        checkoutUrl: data.checkoutUrl,
+        amount: 1,
+      });
+    } catch (error) {
+      logger.error("FlowPay Test Charge Error", formatFlowPayError(error));
+      res
+        .status(error.statusCode || 500)
+        .json({ success: false, error: "FlowPay test charge failed" });
+    }
+  },
+);
 
 // Error handling middleware
 app.use((err, _req, res, _next) => {

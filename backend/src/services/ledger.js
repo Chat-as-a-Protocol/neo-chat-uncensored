@@ -98,7 +98,7 @@ export const ledgerService = {
     const startOfDay = new Date(dateStr).getTime();
     const endOfDay = startOfDay + 86400000;
 
-    const usage = entries
+    return entries
       .filter(
         (e) =>
           (e.type === "CONSUMPTION" || e.type === LEDGER_TYPES.TOKEN_CONSUMPTION) &&
@@ -106,8 +106,29 @@ export const ledgerService = {
           e.createdAt < endOfDay,
       )
       .reduce((acc, e) => acc + Math.abs(e.amount), 0);
+  },
 
-    return usage;
+  async getTotalConsumption(userId) {
+    if (shouldUsePostgres(userId)) {
+      const result = await query(
+        `SELECT COALESCE(SUM(ABS(amount)), 0)::int AS usage
+         FROM ledger
+         WHERE user_id = $1
+           AND amount < 0
+           AND type IN ('CONSUMPTION', $2)`,
+        [userId, LEDGER_TYPES.TOKEN_CONSUMPTION],
+      );
+      return result.rows[0]?.usage ?? 0;
+    }
+
+    const entriesStr = await redis.lrange(`ledger:${userId}`, 0, -1);
+    const entries = entriesStr.map((e) => JSON.parse(e));
+
+    return entries
+      .filter(
+        (e) => e.type === "CONSUMPTION" || e.type === LEDGER_TYPES.TOKEN_CONSUMPTION,
+      )
+      .reduce((acc, e) => acc + Math.abs(e.amount), 0);
   },
 
   async getStatement(userId) {

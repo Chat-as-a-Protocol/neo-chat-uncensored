@@ -61,8 +61,8 @@
   <div id="marketing-barrier" class="marketing-barrier" style="display: none;">
     <div class="marketing-content">
       <div class="lamp-icon">🪔</div>
-      <h3>Seus 3 desejos foram ouvidos...</h3>
-      <p>Mas os seus maiores sonhos só podem ser realizados ao concluir seu cadastro.</p>
+      <h3>E aí, tá curtindo?...</h3>
+      <p>Dá uma moral e cria uma conta, é grátis.</p>
       
       <div class="marketing-actions">
         <button onclick="window.location='/signup'" class="btn-signup-marketing">CRIAR CONTA GRÁTIS</button>
@@ -658,7 +658,7 @@
       return;
     }
 
-    // Lógica de Marketing: 3 Desejos (Apenas para Guests)
+    // Lógica de Marketing: 3 mensagens (Apenas para Guests)
     const isGuest = isGuestSession();
     const userMessagesCount = messages.filter(m => m.role === 'user').length;
 
@@ -894,8 +894,8 @@
       if (title) title.textContent = 'Créditos gratuitos encerrados';
       if (copy) copy.textContent = 'Crie sua conta para continuar usando o NØX.';
     } else {
-      if (title) title.textContent = 'Seus 3 desejos foram ouvidos...';
-      if (copy) copy.textContent = 'Mas os seus maiores sonhos só podem ser realizados ao concluir seu cadastro.';
+      if (title) title.textContent = 'E aí, tá curtindo?';
+      if (copy) copy.textContent = 'Dá uma moral e cria uma conta, é grátis.';
     }
 
     marketingBarrierEl.style.display = 'flex';
