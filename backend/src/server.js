@@ -19,7 +19,9 @@ const __dirname = path.dirname(__filename);
 // Considera que o arquivo está em backend/src/server.js, então a raiz está 2 níveis acima
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 
-dotenv.config({ path: path.resolve(PROJECT_ROOT, "backend", ".env") });
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config({ path: path.resolve(PROJECT_ROOT, "backend", ".env") });
+}
 
 // ===== STARTUP VALIDATION =====
 if (process.env.NODE_ENV === "production") {
@@ -664,11 +666,15 @@ const createUserRateLimit = () =>
   rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minuto
     max: async (req) => {
-      const rawTier =
-        (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
-      const userTier = normalizeAccessTier(rawTier);
-      const isPaid = userTier === "pro" || userTier === "paid_basic";
-      return isPaid ? 60 : 10; // 60 req/min para pagos, 10 para free
+      try {
+        const rawTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
+        const userTier = normalizeAccessTier(rawTier);
+        const isPaid = userTier === "pro" || userTier === "paid_basic";
+        return isPaid ? 60 : 10;
+      } catch (e) {
+        logger.warn(`[RateLimit] Fallback due to error: ${e.message}`);
+        return 10; // Fallback seguro
+      }
     },
     keyGenerator: (req) => req.user.id,
     handler: (_req, res) => {
@@ -735,11 +741,11 @@ const checkQuota = async (req, res, next) => {
 
     const limit = parsePositiveInt(redisLimit, defaultLimit);
 
-    // Validação de Contagem de Mensagens (Hardened Security)
-    if (messageLimit !== null && messageLimit !== undefined) {
+    // Validação de Contagem de Mensagens (Apenas para Guests)
+    if (isGuest && messageLimit !== null && messageLimit !== undefined) {
       const msgCountKey = `msg_count:${req.user.id}`;
       const newCount = await redis.incr(msgCountKey);
-      if (newCount === 1) await redis.expire(msgCountKey, 2592000); // 30 dias para persistência
+      if (newCount === 1) await redis.expire(msgCountKey, 2592000); // 30 dias
 
       if (newCount > messageLimit) {
         logger.warn(
@@ -927,18 +933,16 @@ app.post(
         throw err;
       }
 
-      // 2. Carregar Runtime Contract (NØX Core)
+      // 2. Carregar Runtime Contract (NØX Core) - Sempre aplicado
       let finalSystemPrompt = basePrompt;
-      if (personaId && personaId !== "nox") {
-        try {
-          const runtimePrompt = await fs.readFile(runtimePromptPath, "utf-8");
-          // O contrato vem POR ÚLTIMO para ter precedência (Recency Bias da LLM)
-          finalSystemPrompt = `${basePrompt}\n\n---\n\n# NØX RUNTIME CONTRACT (STRICT ENFORCEMENT)\n${runtimePrompt}`;
-        } catch (err) {
-          logger.warn(
-            "[Chat] Falha ao carregar runtime-prompt para merge; usando apenas basePrompt.",
-          );
-        }
+      try {
+        const runtimePrompt = await fs.readFile(runtimePromptPath, "utf-8");
+        // O contrato vem POR ÚLTIMO para ter precedência (Recency Bias da LLM)
+        finalSystemPrompt = `${basePrompt}\n\n---\n\n# NØX RUNTIME CONTRACT (STRICT ENFORCEMENT)\n${runtimePrompt}`;
+      } catch (err) {
+        logger.warn(
+          "[Chat] Falha ao carregar runtime-prompt para merge; usando apenas basePrompt.",
+        );
       }
 
       // 3. Montar Mensagens (Filtra qualquer tentativa de injeção de 'system' por parte do usuário)
@@ -1566,6 +1570,7 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
 
 // ===== TOKEN PURCHASE ENDPOINT =====
 app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
+  logger.info(`[Tokens] Purchase attempt started for user ${req.user.id}`);
   try {
     const rawTier =
       (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
@@ -1613,10 +1618,19 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
 
     res.json({ checkoutUrl: data.checkoutUrl });
   } catch (error) {
-    logger.error("[Tokens] Purchase error", formatFlowPayError(error));
-    res
-      .status(error.statusCode || 500)
-      .json({ error: "Failed to create token purchase" });
+    const errorDetails = error instanceof Error ? { message: error.message, stack: error.stack } : error;
+    logger.error("[Tokens] Purchase critical failure:", errorDetails);
+    
+    try {
+      const formatted = formatFlowPayError(error);
+      res.status(error.statusCode || 500).json({ 
+        error: "Failed to create token purchase",
+        details: formatted.message 
+      });
+    } catch (innerError) {
+      logger.error("[Tokens] Failed to format FlowPay error:", innerError);
+      res.status(500).json({ error: "Internal server error during purchase" });
+    }
   }
 });
 
@@ -1746,8 +1760,19 @@ app.post(
 
 // Error handling middleware
 app.use((err, _req, res, _next) => {
-  logger.error(err.stack);
+  logger.error("Global Express Error:", err.stack || err);
   res.status(500).json({ error: "Something went wrong!" });
+});
+
+// ===== GLOBAL PROCESS HANDLERS (Hardening) =====
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("[Fatal] Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  logger.error("[Fatal] Uncaught Exception thrown:", err.message, err.stack);
+  // No Railway, deixamos o processo morrer para o orchestrator reiniciar
+  process.exit(1);
 });
 
 // ===== START SERVER =====

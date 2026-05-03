@@ -1,0 +1,9 @@
+.git
+node_modules
+.env
+backend/.env
+dist
+.astro
+.pnpm-store
+backend/app.log
+nox_tunnel_config

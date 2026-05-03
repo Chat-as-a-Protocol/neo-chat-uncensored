@@ -12,6 +12,18 @@
         "Degustacao controlada"
       ]
     },
+    "free": {
+      "name": "Identified User",
+      "limit": 1000,
+      "messageLimit": null,
+      "maxOutputTokens": 1024,
+      "benefits": [
+        "Acesso identificado",
+        "Historico persistente",
+        "Limite de tokens ampliado",
+        "Sem barreira de mensagens"
+      ]
+    },
     "paid_basic": {
       "name": "Identified User",
       "limit": 5000,

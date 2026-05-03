@@ -666,12 +666,14 @@
       return;
     }
 
-    // Lógica de Marketing: 3 mensagens (Apenas para Guests)
+    // Lógica de Marketing: 3 mensagens (Apenas para Guests reais)
     const isGuest = isGuestSession();
     const userMessagesCount = messages.filter(m => m.role === 'user').length;
 
+    // Hardened: Se o usuário estiver logado (não for guest), ignoramos o limite de 3 mensagens.
     if (isGuest && userMessagesCount >= 3) {
       showMarketingBarrier('message');
+      isSending = false;
       return;
     }
 

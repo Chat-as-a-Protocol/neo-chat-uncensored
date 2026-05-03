@@ -20,62 +20,37 @@ const escapeHtml = (value = "") =>
  * Template Base para E-mails NØX (Versão Hardened)
  * Design: BG Black 85%, Acento Verde Limão (#d4ff1a), Estética de Terminal de Luxo
  */
+/**
+ * Template Base para E-mails NØX (Versão Ultra-Light)
+ * Foco total em entregabilidade: Fundo branco, texto preto, links padrão.
+ */
 const renderTemplate = (title, content, action = null) => {
-  const ACCENT_COLOR = "#a9fe25";
   return `
-    <div style="background-color: #050505; padding: 50px 20px; font-family: 'Space Grotesk', 'Manrope', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f4f5f8; text-align: center;">
-      <!-- Main Container -->
-      <div style="max-width: 500px; margin: 0 auto; background-color: #0c0c0c; background-image: linear-gradient(to bottom, #111111, #080808); border: 1px solid rgba(212, 255, 26, 0.2); border-radius: 24px; padding: 40px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);">
-        
-        <!-- Header / Title -->
-        <div style="margin-bottom: 25px;">
-        </div>
-        
-        <!-- Title -->
-        <h1 style="font-size: 26px; font-weight: 800; letter-spacing: 1px; margin: 0 0 25px 0; color: #fff; text-transform: uppercase;">
-          ${title}
-        </h1>
-        
-        <!-- Content Area -->
-        <div style="font-size: 16px; line-height: 1.7; color: #c8c9cf; margin-bottom: 35px; text-align: left;">
-          ${content
-            .replace(
-              /background:\s*#1a1a1a;/g,
-              `background: #111; border-left: 4px solid ${ACCENT_COLOR};`,
-            )
-            .replace(
-              /border:\s*2px\s*solid\s*#fff;/g,
-              `border: 1px solid ${ACCENT_COLOR}; background: rgba(212, 255, 26, 0.05);`,
-            )}
-        </div>
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111; line-height: 1.6; padding: 20px; background-color: #ffffff;">
+      <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #000; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">
+        ${title}
+      </h2>
+      
+      <div style="font-size: 16px; margin-bottom: 30px;">
+        ${content}
+      </div>
 
-        <!-- Action Button -->
-        ${
-          action
-            ? `
-          <div style="margin: 40px 0;">
-            <a href="${action.url}" style="background-color: ${ACCENT_COLOR}; color: #000; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 800; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(212, 255, 26, 0.3);">
-              ${action.label}
-            </a>
-          </div>
-        `
-            : ""
-        }
-
-        <!-- Brand / Logo (Moved to bottom and increased) -->
-        <div style="margin: 40px 0 20px 0;">
-          <img src="${LOGO_URL}" alt="NØX" style="width: 140px; height: auto; display: inline-block;">
+      ${
+        action
+          ? `
+        <div style="margin: 30px 0; padding: 20px; background-color: #f9f9f9; border: 1px solid #eee; border-radius: 8px;">
+          <p style="margin-top: 0; font-weight: bold;">${action.label}:</p>
+          <a href="${action.url}" style="color: #0066cc; text-decoration: underline; font-weight: bold; font-size: 18px; word-break: break-all;">
+            ${action.url}
+          </a>
         </div>
+      `
+          : ""
+      }
 
-        <!-- Footer -->
-        <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
-          <div style="font-size: 10px; font-weight: 800; color: ${ACCENT_COLOR}; letter-spacing: 3px; margin-bottom: 10px;">
-            † NØX †
-          </div>
-          <div style="font-size: 9px; color: #333; letter-spacing: 1px; text-transform: uppercase;">
-            terminal $ >_ SEM CENSURA — NØX
-          </div>
-        </div>
+      <div style="margin-top: 50px; border-top: 1px solid #f0f0f0; padding-top: 20px; font-size: 12px; color: #888;">
+        <strong>NØX</strong> - Protocolo de Inteligência Soberana<br>
+        Este é um e-mail automático. Não responda.
       </div>
     </div>
   `;
@@ -116,19 +91,19 @@ export const emailService = {
    */
   async sendWelcomeEmail(to, { userName }) {
     const safeName = escapeHtml(userName || "Operador");
-    const title = "NØX - BEM-VINDO";
+    const title = "BEM-VINDO AO NØX";
     const content = `
       <p>Olá, <strong>${safeName}</strong>.</p>
-      <p>Sua conta foi registrada com sucesso no terminal NØX. Você agora faz parte de um ecossistema de inteligência privada e sem filtros.</p>
-      <p>Seus acessos iniciais foram liberados.</p>
+      <p>Sua conta foi registrada com sucesso. Você agora tem acesso ao ecossistema NØX.</p>
+      <p>Seus acessos iniciais foram liberados e você já pode começar a utilizar o terminal.</p>
     `;
 
     return sendEmail({
       from: FROM_EMAIL,
       to,
-      subject: `† NØX † - Bem-vindo`,
+      subject: `NØX - Bem-vindo`,
       html: renderTemplate(title, content, {
-        label: "ACESSAR NØX",
+        label: "LINK PARA ACESSAR O TERMINAL",
         url: FRONTEND_URL,
       }),
     });
@@ -139,20 +114,18 @@ export const emailService = {
    */
   async sendMagicLink(to, { token }) {
     const loginUrl = `${FRONTEND_URL}/auth/magic-link?token=${encodeURIComponent(token)}`;
-    const title = "AUTENTICAÇÃO DE SESSÃO";
+    const title = "LINK DE ACESSO";
     const content = `
-      <p>Vi que você acessou NØX de um novo dispositivo. Clique no botão abaixo para entrar.</p>
-      <p style="background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333; font-size: 14px; color: #eee;">
-        <strong>Aviso:</strong> Este link é de uso único e expira em 10 minutos por motivos de SUA segurança.
-      </p>
+      <p>Você solicitou acesso ao terminal NØX. Clique no link abaixo para autenticar sua sessão.</p>
+      <p><strong>Aviso de Segurança:</strong> Este link expira em 10 minutos e só pode ser usado uma única vez.</p>
     `;
 
     return sendEmail({
       from: FROM_EMAIL,
       to,
-      subject: `† NØX † - Link de Acesso`,
+      subject: `NØX - Link de Acesso`,
       html: renderTemplate(title, content, {
-        label: "ACESSAR NØX",
+        label: "CLIQUE AQUI PARA ENTRAR",
         url: loginUrl,
       }),
     });
@@ -163,18 +136,18 @@ export const emailService = {
    */
   async sendPasswordReset(to, { token }) {
     const resetUrl = `${FRONTEND_URL}/auth/reset-password?token=${encodeURIComponent(token)}`;
-    const title = "RECUPERAÇÃO DE ACESSO";
+    const title = "RECUPERAÇÃO DE SENHA";
     const content = `
-      <p>O que aconteceu? Alguém clicou em "Esqueci minha senha".</p>
-      <p>Se foi você, clique no link abaixo para escolher uma nova credencial. Se não foi você, não ignore este e-mail você pode estar em risco.</p>
+      <p>Recebemos uma solicitação para redefinir sua senha.</p>
+      <p>Se você não fez este pedido, ignore este e-mail. Se deseja prosseguir, use o link abaixo.</p>
     `;
 
     return sendEmail({
       from: FROM_EMAIL,
       to,
-      subject: `† NØX † - Redefinição de Senha`,
+      subject: `NØX - Redefinição de Senha`,
       html: renderTemplate(title, content, {
-        label: "REDEFINIR SENHA",
+        label: "LINK PARA REDEFINIR SENHA",
         url: resetUrl,
       }),
     });
@@ -190,20 +163,18 @@ export const emailService = {
 
     const title = "CRÉDITOS ADICIONADOS";
     const content = `
-      <p>Olá, <strong>${safeUserName}</strong>. Sua transação foi processada com sucesso.</p>
-      <div style="background: #1a1a1a; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #333;">
-        <span style="display: block; font-size: 12px; color: #666; margin-bottom: 5px;">MONTANTE</span>
-        <span style="font-size: 32px; font-weight: 800; color: #fff;">${safeAmount} NØX</span>
-        <hr style="border: 0; border-top: 1px solid #222; margin: 15px 0;">
-        <span style="display: block; font-size: 10px; color: #444;">REF: ${safeReference}</span>
-      </div>
-      <p>Seus tokens já estão disponíveis para uso imediato no terminal.</p>
+      <p>Olá, <strong>${safeUserName}</strong>. Sua compra foi processada com sucesso.</p>
+      <p>
+        <strong>Pacote:</strong> ${safeAmount} NØX<br>
+        <strong>Referência:</strong> ${safeReference}
+      </p>
+      <p>Os créditos já estão disponíveis em sua conta para uso imediato.</p>
     `;
 
     return sendEmail({
       from: FROM_EMAIL,
       to,
-      subject: `† NØX † - Créditos Adicionados (${safeAmount})`,
+      subject: `NØX - Créditos Adicionados (${safeAmount})`,
       html: renderTemplate(title, content, {
         label: "VOLTAR AO CHAT",
         url: FRONTEND_URL,
@@ -220,18 +191,17 @@ export const emailService = {
 
     const title = "UPGRADE DE NÍVEL";
     const content = `
-      <p>Finalmente <strong>${safeUserName}</strong>, decidiu ascender ao próximo nível.</p>
-      <div style="border: 2px solid #fff; padding: 20px; border-radius: 12px; margin: 20px 0;">
-        <p style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 2px;">NÍVEL ${safeTierName} ATIVO</p>
-      </div>
+      <p>Olá, <strong>${safeUserName}</strong>.</p>
+      <p>Seu nível de acesso foi atualizado com sucesso.</p>
+      <p><strong>Nível Atual:</strong> ${safeTierName}</p>
     `;
 
     return sendEmail({
       from: FROM_EMAIL,
       to,
-      subject: `† NØX † - Upgrade de Nível: ${safeTierName}`,
+      subject: `NØX - Upgrade de Nível: ${safeTierName}`,
       html: renderTemplate(title, content, {
-        label: "TESTAR NØX AGORA",
+        label: "ABRIR NØX",
         url: FRONTEND_URL,
       }),
     });
