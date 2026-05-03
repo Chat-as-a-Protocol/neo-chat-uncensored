@@ -105,6 +105,35 @@ export const formatFlowPayError = (error) => ({
   providerBodyPreview: error.providerBodyPreview || undefined,
 });
 
+export const normalizeFlowPayChargeResponse = (data = {}) => {
+  const pixData = data.pixData || data.pix_data || null;
+  const normalizedPixData = pixData && typeof pixData === "object"
+    ? {
+        qrCode: pixData.qrCode || pixData.qr_code || null,
+        brCode: pixData.brCode || pixData.br_code || null,
+        correlationId:
+          pixData.correlationId ||
+          pixData.correlation_id ||
+          data.chargeId ||
+          data.id_transacao ||
+          null,
+        value: pixData.value ?? null,
+        expiresAt: pixData.expiresAt || pixData.expires_at || null,
+        status: pixData.status || null,
+      }
+    : null;
+
+  return {
+    checkoutUrl: data.checkoutUrl || null,
+    chargeId:
+      data.chargeId ||
+      data.id_transacao ||
+      normalizedPixData?.correlationId ||
+      null,
+    pixData: normalizedPixData,
+  };
+};
+
 export const createFlowPayCharge = async (
   payload,
   { env = process.env, fetchImpl = globalThis.fetch } = {},
@@ -115,10 +144,6 @@ export const createFlowPayCharge = async (
   // Detectar se é uma chave Basic (Client_Id:Client_Secret em Base64)
   const isBasicAuth = apiKey.startsWith('Q2xp');
   const authHeader = isBasicAuth ? `Basic ${apiKey}` : `Bearer ${apiKey}`;
-
-  // Debug (Sanitizado)
-  const maskedKey = `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
-  console.log(`[FlowPay] Tentando criar cobrança em ${apiUrl}. AuthMode: ${isBasicAuth ? 'Basic' : 'Bearer'}. Key: ${maskedKey} (len: ${apiKey.length})`);
 
   const response = await fetchImpl(`${apiUrl}/api/create-charge`, {
     method: "POST",
@@ -131,14 +156,15 @@ export const createFlowPayCharge = async (
   });
 
   const data = await readFlowPayJson(response);
-  if (!data.checkoutUrl) {
-    throw new FlowPayApiError("FlowPay response missing checkoutUrl", {
+  const normalized = normalizeFlowPayChargeResponse(data);
+  if (!normalized.checkoutUrl && !normalized.pixData?.brCode && !normalized.pixData?.qrCode) {
+    throw new FlowPayApiError("FlowPay response missing checkoutUrl or pixData", {
       providerStatus: response.status,
       providerBodyPreview: JSON.stringify(data).slice(0, 180),
     });
   }
 
-  return data;
+  return normalized;
 };
 
 export const checkFlowPayHealth = async (

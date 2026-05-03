@@ -41,6 +41,51 @@ const findProductByMetadata = (metadata, products) => {
   return Object.values(products).find((product) => product.persona_id === personaId) || null;
 };
 
+export const deriveFlowPayMetadataFromReference = (reference = "", plans = {}) => {
+  const safePlans = plans || {};
+  const packages = safePlans.packages || {};
+  const products = safePlans.products || {};
+  const value = String(reference || "");
+
+  const tokenPrefix = "nox_tokens_";
+  if (value.startsWith(tokenPrefix)) {
+    const packageId = Object.keys(packages).find((id) =>
+      value.startsWith(`${tokenPrefix}${id}_`),
+    );
+    const selectedPackage = packageId ? packages[packageId] : null;
+
+    if (selectedPackage) {
+      return {
+        type: "tokens_purchase",
+        packageId,
+        tokens: selectedPackage.tokens,
+        price: selectedPackage.price,
+        tierUpgrade: selectedPackage.tier_upgrade,
+      };
+    }
+  }
+
+  const productPrefix = "nox_product_";
+  if (value.startsWith(productPrefix)) {
+    const productId = Object.keys(products).find((id) =>
+      value.startsWith(`${productPrefix}${id}_`),
+    );
+    const selectedProduct = productId ? products[productId] : null;
+
+    if (selectedProduct) {
+      return {
+        type: "product_purchase",
+        productId,
+        personaId: selectedProduct.persona_id,
+        price: selectedProduct.price,
+        tierUpgrade: selectedProduct.tier_upgrade,
+      };
+    }
+  }
+
+  return {};
+};
+
 export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
   if (!metadata || typeof metadata !== "object") {
     console.error("[Payments] Error: resolveFlowPayEntitlement called with null/invalid metadata");
@@ -92,6 +137,7 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
 
 export const paymentService = {
   resolveEntitlement: resolveFlowPayEntitlement,
+  deriveMetadataFromReference: deriveFlowPayMetadataFromReference,
 
   async recordFlowPayPayment({
     providerReference,

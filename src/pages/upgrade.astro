@@ -74,6 +74,21 @@ const products = Object.values(plans.products || {});
         </section>
       )}
 
+      <section class="pix-result" id="pix-result" hidden aria-live="polite">
+        <div class="pix-result-head">
+          <div>
+            <span class="badge pro-badge">FlowPay Pix</span>
+            <h2>Cobranca gerada</h2>
+          </div>
+          <button type="button" class="pix-close" onclick="closePixResult()" aria-label="Fechar Pix">×</button>
+        </div>
+        <img id="pix-qr" class="pix-qr" alt="QR Code Pix" hidden />
+        <label for="pix-code" class="pix-label">Pix copia e cola</label>
+        <textarea id="pix-code" class="pix-code" readonly rows="4"></textarea>
+        <button type="button" class="btn-token" onclick="copyPixCode()">COPIAR PIX</button>
+        <p id="pix-meta" class="pix-meta"></p>
+      </section>
+
       {import.meta.env.PUBLIC_ENABLE_FLOWPAY_DIAGNOSTICS === 'true' && (
         <div class="test-panel" id="flowpay-test">
           <div class="test-header">
@@ -314,6 +329,88 @@ const products = Object.values(plans.products || {});
       cursor: pointer;
     }
 
+    .pix-result {
+      width: 100%;
+      padding: 18px;
+      border-radius: 24px;
+      border: 1px solid rgba(185, 214, 49, 0.58);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07)),
+        rgba(18, 21, 24, 0.86);
+      color: #fff;
+    }
+
+    .pix-result[hidden] {
+      display: none;
+    }
+
+    .pix-result-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .pix-result-head h2 {
+      margin: 8px 0 0;
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .pix-close {
+      width: 34px;
+      height: 34px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.86);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .pix-qr {
+      width: min(100%, 260px);
+      aspect-ratio: 1;
+      display: block;
+      margin: 0 auto 14px;
+      border-radius: 12px;
+      background: #fff;
+      object-fit: contain;
+      padding: 8px;
+    }
+
+    .pix-label {
+      display: block;
+      margin: 0 0 8px;
+      color: rgba(255, 255, 255, 0.76);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .pix-code {
+      width: 100%;
+      resize: vertical;
+      min-height: 96px;
+      margin: 0 0 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(0, 0, 0, 0.36);
+      color: rgba(255, 255, 255, 0.9);
+      padding: 12px;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .pix-meta {
+      margin: 10px 0 0;
+      color: rgba(255, 255, 255, 0.66);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
 
 
     .btn-token {
@@ -427,8 +524,102 @@ const products = Object.values(plans.products || {});
     const API_URL = apiUrl;
     const tokenStorageKey = 'nox_token';
 
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return null;
+    }
+
     function getAuthToken() {
+      const cookieToken = getCookie(tokenStorageKey);
+      if (cookieToken) {
+        localStorage.setItem(tokenStorageKey, cookieToken);
+        return cookieToken;
+      }
       return localStorage.getItem(tokenStorageKey);
+    }
+
+    async function readJsonResponse(response) {
+      try {
+        return await response.json();
+      } catch {
+        return {};
+      }
+    }
+
+    function normalizePixData(data) {
+      const pixData = data?.pixData || data?.pix_data || {};
+      return {
+        qrCode: pixData.qrCode || pixData.qr_code || null,
+        brCode: pixData.brCode || pixData.br_code || null,
+        correlationId: pixData.correlationId || pixData.correlation_id || data?.chargeId || null,
+        value: pixData.value ?? null,
+        expiresAt: pixData.expiresAt || pixData.expires_at || null,
+        status: pixData.status || null,
+      };
+    }
+
+    function showPixCharge(data) {
+      const pixData = normalizePixData(data);
+      if (!pixData.brCode && !pixData.qrCode) return false;
+
+      const panel = document.getElementById('pix-result');
+      const qr = document.getElementById('pix-qr');
+      const code = document.getElementById('pix-code');
+      const meta = document.getElementById('pix-meta');
+
+      if (!panel || !qr || !code || !meta) return false;
+
+      if (pixData.qrCode) {
+        qr.src = pixData.qrCode;
+        qr.hidden = false;
+      } else {
+        qr.removeAttribute('src');
+        qr.hidden = true;
+      }
+
+      code.value = pixData.brCode || '';
+
+      const metaParts = [
+        pixData.correlationId ? `Ref: ${pixData.correlationId}` : null,
+        pixData.status ? `Status: ${pixData.status}` : null,
+        pixData.value ? `Valor: R$ ${Number(pixData.value).toFixed(2)}` : null,
+      ].filter(Boolean);
+      meta.textContent = metaParts.join(' | ');
+
+      panel.hidden = false;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return true;
+    }
+
+    function handleBillingResponse(data) {
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+
+      if (showPixCharge(data)) return;
+
+      alert('Erro: ' + (data.error || 'Falha ao gerar Pix FlowPay'));
+    }
+
+    window.closePixResult = function() {
+      const panel = document.getElementById('pix-result');
+      if (panel) panel.hidden = true;
+    }
+
+    window.copyPixCode = async function() {
+      const code = document.getElementById('pix-code');
+      if (!(code instanceof HTMLTextAreaElement) || !code.value) return;
+
+      try {
+        await navigator.clipboard.writeText(code.value);
+      } catch {
+        code.select();
+        // Fallback para navegadores legados (notação de colchetes para evitar avisos de depreciação)
+        document['execCommand']('copy');
+      }
     }
 
     window.checkFlowHealth = async function() {
@@ -440,12 +631,12 @@ const products = Object.values(plans.products || {});
         const res = await fetch(`${API_URL}/api/flowpay/health`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        const data = await res.json();
+        const data = await readJsonResponse(res);
         statusEl.innerHTML = data.status === 'online' 
-          ? `<span class="success">● FlowPay Online (${data.statusCode})</span>`
-          : `<span class="error">● FlowPay Offline</span>`;
+          ? `<span class="success">FlowPay Online (${data.statusCode})</span>`
+          : `<span class="error">FlowPay Offline</span>`;
       } catch (err) {
-        statusEl.innerHTML = `<span class="error">● Error: ${err.message}</span>`;
+        statusEl.innerHTML = `<span class="error">Error: ${err.message}</span>`;
       }
     }
 
@@ -463,77 +654,68 @@ const products = Object.values(plans.products || {});
           }
         });
 
+        const data = await readJsonResponse(response);
         let errorMessage = 'Erro no servidor. Tente novamente mais tarde.';
-        try {
-          const data = await response.json();
-          if (data.details || data.error) {
-            errorMessage = data.details || data.error;
-          }
-        } catch (e) {
+        if (data.details || data.error) {
+          errorMessage = data.details || data.error;
+        } else if (!Object.keys(data).length) {
           errorMessage = `Erro ${response.status}: ${response.statusText}`;
         }
 
         if (!response.ok) {
-          resultEl.innerHTML = `<div class="error-box">❌ ${errorMessage}</div>`;
+          resultEl.innerHTML = `<div class="error-box">${errorMessage}</div>`;
           return;
         }
 
-        const data = await response.json();
         if (data.success) {
-          resultEl.innerHTML = `
-            <div class="success-box">
-              <p>✅ Test Charge Created</p>
-              <small>ID: ${data.chargeId}</small>
-              <button onclick="window.open('${data.checkoutUrl}', '_blank')" class="btn-checkout">Open Test Checkout</button>
-            </div>
-          `;
+          resultEl.innerHTML = `<div class="success-box"><p>Test charge criada</p><small>ID: ${data.chargeId || '-'}</small></div>`;
+          if (data.checkoutUrl) {
+            const box = resultEl.querySelector('.success-box');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn-checkout';
+            button.textContent = 'Abrir checkout de teste';
+            button.addEventListener('click', () => window.open(data.checkoutUrl, '_blank', 'noopener'));
+            box?.appendChild(button);
+          } else {
+            showPixCharge(data);
+          }
         } else {
-          resultEl.innerHTML = `<div class="error-box">❌ ${data.error}</div>`;
+          resultEl.innerHTML = `<div class="error-box">${data.error || 'FlowPay test charge failed'}</div>`;
         }
       } catch (err) {
-        resultEl.innerHTML = `<div class="error-box">❌ ${err.message}</div>`;
+        resultEl.innerHTML = `<div class="error-box">${err.message}</div>`;
       }
     }
 
-    window.buyTokens = async function(packageType) {
+    async function createPurchase(endpoint, body) {
       const token = getAuthToken();
       if (!token) return window.location.href = '/login';
-      
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       try {
-        const response = await fetch(`${apiUrl}/api/tokens/purchase`, {
+        const response = await fetch(`${apiUrl}${endpoint}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ package: packageType }),
+          body: JSON.stringify(body),
           signal: controller.signal
         });
-        
-        clearTimeout(timeoutId);
 
-        // Captura de erro aprimorada (Backend/FlowPay)
+        clearTimeout(timeoutId);
+        const data = await readJsonResponse(response);
+
         if (!response.ok) {
-          let errorMsg = 'Falha ao processar pagamento.';
-          try {
-            const errData = await response.json();
-            errorMsg = errData.details || errData.error || errorMsg;
-          } catch (e) {
-            errorMsg = `Erro ${response.status}: ${response.statusText}`;
-          }
+          const errorMsg = data.details || data.error || `Erro ${response.status}: ${response.statusText}`;
           alert(`NØX Billing: ${errorMsg}`);
           return;
         }
 
-        const data = await response.json();
-        if (data.checkoutUrl) {
-          window.location.href = data.checkoutUrl;
-        } else {
-          alert('Erro: ' + (data.error || 'Falha ao gerar link de pagamento'));
-        }
+        handleBillingResponse(data);
       } catch (error) {
         clearTimeout(timeoutId);
         const isTimeout = error.name === 'AbortError';
@@ -541,36 +723,12 @@ const products = Object.values(plans.products || {});
       }
     }
 
-    window.buyProduct = async function(productId) {
-      const token = getAuthToken();
-      if (!token) return window.location.href = '/login';
+    window.buyTokens = function(packageType) {
+      return createPurchase('/api/tokens/purchase', { package: packageType });
+    }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-      try {
-        const response = await fetch(`${apiUrl}/api/products/purchase`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ productId }),
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-        const data = await response.json();
-        if (data.checkoutUrl) {
-          window.location.href = data.checkoutUrl;
-        } else {
-          alert('Erro: ' + (data.error || 'Erro desconhecido'));
-        }
-      } catch (error) {
-        clearTimeout(timeoutId);
-        const isTimeout = error.name === 'AbortError';
-        alert(isTimeout ? 'O servidor demorou muito para responder. Tente novamente.' : 'Erro de conexão. Verifique sua internet.');
-      }
+    window.buyProduct = function(productId) {
+      return createPurchase('/api/products/purchase', { productId });
     }
   </script>
 </Layout>

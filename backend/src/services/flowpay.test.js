@@ -12,7 +12,7 @@ test("FlowPay Service - Hardened Validation", async (t) => {
   await t.test("Handshake: Should send redundant auth headers for maximum compatibility", async () => {
     let capturedHeaders;
 
-    await createFlowPayCharge(
+    const charge = await createFlowPayCharge(
       { amount: 100, orderId: "test_1" },
       {
         env: {
@@ -29,6 +29,35 @@ test("FlowPay Service - Hardened Validation", async (t) => {
     // Verifica se ambos os padrões de autenticação estão presentes
     assert.strictEqual(capturedHeaders["Authorization"], "Bearer secret_nexus_token");
     assert.strictEqual(capturedHeaders["x-api-key"], "secret_nexus_token");
+    assert.strictEqual(charge.checkoutUrl, "https://pay.flowpay.cash/c/1");
+  });
+
+  await t.test("Compatibility: Should accept direct PIX payloads from FlowPay", async () => {
+    const charge = await createFlowPayCharge(
+      { valor: 49, id_transacao: "nox_tokens_1k_test" },
+      {
+        env: {
+          FLOWPAY_API_URL: "https://api.flowpay.cash",
+          FLOWPAY_API_KEY: "secret_nexus_token",
+        },
+        fetchImpl: async () =>
+          new Response(JSON.stringify({
+            success: true,
+            id_transacao: "nox_tokens_1k_test",
+            pix_data: {
+              qr_code: "data:image/png;base64,abc",
+              br_code: "000201...",
+              correlation_id: "nox_tokens_1k_test",
+              value: 49,
+              status: "CREATED",
+            },
+          })),
+      },
+    );
+
+    assert.strictEqual(charge.checkoutUrl, null);
+    assert.strictEqual(charge.chargeId, "nox_tokens_1k_test");
+    assert.strictEqual(charge.pixData.brCode, "000201...");
   });
 
   await t.test("Health Check: Should correctly report provider status", async () => {

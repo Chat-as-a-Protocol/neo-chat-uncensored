@@ -1,6 +1,10 @@
 import assert from "node:assert";
 import test from "node:test";
-import { paymentService, resolveFlowPayEntitlement } from "./payments.js";
+import {
+  deriveFlowPayMetadataFromReference,
+  paymentService,
+  resolveFlowPayEntitlement,
+} from "./payments.js";
 
 const plans = {
   packages: {
@@ -95,5 +99,31 @@ test("Payment Service - Entitlement Resolution", async (t) => {
       productId: "pro_analyst",
       personaId: "analyst",
     });
+  });
+
+  await t.test("should derive token metadata from NØX FlowPay reference", () => {
+    assert.deepStrictEqual(
+      deriveFlowPayMetadataFromReference("nox_tokens_1k_abc", plans),
+      {
+        type: "tokens_purchase",
+        packageId: "1k",
+        tokens: 1000,
+        price: 49,
+        tierUpgrade: "paid_basic",
+      },
+    );
+  });
+
+  await t.test("should derive product metadata from NØX FlowPay reference", () => {
+    assert.deepStrictEqual(
+      deriveFlowPayMetadataFromReference("nox_product_pro_analyst_abc", plans),
+      {
+        type: "product_purchase",
+        productId: "pro_analyst",
+        personaId: "analyst",
+        price: 499,
+        tierUpgrade: "paid_pro",
+      },
+    );
   });
 });

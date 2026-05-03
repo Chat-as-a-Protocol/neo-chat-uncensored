@@ -211,6 +211,38 @@ const getPaymentUserMetadata = (user) => {
   };
 };
 
+const getFlowPayCustomerFields = (user) => {
+  const metadata = getPaymentUserMetadata(user);
+  return {
+    customer_email: metadata.userEmail,
+    customer_name: metadata.userName,
+  };
+};
+
+const buildFlowPayTransactionId = (kind, id) => {
+  const safeId = String(id || "unknown").replace(/[^a-zA-Z0-9_-]/g, "-");
+  return `nox_${kind}_${safeId}_${randomUUID()}`;
+};
+
+const resolveFlowPayWebhookUserId = async ({ data = {}, metadata = {} }) => {
+  const directUserId = data.userId || metadata.userId;
+  if (directUserId) return directUserId;
+
+  const payerId = String(data.payerId || "").trim();
+  if (payerId.startsWith("user_")) return payerId;
+  if (!isDeliverableEmail(payerId) || !process.env.DATABASE_URL) return null;
+
+  try {
+    const result = await query("SELECT id FROM users WHERE email = $1 LIMIT 1", [
+      payerId.toLowerCase(),
+    ]);
+    return result.rows[0]?.id || null;
+  } catch (err) {
+    logger.warn(`[Webhook] Unable to resolve payer ${payerId}: ${err.message}`);
+    return null;
+  }
+};
+
 // Trust the first proxy hop (Railway, etc.) so req.ip is the real client IP,
 // which is required for express-rate-limit to work correctly behind a reverse proxy.
 app.set("trust proxy", 1);
@@ -368,16 +400,19 @@ app.post(
       const data = envelope.data || envelope.payload;
 
       if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-        const metadata = data?.metadata || {};
-        const userId = data?.userId || metadata.userId || data?.payerId;
         const paymentId =
           data?.paymentId || data?.orderId || data?.chargeId || data?.id;
+        const reference = paymentId || `flowpay_${Date.now()}`;
+        const metadata = {
+          ...paymentService.deriveMetadataFromReference(reference, plans),
+          ...(data?.metadata || {}),
+        };
+        const userId = await resolveFlowPayWebhookUserId({ data, metadata });
 
         if (!userId) {
           throw new Error("Missing userId in payload");
         }
 
-        const reference = paymentId || `flowpay_${Date.now()}`;
         const amountBrl = Number(
           data?.amount ??
             data?.value ??
@@ -433,6 +468,10 @@ app.post(
             `[Webhook] User ${userId} purchased ${entitlement.tokens} tokens`,
           );
         } else {
+          if (!entitlement.tierUpgrade) {
+            throw new Error("Invalid payment entitlement metadata");
+          }
+
           const plan = await persistUserPlan(userId, entitlement.tierUpgrade);
           tierName =
             plans.tiers?.[plan.planKey]?.name || plan.planKey || tierName;
@@ -1547,11 +1586,14 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
       ? process.env.FRONTEND_URL.split(",")[0]
       : "http://localhost:4321";
 
+    const customerFields = getFlowPayCustomerFields(req.user);
     const data = await createFlowPayCharge({
       valor: selected.price,      // Gateway espera 'valor'
       moeda: "BRL",               // Gateway espera 'moeda'
-      id_transacao: `nox_${randomUUID()}`, // Gateway espera 'id_transacao'
+      id_transacao: buildFlowPayTransactionId("product", selected.id),
       wallet: "pix",              // Forçar pix
+      product_id: selected.id,
+      ...customerFields,
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
@@ -1566,7 +1608,7 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
       },
     });
 
-    res.json({ checkoutUrl: data.checkoutUrl });
+    res.json(data);
   } catch (error) {
     logger.error("FlowPay create-charge error", formatFlowPayError(error));
     res
@@ -1607,11 +1649,14 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
       ? process.env.FRONTEND_URL.split(",")[0]
       : "http://localhost:4321";
 
+    const customerFields = getFlowPayCustomerFields(req.user);
     const data = await createFlowPayCharge({
       valor: selected.price,      // Gateway espera 'valor'
       moeda: "BRL",               // Gateway espera 'moeda'
-      id_transacao: `tokens_${randomUUID()}`, // Gateway espera 'id_transacao'
+      id_transacao: buildFlowPayTransactionId("tokens", selected.id || pkg),
       wallet: "pix",              // Forçar pix conforme pix-provider.ts
+      product_id: `nox_tokens_${selected.id || pkg}`,
+      ...customerFields,
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
@@ -1625,7 +1670,7 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
       },
     });
 
-    res.json({ checkoutUrl: data.checkoutUrl });
+    res.json(data);
   } catch (error) {
     const errorDetails = error instanceof Error ? { message: error.message, stack: error.stack } : error;
     logger.error("[Tokens] Purchase critical failure:", errorDetails);
@@ -1671,11 +1716,14 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
       ? process.env.FRONTEND_URL.split(",")[0]
       : "http://localhost:4321";
 
+    const customerFields = getFlowPayCustomerFields(req.user);
     const data = await createFlowPayCharge({
       valor: selected.price,
       moeda: "BRL",
-      id_transacao: `product_${randomUUID()}`,
+      id_transacao: buildFlowPayTransactionId("product", selected.id || productId),
       wallet: "pix",
+      product_id: selected.id || productId,
+      ...customerFields,
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
@@ -1689,7 +1737,7 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
       },
     });
 
-    res.json({ checkoutUrl: data.checkoutUrl });
+    res.json(data);
   } catch (error) {
     logger.error("[Products] Purchase error", formatFlowPayError(error));
     res
@@ -1745,8 +1793,10 @@ app.post(
       const data = await createFlowPayCharge({
         valor: 1, // R$ 1,00 para teste
         moeda: "BRL",
-        id_transacao: `test_${randomUUID()}`,
+        id_transacao: buildFlowPayTransactionId("test", "diagnostics"),
         wallet: "pix",
+        product_id: "nox_diagnostics",
+        ...getFlowPayCustomerFields(req.user),
         userId: req.user.id,
         callbackUrl: `${frontendBaseUrl}/success`,
         testMode: true, // Flag vital para não gerar cobrança real
@@ -1754,8 +1804,7 @@ app.post(
 
       res.json({
         success: true,
-        chargeId: data.id,
-        checkoutUrl: data.checkoutUrl,
+        ...data,
         amount: 1,
       });
     } catch (error) {
