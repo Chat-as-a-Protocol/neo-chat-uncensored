@@ -728,7 +728,8 @@ const authenticateToken = (req, res, next) => {
 
   jwt.verify(token, secret, (err, user) => {
     if (err) {
-      return res.status(401).json({ error: "Invalid token" });
+      logger.warn(`[Auth] JWT verification failed: ${err.message}`);
+      return res.status(401).json({ error: "Invalid or expired token" });
     }
     req.user = user;
     next();
@@ -1703,9 +1704,14 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     
     try {
       const formatted = formatFlowPayError(error);
-      res.status(error.statusCode || 500).json({ 
+      // Se o erro for 401 vindo da FlowPay, retornamos 502 para o frontend
+      // Isso evita que o frontend ache que o usuário deslogou do NØX
+      const finalStatus = error.statusCode === 401 ? 502 : (error.statusCode || 500);
+      
+      res.status(finalStatus).json({ 
         error: "Failed to create token purchase",
-        details: formatted.message 
+        details: formatted.message,
+        gatewayStatus: error.statusCode
       });
     } catch (innerError) {
       logger.error("[Tokens] Failed to format FlowPay error:", innerError);
