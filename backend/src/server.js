@@ -57,6 +57,8 @@ if (!JWT_SECRET) {
 const effectiveJwtSecret = JWT_SECRET || randomUUID();
 
 const app = express();
+app.set('trust proxy', 1); // Confiar no proxy (Cloudflare/Railway) para pegar o IP real
+
 
 import redis from "./lib/redis.js";
 import { emailService } from "./services/email.js";
@@ -164,9 +166,20 @@ const allowedOrigins = process.env.FRONTEND_URL
       "http://localhost:4321",
       "http://localhost:3000",
       "https://noxai.chat",
-      "https://laughter.up.railway.app",
+      "https://inspiring-vitality-production.up.railway.app",
+      "https://inspiring-vitality.up.railway.app",
       "",
     ];
+
+// Helper to check if origin is a valid railway subdomain
+const isRailwayDomain = (origin) => {
+  try {
+    const host = new URL(origin).host;
+    return host.endsWith('.railway.app');
+  } catch {
+    return false;
+  }
+};
 
 app.use(
   cors({
@@ -174,7 +187,7 @@ app.use(
       // Permitir requisições sem origin (como mobile apps ou curl)
       if (!origin) return callback(null, true);
       
-      const isAllowed = allowedOrigins.some(o => o === origin);
+      const isAllowed = allowedOrigins.some(o => o === origin) || isRailwayDomain(origin);
       if (isAllowed) {
         callback(null, true);
       } else {
@@ -194,8 +207,8 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        "connect-src": ["'self'", "https://api.noxai.chat", "https://api.flowpay.cash", "*.railway.app", "*.up.railway.app"],
+        "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://static.cloudflareinsights.com"],
+        "connect-src": ["'self'", "https://api.noxai.chat", "https://api.flowpay.cash", "*.railway.app", "*.up.railway.app", "https://cloudflareinsights.com"],
         "img-src": ["'self'", "data:", "blob:", "https://*", "http://*"],
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "font-src": ["'self'", "https://fonts.gstatic.com"],
