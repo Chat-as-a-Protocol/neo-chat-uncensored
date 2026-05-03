@@ -97,11 +97,17 @@ const { title } = Astro.props;
     }
 
     .app-container {
+      position: relative;
+      top: auto;
+      left: auto;
+      right: auto;
+      bottom: auto;
       max-width: 430px;
       height: 90vh; /* Deixa um espaço no topo e embaixo */
       border-radius: 40px; /* Bordas imitando o iPhone */
       box-shadow: 0 0 0 8px #111, 0 0 0 10px rgba(255, 255, 255, 0.1), 0 30px 80px rgba(0,0,0,0.8);
       overflow: hidden;
+      padding: 0; /* No desktop não precisa de safe-area padding */
     }
   }
 
