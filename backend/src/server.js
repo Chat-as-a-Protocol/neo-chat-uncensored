@@ -392,7 +392,7 @@ const sendPaymentEmail = async ({
  * Recebe notificações de pagamento e atualiza o tier do usuário.
  */
 app.post(
-  "/webhooks/flowpay",
+  "/api/webhooks/flowpay",
   express.raw({
     type: (req) => {
       const contentType = req.headers["content-type"];
@@ -403,7 +403,7 @@ app.post(
     },
   }),
   async (req, res) => {
-    const signature = req.headers["x-nexus-signature"];
+    const signature = req.headers["x-nexus-signature"] || req.headers["x-flowpay-signature"];
     const secret = process.env.FLOWPAY_WEBHOOK_SECRET;
 
     if (!Buffer.isBuffer(req.body)) {
@@ -461,6 +461,14 @@ app.post(
         const paymentId =
           data?.paymentId || data?.orderId || data?.chargeId || data?.id;
         const reference = paymentId || `flowpay_${Date.now()}`;
+
+        // Verificação de Idempotência Antecipada (Redis)
+        const alreadyProcessed = await redis.get(`webhook_processed:${reference}`);
+        if (alreadyProcessed) {
+          logger.info(`[Webhook] Ignorando evento já processado: ${reference}`);
+          return res.status(200).json({ status: "success", message: "Already processed" });
+        }
+
         const metadata = {
           ...paymentService.deriveMetadataFromReference(reference, plans),
           ...(data?.metadata || {}),
