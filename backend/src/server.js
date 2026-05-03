@@ -901,7 +901,7 @@ app.get("/api/models", authenticateToken, async (req, res) => {
       return res.status(503).json({ error: "AI model is not configured" });
     }
 
-    const userTier = (await redis.get(`tier:${req.user.id}`)) || "free";
+    const userTier = (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
 
     const cachedModels = await redis.get('models_cache');
     let data;
@@ -936,7 +936,6 @@ app.get("/api/models", authenticateToken, async (req, res) => {
 
     res.json({
       available: allModels,
-      allModelDetails: data,
       currentTier: userTier,
       defaultModel: VENICE_MODEL_NAME,
     });
