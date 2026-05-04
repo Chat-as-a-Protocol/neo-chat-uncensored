@@ -65,6 +65,13 @@ Sintoma: Webhooks fora do padrão de segurança do ecossistema.
 Causa: Necessidade de padronização com o Ingress do Nexus.
 Correção: Endpoint de webhook movido para `/api/webhooks/flowpay`. Adicionado suporte ao header legado `X-FlowPay-Signature` junto ao `X-Nexus-Signature`. Implementada idempotência antecipada no Redis (check antes do processamento).
 
+### Ingress de Desenvolvimento Local (Tunnel)
+
+Sintoma: Webhooks do FlowPay não chegavam ao backend local durante os testes.
+Causa: O túnel (`neo-tunnel`) estava configurado para a porta 4321 (Frontend), mas o processamento de webhooks ocorre na porta 3001 (Backend).
+Correção: Atualizado o `Makefile` do `neo-tunnel` e do `neo-nexus` para apontar o serviço `flowpay` para `localhost:3001`.
+Regra: Sempre rodar `make tunnel-flowpay` a partir do Nexus para expor o backend do chat para o ecossistema externo.
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas
