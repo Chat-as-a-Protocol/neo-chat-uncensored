@@ -40,17 +40,31 @@ const addRedisEntry = async (userId, amount, type, reference) => {
     createdAt: Date.now(),
   };
   await redis.lpush(`ledger:${userId}`, JSON.stringify(entry));
-  return entry;
+
+  // Calcular balanceAfter imediatamente após o push
+  const allEntries = await redis.lrange(`ledger:${userId}`, 0, -1);
+  const balanceAfter = allEntries
+    .map((e) => JSON.parse(e))
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  return { ...entry, balanceAfter };
 };
 
 export const ledgerService = {
   async addEntry(userId, amount, type, reference) {
     if (shouldUsePostgres(userId)) {
+      // CTE: insere e calcula o saldo resultante na mesma operação
       const result = await query(
-        `INSERT INTO ledger (user_id, amount, type, reference)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (reference) DO NOTHING
-         RETURNING id, user_id, amount, type, reference, created_at`,
+        `WITH inserted AS (
+           INSERT INTO ledger (user_id, amount, type, reference)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (reference) DO NOTHING
+           RETURNING id, user_id, amount, type, reference, created_at
+         )
+         SELECT
+           i.*,
+           (SELECT COALESCE(SUM(amount), 0)::int FROM ledger WHERE user_id = $1) AS balance_after
+         FROM inserted i`,
         [userId, amount, type, reference || null],
       );
 
@@ -58,7 +72,11 @@ export const ledgerService = {
         return null;
       }
 
-      return mapPostgresEntry(result.rows[0]);
+      const row = result.rows[0];
+      return {
+        ...mapPostgresEntry(row),
+        balanceAfter: row.balance_after,
+      };
     }
 
     return addRedisEntry(userId, amount, type, reference);

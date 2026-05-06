@@ -1185,16 +1185,17 @@ app.post(
         // Registrar consumo no ledger APENAS após resposta bem-sucedida da Venice
         // Tokens baseados no conteúdo real acumulado do stream (Tiktoken)
         const tokens = countTokensFromText(assistantContent);
+        let streamDebitEntry = null;
         if (tokens > 0) {
           try {
-            await ledgerService.addEntry(
+            streamDebitEntry = await ledgerService.addEntry(
               req.user.id,
               -tokens,
               LEDGER_TYPES.TOKEN_CONSUMPTION,
               "chat_" + randomUUID(),
             );
             logger.info(
-              `[Ledger] Debit ${tokens} tokens for user ${req.user.id} (stream)`,
+              `[Ledger] Debit ${tokens} tokens for user ${req.user.id} (stream), balanceAfter=${streamDebitEntry?.balanceAfter ?? "n/a"}`,
             );
           } catch (err) {
             logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
@@ -1222,16 +1223,17 @@ app.post(
         const estimatedTokens = veniceTokens || countTokensFromText(assistantText);
 
         // Debit APENAS se Venice retornou resposta válida (não debita em erro)
+        let syncDebitEntry = null;
         if (estimatedTokens > 0 && assistantText) {
           try {
-            await ledgerService.addEntry(
+            syncDebitEntry = await ledgerService.addEntry(
               req.user.id,
               -estimatedTokens,
               LEDGER_TYPES.TOKEN_CONSUMPTION,
               "chat_sync_" + randomUUID(),
             );
             logger.info(
-              `[Ledger] Debit ${estimatedTokens} tokens for user ${req.user.id} (sync)`,
+              `[Ledger] Debit ${estimatedTokens} tokens for user ${req.user.id} (sync), balanceAfter=${syncDebitEntry?.balanceAfter ?? "n/a"}`,
             );
           } catch (err) {
             logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
@@ -1248,16 +1250,18 @@ app.post(
           await redis.expire(ipUsageKey, 86400);
         }
 
-        const newBalance = req.ledgerBalance
-          ? req.ledgerBalance - estimatedTokens // STALE: capturado antes do consumo — impreciso em paralelo
-          : Math.max(0, (req.dailyLimit ?? 0) - req.currentUsage - estimatedTokens);
+        // balanceAfter: saldo real pós-debit retornado do ledger (sem STALE)
+        const balanceAfter = syncDebitEntry?.balanceAfter
+          ?? (req.availableCredits != null ? req.availableCredits - estimatedTokens : null);
+        const remaining = balanceAfter
+          ?? Math.max(0, (req.dailyLimit ?? 0) - req.currentUsage - estimatedTokens);
 
         res.json({
           ...data,
           quota: {
             used: req.currentUsage + estimatedTokens,
             limit: req.dailyLimit,
-            remaining: newBalance,
+            remaining,
           },
         });
       }
