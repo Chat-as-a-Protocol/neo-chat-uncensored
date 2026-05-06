@@ -870,8 +870,9 @@ const checkQuota = async (req, res, next) => {
         // MODO LEDGER: tokens comprados disponíveis
         logger.info(`[Quota] LEDGER mode — user ${req.user.id}, balance ${balance}`);
         req.ledgerBalance = balance;
+        req.availableCredits = balance; // Créditos reais disponíveis (semântica correta)
         req.currentUsage = 0;
-        req.dailyLimit = balance;
+        req.dailyLimit = null;          // Não aplicável no modo ledger
         req.quotaMode = "ledger";
       } else if (hasSubscription) {
         // MODO SUBSCRIPTION: assinatura PRO ativa confirmada no ledger, sem tokens avulsos
@@ -1248,8 +1249,8 @@ app.post(
         }
 
         const newBalance = req.ledgerBalance
-          ? req.ledgerBalance - estimatedTokens
-          : Math.max(0, req.dailyLimit - req.currentUsage - estimatedTokens);
+          ? req.ledgerBalance - estimatedTokens // STALE: capturado antes do consumo — impreciso em paralelo
+          : Math.max(0, (req.dailyLimit ?? 0) - req.currentUsage - estimatedTokens);
 
         res.json({
           ...data,

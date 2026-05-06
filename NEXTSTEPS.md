@@ -103,6 +103,33 @@ Fechado para release:
 - Avaliar renderer Markdown completo no frontend.
 - Criar migração assistida se aparecer usuário legado existente apenas no Redis.
 
+### ⧉ Fase 2 — Ledger (identificado em code review 2026-05-06)
+
+```text
+PRIORIDADE  ITEM
+──────────  ────────────────────────────────────────────────────────────────
+ALTA        Race condition de saldo: dois requests paralelos podem levar
+            balance a negativo. Requer reservation/lock atômico ou
+            SELECT ... FOR UPDATE antes do debit.
+
+MÉDIA       newBalance na resposta é STALE: capturado no checkQuota antes
+            do consumo real. Em requests paralelos, UI exibe saldo errado.
+            Fix: retornar balanceAfter direto do addEntry (query pós-debit).
+
+BAIXA       Webhook idempotência por paymentId: se FlowPay emitir mesmo
+            evento com ID diferente, ON CONFLICT não protege. Mitigação:
+            hash do conteúdo (amount + userId + timestamp) como chave
+            secundária de deduplicação.
+```
+
+**O que já está protegido:**
+
+- `ON CONFLICT(reference)` no `ledger.addEntry` → webhook duplicado mesmo ID: seguro.
+- Debit só após Venice responder → timeout/erro não debita: seguro.
+- `req.availableCredits` (LEDGER mode) separado de `req.dailyLimit` (SUBSCRIPTION/FREE): semântica correta.
+- Avaliar renderer Markdown completo no frontend.
+- Criar migração assistida se aparecer usuário legado existente apenas no Redis.
+
 ────────────────────────────────────────
 
 ## ⧉ Pós-release Comercial
