@@ -1151,6 +1151,8 @@ app.post(
         ...userMessages,
       ];
 
+      // --- TOKEN ENFORCEMENT (Hardened) ---
+      const TOKEN_SAFETY_BUFFER = 128;
       // System prompt é custo operacional da plataforma — não debita cota do usuário
       const inputEstimate = countTokensFromMessages(userMessages);
 
@@ -1283,50 +1285,48 @@ app.post(
           }
         };
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          processStreamChunk(chunkDecoder.decode(value, { stream: true }));
-        }
-        processStreamChunk(null); // Sinaliza fim para processar buffer residual
-
-        // Registrar consumo no ledger APENAS após resposta bem-sucedida da Venice
-        // Tokens baseados no conteúdo real acumulado do stream (Tiktoken)
-        const tokens = countTokensFromText(assistantContent);
-        let streamDebitEntry = null;
-        if (tokens > 0) {
-          try {
-            streamDebitEntry = await ledgerService.addEntry(
-              req.user.id,
-              -tokens,
-              LEDGER_TYPES.TOKEN_CONSUMPTION,
-              "chat_" + randomUUID(),
-            );
-            logger.info(
-              `[Ledger] Debit ${tokens} tokens for user ${req.user.id} (stream), balanceAfter=${streamDebitEntry?.balanceAfter ?? "n/a"}`,
-            );
-          } catch (err) {
-            if (err.message === "INSUFFICIENT_FUNDS") {
-              logger.warn(
-                `[Ledger] Post-stream block for user ${req.user.id}: Insufficient funds`,
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            processStreamChunk(chunkDecoder.decode(value, { stream: true }));
+          }
+          processStreamChunk(null); // Sinaliza fim para processar buffer residual
+        } catch (streamErr) {
+          // Absorve o erro para não propagar para o catch externo, evitando conflito de headers
+          logger.error(`[Stream] Interrupted for user ${req.user.id}:`, streamErr);
+        } finally {
+          // Registrar consumo no ledger SEMPRE, mesmo em erro parcial
+          const tokens = countTokensFromText(assistantContent);
+          if (tokens > 0) {
+            try {
+              const streamDebitEntry = await ledgerService.addEntry(
+                req.user.id,
+                -tokens,
+                LEDGER_TYPES.TOKEN_CONSUMPTION,
+                "chat_" + randomUUID(),
               );
-              // Note: Stream already finished, but we can prevent further interactions
+              logger.info(
+                `[Ledger] Debit ${tokens} tokens for user ${req.user.id} (stream), balanceAfter=${streamDebitEntry?.balanceAfter ?? "n/a"}`,
+              );
+            } catch (err) {
+              logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
             }
-            logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
+
+            if (req.user.guest) {
+              const clientIp =
+                req.headers["x-forwarded-for"]?.split(",")[0] ||
+                req.socket.remoteAddress;
+              const ipUsageKey = `usage:ip:${clientIp}`;
+              await redis.incrby(ipUsageKey, tokens);
+              await redis.expire(ipUsageKey, 86400);
+            }
+          }
+
+          if (!res.writableEnded) {
+            res.end();
           }
         }
-
-        // Camada 2: Registrar consumo no IP se for guest
-        if (req.user.guest) {
-          const clientIp =
-            req.headers["x-forwarded-for"]?.split(",")[0] ||
-            req.socket.remoteAddress;
-          const ipUsageKey = `usage:ip:${clientIp}`;
-          await redis.incrby(ipUsageKey, tokens);
-          await redis.expire(ipUsageKey, 86400); // 24h reset por IP
-        }
-
-        res.end();
       } else {
         // Modo não-streaming
         const data = await veniceResponse.json();
