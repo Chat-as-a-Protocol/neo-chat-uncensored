@@ -10,18 +10,18 @@ if (!token) {
 
 <Layout title="Conta · NØX">
   <main class="account-shell">
+    <img src="/nox_vert.webp" alt="NØX" class="panel-logo-bg" />
     <section class="account-panel" aria-labelledby="account-title">
       <a href="/" class="back-link">← Terminal</a>
 
       <div class="account-heading">
-        <span class="eyebrow">NØX</span>
         <h1 id="account-title">Conta</h1>
       </div>
 
       <dl class="account-stats">
         <div>
           <dt>Plano</dt>
-          <dd id="account-plan">--</dd>
+          <dd id="account-plan">--</dd>3
         </div>
         <div>
           <dt>Uso hoje</dt>
@@ -72,8 +72,23 @@ if (!token) {
     return localStorage.getItem(tokenStorageKey);
   }
 
-  function setStatus(message: string) {
-    if (accountStatusEl) accountStatusEl.textContent = message;
+  function setPlanStatus(tier: string) {
+    if (!accountStatusEl) return;
+    
+    const benefits = {
+      'guest': 'Modo degustação: 500 tokens diários e 3 interações por conversa.',
+      'free': 'Usuário Identificado: 1.000 tokens diários e histórico de chat salvo.',
+      'paid_basic': 'Plano Basic: 5.000 tokens diários e acesso ampliado.',
+      'paid_pro': 'Status ELITE: Acesso total ao núcleo NØX e suporte de arquitetura.'
+    };
+
+    const key = tier.includes('pro') ? 'paid_pro' : 
+                tier.includes('basic') ? 'paid_basic' : 
+                tier.includes('free') ? 'free' : 'guest';
+                
+    accountStatusEl.textContent = benefits[key] || 'Conta ativa e sincronizada.';
+    accountStatusEl.style.opacity = '1';
+    accountStatusEl.style.color = 'rgba(255, 255, 255, 0.8)';
   }
 
   function formatPlan(plan?: string, tier?: string) {
@@ -109,8 +124,22 @@ if (!token) {
 
       const usage = await usageResponse.json();
       const remaining = Math.max(0, Number(usage.remaining || 0));
+      const planValue = formatPlan(usage.plan, usage.tier);
+      const isPro = planValue.includes('P.R.O');
 
-      if (accountPlanEl) accountPlanEl.textContent = formatPlan(usage.plan, usage.tier);
+      if (accountPlanEl) {
+        accountPlanEl.textContent = planValue;
+        if (isPro) {
+          accountPlanEl.classList.add('pro-glow');
+          document.querySelector('.account-panel')?.classList.add('is-pro');
+          const upgradeBtn = document.querySelector('.primary-action');
+          if (upgradeBtn) {
+            upgradeBtn.textContent = 'Comunidade';
+            upgradeBtn.setAttribute('href', 'https://t.me/nox_ia');
+          }
+        }
+      }
+      
       if (accountUsageEl) accountUsageEl.textContent = `${usage.today}/${usage.limit}`;
       if (accountRemainingEl) accountRemainingEl.textContent = String(remaining);
 
@@ -127,7 +156,7 @@ if (!token) {
         if (accountBalanceEl) accountBalanceEl.textContent = '--';
       }
 
-      setStatus('Conta sincronizada.');
+      setPlanStatus(usage.tier || usage.plan || 'guest');
     } catch {
       setStatus('Conexão indisponível. Tente novamente em instantes.');
     }
@@ -152,16 +181,40 @@ if (!token) {
     background-color: #000;
   }
 
+  .panel-logo-bg {
+    position: absolute;
+    right: calc(50% - 240px);
+    top: calc(50% - 250px);
+    height: 140px;
+    width: auto;
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.2));
+    z-index: 1; /* Fica atrás do painel */
+    pointer-events: none;
+    opacity: 0.9;
+    transform: rotate(4deg);
+  }
+
   .account-panel {
+    position: relative;
+    z-index: 2; /* Fica à frente da logo para gerar a refração */
     width: 100%;
     max-width: 430px;
     padding: 30px 24px;
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 22px;
-    background: linear-gradient(145deg, rgba(20, 20, 25, 0.58), rgba(10, 10, 15, 0.3));
+    background: rgba(12, 14, 20, 0.6);
     box-shadow: 0 40px 80px rgba(0, 0, 0, 0.58);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
+  }
+
+  .pro-glow {
+    color: var(--accent) !important;
+    text-shadow: 0 0 15px rgba(185, 214, 49, 0.6);
+  }
+
+  .is-pro {
+    border-color: rgba(185, 214, 49, 0.25) !important;
   }
 
   .back-link {

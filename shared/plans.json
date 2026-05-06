@@ -19,7 +19,7 @@
       "maxOutputTokens": 1024,
       "benefits": [
         "Acesso identificado",
-        "Historico persistente",
+        "Historico salvo",
         "Limite de tokens ampliado",
         "Sem barreira de mensagens"
       ]

@@ -62,3 +62,67 @@
 {"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T09:30:58.602Z"}
 {"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-01T09:30:58.605Z"}
 {"level":"info","message":"NØX Backend running on port 3001","timestamp":"2026-05-03T07:37:11.887Z"}
+{"level":"info","message":"NØX Backend running on port 3001","timestamp":"2026-05-06T07:00:13.421Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-06T07:00:21.406Z"}
+{"level":"info","message":"OPTIONS /api/auth/guest - 200","timestamp":"2026-05-06T07:00:21.536Z"}
+{"level":"info","message":"NØX Backend running on port 3001","timestamp":"2026-05-06T07:03:32.920Z"}
+{"level":"info","message":"NØX Backend running on port 3001","timestamp":"2026-05-06T07:20:16.910Z"}
+{"level":"info","message":"POST /api/auth/guest - 201","timestamp":"2026-05-06T07:20:22.453Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:20:22.532Z"}
+{"level":"info","message":"[Ledger] Debit 13 tokens for user guest_0ad165b1c7879781a9019220d2e05dc8 (stream), balanceAfter=-13","timestamp":"2026-05-06T07:20:33.206Z"}
+{"level":"info","message":"POST /api/chat - 200","timestamp":"2026-05-06T07:20:33.207Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:20:33.213Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:23:31.718Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:25:05.123Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:26:00.281Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:26:13.347Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:27:07.967Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:31:06.061Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:31:18.718Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:32:31.273Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:33:40.113Z"}
+{"level":"info","message":"[Ledger] Debit 39 tokens for user guest_0ad165b1c7879781a9019220d2e05dc8 (stream), balanceAfter=-52","timestamp":"2026-05-06T07:36:47.060Z"}
+{"level":"info","message":"POST /api/chat - 200","timestamp":"2026-05-06T07:36:47.060Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:36:47.064Z"}
+{"level":"info","message":"[Ledger] Debit 277 tokens for user guest_0ad165b1c7879781a9019220d2e05dc8 (stream), balanceAfter=-329","timestamp":"2026-05-06T07:37:44.354Z"}
+{"level":"info","message":"POST /api/chat - 200","timestamp":"2026-05-06T07:37:44.355Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:37:44.359Z"}
+{"level":"info","message":"GET /api/usage - 304","timestamp":"2026-05-06T07:42:38.593Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:45:53.136Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:47:10.847Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:47:27.107Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:49:08.988Z"}
+{"level":"info","message":"POST /api/auth/signup - 201","timestamp":"2026-05-06T07:50:33.234Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:50:33.522Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:50:40.963Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T07:50:40.967Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:51:43.015Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:57:49.183Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:57:56.221Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:58:18.844Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T07:59:43.711Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:00:23.138Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:01:18.632Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:02:41.679Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:03:06.129Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:03:06.137Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:04:43.068Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:04:43.159Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:08:27.502Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:08:27.512Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:10:55.897Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:10:55.995Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:11:29.409Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:11:29.416Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:11:55.303Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:11:55.322Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:12:08.436Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:12:08.440Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:12:43.408Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:12:43.472Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:13:23.384Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:13:23.391Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:13:25.478Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:13:25.485Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:13:52.263Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:13:52.279Z"}

@@ -76,8 +76,9 @@ const allowedOrigins = [
 app.use((req, res, next) => {
   const { method, headers: { origin } } = req;
 
-  // Verificação estrita contra a lista oficial
-  const isAllowed = origin && allowedOrigins.includes(origin.replace(/\/$/, ""));
+  // Verificação estrita contra a lista oficial + fallback automático para localhost em dev
+  const isLocal = origin && (origin.includes("localhost:") || origin.includes("127.0.0.1:"));
+  const isAllowed = origin && (allowedOrigins.includes(origin.replace(/\/$/, "")) || isLocal);
 
   if (isAllowed) {
     res.setHeader("Access-Control-Allow-Origin", origin);

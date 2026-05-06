@@ -8,7 +8,6 @@ const { animateLogo = true } = Astro.props;
 <div class="scene-lights" aria-hidden="true" transition:persist="scene-bg">
   <div class="grain"></div>
   <img src="/bg_escuro.webp" alt="" class="bg-wallpaper" />
-  <img src="/neoai.png" alt="" class={`floating-logo ${animateLogo ? '' : 'no-anim'}`} />
   <div class="vignette"></div>
 </div>
 
@@ -39,7 +38,7 @@ const { animateLogo = true } = Astro.props;
     width: 100vw;
     height: 100vh;
     object-fit: cover;
-    opacity: 0.65;
+    opacity: 0.5;
     pointer-events: none;
     user-select: none;
     z-index: 1;
@@ -47,43 +46,14 @@ const { animateLogo = true } = Astro.props;
     outline: none;
   }
 
-  .floating-logo {
-    position: absolute;
-    top: 24%; /* Subindo a logo ainda mais para abrir espaço para o modal alto de signup */
-    left: 50%;
-    width: 150vw;
-    min-width: 1200px;
-    max-width: none;
-    height: auto;
-    object-fit: contain;
-    opacity: 0.85;
-    pointer-events: none;
-    user-select: none;
-    z-index: 2; /* Fica acima do wallpaper e abaixo da vinheta */
-    border: none;
-    outline: none;
-    filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.65)); /* Sombra forte para descolar do fundo e dar profundidade 3D */
-    animation: float-logo 12s ease-in-out infinite;
-  }
-
-  @keyframes float-logo {
-    0%, 100% {
-      transform: translate(-50%, -49.5%) rotate(-0.2deg);
-    }
-    50% {
-      transform: translate(-50%, -50.5%) rotate(0.2deg);
-    }
-  }
-
-  .floating-logo.no-anim {
-    animation: none !important;
-    transform: translate(-50%, -50%);
-  }
-
   .vignette {
     position: absolute;
     inset: 0;
     z-index: 3;
-    background: radial-gradient(circle at 50% 40%, rgba(0, 0, 0, 0) 20%, rgba(0, 0, 0, 0.85) 100%);
+    background: linear-gradient(to top, 
+      rgba(0, 0, 0, 1) 0%, 
+      rgba(0, 0, 0, 0.7) 40%, 
+      rgba(0, 0, 0, 0) 100%
+    );
   }
 </style>

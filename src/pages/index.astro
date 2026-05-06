@@ -19,28 +19,18 @@ import SceneBackground from '../components/SceneBackground.astro';
 
     <footer class="scene-footer">
       <div class="footer-links">
-        <a href="/upgrade">Upgrade</a>
+        <a href="/upgrade">UPGRADE</a>
         <span class="dot">·</span>
-        <a href="/precos">Preços</a>
+        <a href="/pricing">PREÇOS</a>
         <span class="dot">·</span>
-        <a href="/conta">Conta</a>
+        <a href="https://t.me/nox_ia" target="_blank" rel="noopener noreferrer">TELEGRAM</a>
         <span class="dot">·</span>
-        <a
-          href="https://t.me/nox_ia"
-          class="telegram-link"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Grupo NØX no Telegram"
-        >
-          <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-            <path d="M21.9 4.6 18.8 19c-.2 1-.8 1.2-1.6.8l-4.4-3.2-2.1 2c-.2.2-.4.4-.9.4l.3-4.5L18.4 7c.4-.3-.1-.5-.5-.2L7.7 13.2 3.3 11.8c-1-.3-1-.9.2-1.3l17.1-6.6c.8-.3 1.5.2 1.3.7Z"></path>
-          </svg>
-        </a>
+        <a href="/account">CONTA</a>
       </div>
-      <div class="footer-legal mt-2">
-        <a href="/privacy-policy" aria-label="Política de Privacidade">Privacy</a>
+      <div class="footer-legal">
+        <a href="/privacy">PRIVACY</a>
         <span class="dot">·</span>
-        <a href="/terms-and-conditions" aria-label="Termos e Condições">Terms</a>
+        <a href="/terms">TERMS</a>
       </div>
     </footer>
   </main>
@@ -61,14 +51,22 @@ import SceneBackground from '../components/SceneBackground.astro';
     background: #000000;
   }
 
+  /* Esconde footer quando o chat está ativo/focado no mobile */
+  :global(body.chat-input-focused) .scene-footer,
+  :global(body.keyboard-open) .scene-footer {
+    display: none;
+  }
+
   .scene-footer {
     width: 100%;
     max-width: 480px;
     margin: 0 auto;
     flex: 0 0 auto;
     text-align: center;
-    color: rgba(236, 236, 236, 0.44);
-    font-size: clamp(14px, 1.9vw, 22px);
+    color: rgba(236, 236, 236, 0.3);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
     line-height: 1.35;
     padding-bottom: clamp(12px, 1.8vw, 22px);
   }
@@ -94,8 +92,13 @@ import SceneBackground from '../components/SceneBackground.astro';
 
   .scene-footer .dot {
     display: inline-block;
-    margin: 0 14px;
+    margin: 0 10px;
     opacity: 0.42;
+  }
+
+  .footer-legal {
+    margin-top: 8px;
+    opacity: 0.6;
   }
 
   .intro-splash {
