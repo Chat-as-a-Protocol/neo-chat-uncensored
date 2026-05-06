@@ -6,7 +6,7 @@
           NØX · PROJECT CONTEXT
 ========================================
 Status: active
-Updated: 2026-05-06
+Updated: 2026-05-06 (PIX produção validado)
 ========================================
 ```
 
@@ -52,13 +52,16 @@ Webhook duplicado      → ON CONFLICT(reference) → não duplica crédito
 ## ⨷ Fronteiras
 
 ```text
-noxai.chat       -> app NØX
-api.noxai.chat   -> backend NØX
-api.flowpay.cash -> provedor FlowPay
-gitea.com/noxia  -> repositório soberano
+noxai.chat           -> app NØX
+api.noxai.chat       -> backend NØX
+api.flowpay.cash     -> FlowPay (serviço próprio, Cloudflare Worker)
+nexus.neoprotocol.space -> Nexus (hub de eventos, Railway)
+gitea.com/noxia      -> repositório soberano
 ```
 
 `FLOWPAY_API_URL` nunca aponta para `api.noxai.chat`.
+
+`FLOWPAY_API_KEY` no Railway (backend NØX) deve ser idêntica a `FLOWPAY_INTERNAL_API_KEY` do Cloudflare Worker `flowpay-api`. O FlowPay valida via `x-api-key === FLOWPAY_INTERNAL_API_KEY` — qualquer divergência retorna 401 → 502.
 
 ────────────────────────────────────────
 

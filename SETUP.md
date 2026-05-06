@@ -127,7 +127,7 @@ DATABASE_URL=${{Postgres.DATABASE_URL}}
 REDIS_URL=${{Redis.REDIS_URL}}
 FRONTEND_URL=https://noxai.chat
 FLOWPAY_API_URL=https://api.flowpay.cash
-FLOWPAY_API_KEY=...
+FLOWPAY_API_KEY=...   # deve ser idêntica a FLOWPAY_INTERNAL_API_KEY do Cloudflare Worker flowpay-api
 FLOWPAY_WEBHOOK_SECRET=...
 RESEND_API_KEY=${{Resend Mail.RESEND_API_KEY}}
 RESEND_FROM_EMAIL=NØX <send@noxai.chat>
@@ -208,6 +208,7 @@ Testes manuais:
 - abrir `/login`
 - pedir magic link
 - abrir `/upgrade`
-- iniciar compra de pacote
-- confirmar que o checkout vem do FlowPay
+- iniciar compra de pacote → QR PIX deve ser exibido
+- confirmar que o checkout vem do FlowPay (chargeId, brCode, status: ACTIVE)
 - confirmar que nada chama `localhost`
+- após pagamento real: confirmar webhook Nexus → crédito no ledger

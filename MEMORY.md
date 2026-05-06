@@ -140,6 +140,18 @@ Correção:
 - **Vanilla Scripting:** Limpeza de tipos TS nos scripts de cliente para máxima compatibilidade e resiliência de runtime.
 - **UI "The Architect":** Finalização do efeito de refração ácida na conta e padronização de rotas em inglês (`/account`, `/pricing`).
 
+### PIX em Produção Funcionando — FlowPay API Key (2026-05-06)
+
+Sintoma: `POST /api/tokens/purchase` retornava `502 Bad Gateway` sem headers CORS. Browser bloqueava com `No Access-Control-Allow-Origin`.
+Causa raiz: `FLOWPAY_API_KEY` não estava configurada no serviço NØX backend do Railway. O Railway estava retornando 502 de proxy antes do Node.js responder (timeout no fetch para FlowPay).
+Causa secundária: A chave adicionada inicialmente (`8739***`, 64 chars) não era a `FLOWPAY_INTERNAL_API_KEY` do Cloudflare Worker. A chave correta é a mesma usada em outros projetos do ecossistema — encontrada no `.env` do FluxxDAO.
+Correção:
+- Adicionado `FLOWPAY_API_KEY` correto no Railway (serviço backend) — valor obtido do Cloudflare Worker `flowpay-api` → `FLOWPAY_INTERNAL_API_KEY`.
+- Adicionado `FLOWPAY_API_URL=https://api.flowpay.cash` no Railway.
+- `backend/src/services/flowpay.js`: adicionado `AbortController` com timeout de 15s em `createFlowPayCharge` para evitar Railway 502 por hang.
+Resultado: PIX gerado com sucesso — `chargeId`, `brCode`, `qrCode` e `status: ACTIVE` retornados. QR renderizado na UI `/upgrade`.
+Regra: A `FLOWPAY_API_KEY` no NØX deve sempre bater com `FLOWPAY_INTERNAL_API_KEY` do Cloudflare Worker `flowpay-api`.
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas

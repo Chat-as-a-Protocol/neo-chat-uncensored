@@ -60,14 +60,11 @@ Updated: 2026-05-06
 
 ## ⨷ Pendente Imediato
 
-1. Conferir variáveis do backend no Railway:
-   `JWT_SECRET`, `VENICE_API_KEY`, `VENICE_MODEL`, `FRONTEND_URL`,
-   `FLOWPAY_API_URL`, `FLOWPAY_API_KEY`, `FLOWPAY_WEBHOOK_SECRET`,
-   `DATABASE_URL`, `REDIS_URL`, `RESEND_API_KEY` e `RESEND_FROM_EMAIL`.
+1. ~~Conferir variáveis do backend no Railway~~ — **CONCLUÍDO** (`FLOWPAY_API_KEY` e `FLOWPAY_API_URL` configuradas em 2026-05-06).
 2. Fazer smoke test pós-deploy:
    signup, login, guest chat, `/api/usage`, magic link e `/conta`.
-3. Validar compra real de pacote em produção.
-4. Confirmar webhook FlowPay via Nexus em produção.
+3. ~~Validar geração de cobrança PIX~~ — **CONCLUÍDO** (QR renderizado na UI `/upgrade` em produção).
+4. **Confirmar webhook FlowPay via Nexus em produção** — pagamento real → nexus → ledger → tokens creditados.
 5. Verificar domínio Resend `send@noxai.chat`.
 
 ────────────────────────────────────────

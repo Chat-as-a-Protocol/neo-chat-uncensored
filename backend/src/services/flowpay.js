@@ -166,11 +166,24 @@ export const createFlowPayCharge = async (
     headers["x-api-key"] = apiKey;
   }
 
-  const response = await fetchImpl(`${apiUrl}/api/create-charge`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  let response;
+  try {
+    response = await fetchImpl(`${apiUrl}/api/create-charge`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new FlowPayApiError("FlowPay request timed out after 15s", { statusCode: 504 });
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const data = await readFlowPayJson(response);
   const normalized = normalizeFlowPayChargeResponse(data);

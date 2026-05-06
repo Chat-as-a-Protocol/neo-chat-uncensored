@@ -36,6 +36,7 @@ segurança > estabilidade > legibilidade > performance > estética
 - Repo: `https://gitea.com/noxia/changeman.git`.
 - Webhook: `POST /api/webhooks/flowpay` (Hardened).
 - PWA: `v4` (Cache resiliente).
+- FlowPay: PIX em produção validado (2026-05-06). `FLOWPAY_API_KEY` no Railway configurada e funcionando.
 
 ────────────────────────────────────────
 

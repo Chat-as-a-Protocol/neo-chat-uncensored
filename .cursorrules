@@ -8,7 +8,7 @@
 Repo:    gitea.com/noxia/changeman
 App:     https://noxai.chat
 API:     https://api.noxai.chat
-Updated: 2026-05-06
+Updated: 2026-05-06 (PIX produção validado)
 ========================================
 ```
 
@@ -56,7 +56,8 @@ SSoT operacional. Todo agente neste repo segue estas regras sem exceção.
 ┃ VENICE_MODEL                   ┃ ID do modelo Venice a usar.                         ┃
 ┃ JWT_SECRET                     ┃ Secret para assinar tokens JWT. Obrigatório.        ┃
 ┃ FLOWPAY_API_URL                ┃ https://api.flowpay.cash — NUNCA api.noxai.chat     ┃
-┃ FLOWPAY_API_KEY                ┃ Chave de autenticação FlowPay.                      ┃
+┃ FLOWPAY_API_KEY                ┃ Deve ser idêntica a FLOWPAY_INTERNAL_API_KEY do     ┃
+┃                                ┃ Cloudflare Worker flowpay-api. Validada via x-api-key┃
 ┃ FLOWPAY_WEBHOOK_SECRET         ┃ Secret para validar HMAC-SHA256 do webhook.         ┃
 ┃ DATABASE_URL                   ┃ Postgres. Obrigatório para usuários identificados.  ┃
 ┃ REDIS_URL                      ┃ Redis. Fallback em memória se ausente (dev only).   ┃
