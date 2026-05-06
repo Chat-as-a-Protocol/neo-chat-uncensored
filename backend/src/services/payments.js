@@ -95,7 +95,13 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
   const safePlans = plans || {};
   const packages = safePlans.packages || {};
   const products = safePlans.products || {};
-  const purchaseType = String(metadata.type || "pro_subscription").toLowerCase();
+
+  // Sem type explícito → desconhecido. Não assume subscription por default.
+  const purchaseType = String(metadata.type || "").toLowerCase();
+  if (!purchaseType) {
+    console.warn("[Payments] resolveFlowPayEntitlement: metadata.type ausente, retornando unknown.");
+    return { kind: "unknown", tokens: 0, tierUpgrade: null, packageId: null };
+  }
 
   if (TOKEN_PURCHASE_TYPES.has(purchaseType)) {
     const selectedPackage = findPackageByMetadata(metadata, packages);
@@ -103,6 +109,12 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
     const tierUpgrade = normalizeTierUpgrade(
       metadata.tierUpgrade || metadata.tier_upgrade || selectedPackage?.tier_upgrade,
     );
+
+    // tokens <= 0 em token_purchase é dado inválido — barrar aqui antes do webhook
+    if (!tokens || tokens <= 0) {
+      console.warn(`[Payments] resolveFlowPayEntitlement: TOKEN_PURCHASE com tokens inválido (${tokens}).`);
+      return { kind: "unknown", tokens: 0, tierUpgrade: null, packageId: null };
+    }
 
     return {
       kind: "token_purchase",

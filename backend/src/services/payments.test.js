@@ -151,8 +151,10 @@ test("Payment Service - Edge Cases & Resilience", async (t) => {
       type: "tokens_purchase",
       packageId: "NON_EXISTENT"
     }, plans);
-    assert.strictEqual(entitlement.tokens, 0, "Should have 0 tokens if package not found");
-    assert.strictEqual(entitlement.tierUpgrade, null, "Should not grant tier if package not found");
+    // tokens=0 por package ausente → barrado como unknown (hardening 2026-05-06)
+    assert.strictEqual(entitlement.kind, "unknown");
+    assert.strictEqual(entitlement.tokens, 0);
+    assert.strictEqual(entitlement.tierUpgrade, null);
   });
 
   await t.test("DATA INTEGRITY: should handle invalid token strings", () => {
@@ -160,7 +162,22 @@ test("Payment Service - Edge Cases & Resilience", async (t) => {
       type: "tokens_purchase",
       tokens: "invalid_string"
     }, plans);
-    assert.strictEqual(Number.isFinite(entitlement.tokens), true, "Tokens should be a finite number");
-    assert.strictEqual(entitlement.tokens, 0, "Invalid tokens should resolve to 0");
+    // tokens=NaN/0 em token_purchase → barrado como unknown (hardening 2026-05-06)
+    assert.strictEqual(entitlement.kind, "unknown");
+    assert.strictEqual(entitlement.tokens, 0);
+  });
+
+  await t.test("SECURITY: metadata.type ausente retorna unknown, não subscription", () => {
+    const entitlement = resolveFlowPayEntitlement({ packageId: "1k" }, plans);
+    assert.strictEqual(entitlement.kind, "unknown",
+      "VULNERABILITY: metadata sem type não deve cair em subscription silenciosa");
+    assert.strictEqual(entitlement.tierUpgrade, null);
+    assert.strictEqual(entitlement.tokens, 0);
+  });
+
+  await t.test("SECURITY: token_purchase com tokens=0 retorna unknown", () => {
+    const entitlement = resolveFlowPayEntitlement({ type: "tokens_purchase", tokens: 0 }, plans);
+    assert.strictEqual(entitlement.kind, "unknown",
+      "VULNERABILITY: token_purchase com tokens=0 não deve ser concedido");
   });
 });
