@@ -110,7 +110,10 @@
   const productionApiUrl = 'https://api.noxai.chat';
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const configuredApiUrl = String(import.meta.env.PUBLIC_API_URL || '').trim().replace(/\/$/, '');
-  const apiUrl = configuredApiUrl || (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
+  const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);
+  const apiUrl = configuredApiUrl && (isLocalhost || !configuredApiIsLocal)
+    ? configuredApiUrl
+    : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
   const autoscrollThreshold = 56;
   const tokenStorageKey = 'nox_token';
   const tokenCookieMaxAge = 7 * 24 * 60 * 60;
