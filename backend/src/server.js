@@ -689,8 +689,24 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
       [userId, email, name || null, password_hash],
     );
 
+    // Welcome bonus — crédito inicial do tier free
+    const tierConfig = plans.tiers["free"];
+    try {
+      await ledgerService.addEntry(
+        userId,
+        tierConfig.limit,
+        LEDGER_TYPES.TOKEN_PURCHASE,
+        "welcome_bonus_" + userId,
+      );
+    } catch (bonusErr) {
+      logger.error(
+        `[Ledger] CRITICAL: welcome bonus failed for ${userId}:`,
+        bonusErr,
+      );
+    }
+
     const token = jwt.sign(
-      { id: userId, email, tier: "free" },
+      { id: userId }, // JWT identidade pura — Fase 1
       effectiveJwtSecret,
       { expiresIn: "7d" },
     );
@@ -1298,7 +1314,7 @@ app.post(
         } finally {
           // Registrar consumo no ledger SEMPRE, mesmo em erro parcial
           const tokens = countTokensFromText(assistantContent);
-          if (tokens > 0) {
+          if (tokens > 0 && !req.user.guest) {
             try {
               const streamDebitEntry = await ledgerService.addEntry(
                 req.user.id,
@@ -1514,6 +1530,24 @@ app.post("/api/auth/magic-link/request", magicLinkLimiter, async (req, res) => {
         [email],
       );
       user = userResult.rows[0];
+
+      // Welcome bonus apenas para usuários novos via Magic Link
+      if (user) {
+        const tierConfig = plans.tiers["free"];
+        try {
+          await ledgerService.addEntry(
+            user.id,
+            tierConfig.limit,
+            LEDGER_TYPES.TOKEN_PURCHASE,
+            "welcome_bonus_" + user.id,
+          );
+        } catch (bonusErr) {
+          logger.error(
+            `[Ledger] CRITICAL: welcome bonus failed for ${user.id}:`,
+            bonusErr,
+          );
+        }
+      }
 
       // Enviar Boas-vindas para novo usuário via Magic Link (Non-blocking)
       emailService
