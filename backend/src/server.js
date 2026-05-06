@@ -88,7 +88,8 @@ app.use((req, res, next) => {
   // Verificação estrita contra a lista oficial + fallback automático para localhost em dev
   const requestOrigin = origin || "";
   const isLocal =
-    requestOrigin.includes("localhost:") || requestOrigin.includes("127.0.0.1:");
+    requestOrigin.includes("localhost:") ||
+    requestOrigin.includes("127.0.0.1:");
   const isAllowed =
     requestOrigin &&
     (requestOrigin.includes("noxai.chat") ||
@@ -129,7 +130,10 @@ import {
 } from "./services/flowpay.js";
 import { LEDGER_TYPES, ledgerService } from "./services/ledger.js";
 import { paymentService } from "./services/payments.js";
-import { countTokensFromText, countTokensFromMessages } from "./utils/billing.js";
+import {
+  countTokensFromMessages,
+  countTokensFromText,
+} from "./utils/billing.js";
 import { query } from "./utils/db.js";
 import { parsePositiveInt } from "./utils/numbers.js";
 
@@ -150,7 +154,7 @@ try {
 
 const FALLBACK_GUEST_PLAN = {
   limit: 500,
-  messageLimit: 3,
+  messageLimit: 5,
   maxOutputTokens: 384,
 };
 
@@ -756,30 +760,52 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
   }
 });
 
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
 
-  if (!authHeader) {
-    return res.status(401).json({ error: "Authorization header missing" });
-  }
+  if (!token) return res.sendStatus(401);
 
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
-    return res.status(401).json({
-      error: "Authorization header must be in the format: Bearer <token>",
-    });
-  }
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-  const token = parts[1];
-  const secret = effectiveJwtSecret;
-
-  jwt.verify(token, secret, (err, user) => {
-    if (err) {
-      logger.warn(`[Auth] JWT verification failed: ${err.message}`);
-      return res.status(401).json({ error: "Invalid or expired token" });
+    // SECURITY NOTE: guest bypass relies on JWT signature integrity.
+    // If JWT_SECRET is compromised, guest_ prefix can be forged.
+    // Rotate secret immediately if exposure is suspected.
+    if (decoded.id && decoded.id.toString().startsWith("guest_")) {
+      req.user = { id: decoded.id, tier: "guest" };
+      return next();
     }
-    req.user = user;
+
+    // Consulta em runtime (Fase 1) - Busca tier real no banco
+    const { rows } = await query(
+      "SELECT id, email, tier FROM users WHERE id = $1",
+      [decoded.id],
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ error: "USER_NOT_FOUND" });
+    }
+
+    req.user = {
+      id: rows[0].id,
+      email: rows[0].email,
+      tier: rows[0].tier || "guest",
+    };
+
     next();
+  } catch (err) {
+    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      return res.status(403).json({ error: "INVALID_TOKEN" });
+    }
+    logger.error("[Auth] DB lookup failed:", err);
+    return res.status(503).json({ error: "SERVICE_UNAVAILABLE" });
+  }
+};
+
+const generateToken = (user) => {
+  return jwt.sign({ id: user.id }, JWT_SECRET, {
+    expiresIn: "7d",
   });
 };
 
@@ -1125,9 +1151,8 @@ app.post(
         ...userMessages,
       ];
 
-      // --- TOKEN ENFORCEMENT (Hardened) ---
-      const TOKEN_SAFETY_BUFFER = 128;
-      const inputEstimate = countTokensFromMessages(finalMessages);
+      // System prompt é custo operacional da plataforma — não debita cota do usuário
+      const inputEstimate = countTokensFromMessages(userMessages);
 
       const requestedMaxTokens =
         req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens;
@@ -1282,7 +1307,9 @@ app.post(
             );
           } catch (err) {
             if (err.message === "INSUFFICIENT_FUNDS") {
-              logger.warn(`[Ledger] Post-stream block for user ${req.user.id}: Insufficient funds`);
+              logger.warn(
+                `[Ledger] Post-stream block for user ${req.user.id}: Insufficient funds`,
+              );
               // Note: Stream already finished, but we can prevent further interactions
             }
             logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
@@ -1609,11 +1636,7 @@ app.post("/api/auth/magic-link/verify", async (req, res) => {
     }
 
     // Issue JWT
-    const jwtToken = jwt.sign(
-      { id: user.id, email: user.email, tier: user.tier },
-      effectiveJwtSecret,
-      { expiresIn: "7d" },
-    );
+    const jwtToken = generateToken({ id: user.id });
 
     logger.info(`[MagicLink] Verified for user ${user.id}`);
 

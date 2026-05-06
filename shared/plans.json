@@ -3,10 +3,10 @@
     "guest": {
       "name": "Guest Mode",
       "limit": 500,
-      "messageLimit": 3,
+      "messageLimit": 5,
       "maxOutputTokens": 384,
       "benefits": [
-        "3 interacoes gratuitas",
+        "5 interacoes gratuitas",
         "Resposta compacta",
         "Sem cadastro inicial",
         "Degustacao controlada"
