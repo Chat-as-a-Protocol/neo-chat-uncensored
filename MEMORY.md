@@ -128,6 +128,18 @@ Correção sem migration de schema:
 - `server.js`: captura `entry.balanceAfter` de `addEntry` e usa como `remaining` na resposta. Fallback para estimativa local se `addEntry` falhar.
 Regra: `balanceAfter` é sempre pós-debit real — não STALE.
 
+### Hardening de Arquitetura e Identidade Soberana (2026-05-06)
+
+Sintoma: Identidade do usuário baseada em "hints" de UX (`tier_upgrade`) e bugs de dessincronização de autenticação entre SSR e Client.
+Causa: O sistema de "planos" estava mascarando a realidade econômica do protocolo (créditos + camadas de acesso).
+Correção:
+- **Modelo de Estado:** O `/api/usage` agora é a fonte de verdade absoluta, retornando `entitlement` (calculado via ledger/assinatura) e `balance`.
+- **Auth Sync:** Migração da fonte de verdade do token para **Cookies**, garantindo que o JS do cliente opere sob a mesma autoridade que o Astro SSR.
+- **Packages:** Padronização dos pacotes de tokens como `access_level: credits`. O status `paid_pro` (ELITE) agora é reservado exclusivamente para o produto de assinatura de negócio.
+- **Funil de Conversão:** Adicionado banner estratégico na página de conta para converter `Guest Mode` em usuários identificados via promessa de benefícios claros (tokens, histórico e créditos).
+- **Vanilla Scripting:** Limpeza de tipos TS nos scripts de cliente para máxima compatibilidade e resiliência de runtime.
+- **UI "The Architect":** Finalização do efeito de refração ácida na conta e padronização de rotas em inglês (`/account`, `/pricing`).
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas

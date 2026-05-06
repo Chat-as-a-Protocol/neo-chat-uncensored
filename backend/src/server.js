@@ -1627,16 +1627,29 @@ const usageLimiter = rateLimit({
 
 app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
   try {
-    const [usage, redisTier, redisLimit] = await Promise.all([
-      ledgerService.getTotalConsumption(req.user.id),
-      redis.get(`tier:${req.user.id}`).catch(() => null),
-      redis.get(`limit:${req.user.id}`).catch(() => null),
+    const userId = req.user.id;
+    const [usage, redisTier, redisLimit, balance, isPro] = await Promise.all([
+      ledgerService.getTotalConsumption(userId),
+      redis.get(`tier:${userId}`).catch(() => null),
+      redis.get(`limit:${userId}`).catch(() => null),
+      ledgerService.getBalance(userId),
+      ledgerService.hasActiveSubscription(userId),
     ]);
+
     const { accessTier, planKey, tierConfig } = getUserPlan({
       redisTier,
       jwtTier: req.user.tier,
       isGuest: Boolean(req.user.guest),
     });
+
+    // Definir Entitlement Soberano
+    let entitlement = "free";
+    if (isPro) {
+      entitlement = "paid_pro";
+    } else if (balance > 0) {
+      entitlement = "credits";
+    }
+
     const defaultLimit = parsePositiveInt(
       tierConfig.limit,
       FALLBACK_GUEST_PLAN.limit,
@@ -1645,10 +1658,12 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
     const totalUsage = parseInt(usage);
 
     res.json({
-      today: totalUsage, // Mantido como 'today' para compatibilidade com o Badge do Frontend
+      today: totalUsage,
       limit,
       tier: accessTier,
       plan: planKey,
+      entitlement,
+      balance,
       remaining: Math.max(0, limit - totalUsage),
       maxOutputTokens: parsePositiveInt(
         tierConfig.maxOutputTokens,

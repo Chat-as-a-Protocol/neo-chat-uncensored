@@ -126,3 +126,20 @@
 {"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:13:25.485Z"}
 {"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:13:52.263Z"}
 {"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:13:52.279Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:14:08.006Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:14:08.011Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:21:53.445Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:21:53.456Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:22:02.381Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:22:02.405Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:22:09.270Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:22:09.280Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:22:18.123Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:22:18.150Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:22:31.511Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:22:31.516Z"}
+{"level":"info","message":"GET /api/usage - 200","timestamp":"2026-05-06T08:23:30.511Z"}
+{"level":"info","message":"GET /api/ledger - 200","timestamp":"2026-05-06T08:23:30.553Z"}
+{"level":"info","message":"[Tokens] Purchase attempt started for user user_38c52fd57062517281f3a8406fac617e","timestamp":"2026-05-06T08:24:10.654Z"}
+{"level":"error","message":"[Tokens] Purchase critical failure: Autenticação necessária (Sessão ou API Key) para criar cobranças.","stack":"FlowPayApiError: Autenticação necessária (Sessão ou API Key) para criar cobranças.\n    at readFlowPayJson (file:///Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/backend/src/services/flowpay.js:90:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async createFlowPayCharge (file:///Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/backend/src/services/flowpay.js:175:16)\n    at async file:///Users/nettomello/neomello/Chat-as-a-Protocol/neo-chat-uncensored/backend/src/server.js:1764:18","timestamp":"2026-05-06T08:24:11.040Z"}
+{"level":"info","message":"POST /api/tokens/purchase - 502","timestamp":"2026-05-06T08:24:11.040Z"}

@@ -21,7 +21,7 @@ if (!token) {
       <dl class="account-stats">
         <div>
           <dt>Plano</dt>
-          <dd id="account-plan">--</dd>3
+          <dd id="account-plan">--</dd>
         </div>
         <div>
           <dt>Uso hoje</dt>
@@ -32,12 +32,17 @@ if (!token) {
           <dd id="account-remaining">--</dd>
         </div>
         <div>
-          <dt>Saldo NØX</dt>
+          <dt>Saldo $NØX</dt>
           <dd id="account-balance">--</dd>
         </div>
       </dl>
 
       <p id="account-status" class="account-status">Carregando conta...</p>
+
+      <div id="conversion-cta" class="conversion-cta" style="display: none;">
+        <p>Finalize seu cadastro para liberar 1.000 tokens, histórico salvo e créditos $NØX.</p>
+        <a href="/login" class="cta-link">Completar Agora</a>
+      </div>
 
       <div class="account-actions">
         <a href="/upgrade" class="primary-action">Upgrade</a>
@@ -63,22 +68,34 @@ if (!token) {
   const logoutButton = document.getElementById('logout-button');
   const tokenStorageKey = 'nox_token';
 
-  function clearAuthToken() {
-    localStorage.removeItem(tokenStorageKey);
-    document.cookie = `${tokenStorageKey}=; path=/; max-age=0; SameSite=Lax`;
+  function getAuthToken() {
+    // Tenta primeiro o cookie (fonte de verdade do SSR)
+    const cookieMatch = document.cookie.match(new RegExp('(^| )nox_token=([^;]+)'));
+    if (cookieMatch) return cookieMatch[2];
+    
+    // Fallback apenas para transição de cache antigo
+    return localStorage.getItem(tokenStorageKey);
   }
 
-  function getAuthToken() {
-    return localStorage.getItem(tokenStorageKey);
+  function clearAuthToken() {
+    localStorage.removeItem(tokenStorageKey);
+    document.cookie = "nox_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+  }
+
+  function setStatus(message: string) {
+    if (accountStatusEl) {
+      accountStatusEl.textContent = message;
+      accountStatusEl.style.opacity = '1';
+    }
   }
 
   function setPlanStatus(tier: string) {
     if (!accountStatusEl) return;
     
     const benefits = {
-      'guest': 'Modo degustação: 500 tokens diários e 3 interações por conversa.',
-      'free': 'Usuário Identificado: 1.000 tokens diários e histórico de chat salvo.',
-      'paid_basic': 'Plano Basic: 5.000 tokens diários e acesso ampliado.',
+      'guest': 'Modo degustação: 500 tokens e 3 interações por conversa.',
+      'free': 'Usuário Identificado: 1.000 tokens e histórico de chat persistente.',
+      'paid_basic': 'Plano Basic: 5.000 tokens e acesso ampliado.',
       'paid_pro': 'Status ELITE: Acesso total ao núcleo NØX e suporte de arquitetura.'
     };
 
@@ -91,12 +108,11 @@ if (!token) {
     accountStatusEl.style.color = 'rgba(255, 255, 255, 0.8)';
   }
 
-  function formatPlan(plan?: string, tier?: string) {
-    const value = plan || tier || 'guest';
-    if (value === 'guest') return 'Free';
-    if (value === 'paid_basic') return 'Basic';
-    if (value === 'paid_pro') return 'P.R.O';
-    return value;
+  function formatPlan(entitlement: string) {
+    if (entitlement === 'paid_pro') return 'P.R.Ø (ELITE)';
+    if (entitlement === 'credits') return 'Créditos Ativos';
+    if (entitlement === 'free') return 'Identificado';
+    return 'Guest Mode';
   }
 
   async function loadAccount() {
@@ -107,29 +123,35 @@ if (!token) {
     }
 
     try {
-      const usageResponse = await fetch(`${apiUrl}/api/usage`, {
+      // 1. Pegar Uso, Saldo e Entitlement em uma única chamada soberana
+      const response = await fetch(`${apiUrl}/api/usage`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (usageResponse.status === 401) {
+      if (response.status === 401) {
         clearAuthToken();
         window.location.href = '/login';
         return;
       }
 
-      if (!usageResponse.ok) {
+      if (!response.ok) {
         setStatus('Não foi possível carregar a conta agora.');
         return;
       }
 
-      const usage = await usageResponse.json();
-      const remaining = Math.max(0, Number(usage.remaining || 0));
-      const planValue = formatPlan(usage.plan, usage.tier);
-      const isPro = planValue.includes('P.R.O');
+      const data = await response.json();
+      
+      // 3. Aplicar Identidade, Saldo e Gatilhos
+      const planLabel = formatPlan(data.entitlement);
+      const conversionCta = document.getElementById('conversion-cta');
+      
+      if (conversionCta) {
+        conversionCta.style.display = (data.entitlement === 'guest' || data.plan === 'guest') ? 'block' : 'none';
+      }
 
       if (accountPlanEl) {
-        accountPlanEl.textContent = planValue;
-        if (isPro) {
+        accountPlanEl.textContent = planLabel;
+        if (data.entitlement === 'paid_pro') {
           accountPlanEl.classList.add('pro-glow');
           document.querySelector('.account-panel')?.classList.add('is-pro');
           const upgradeBtn = document.querySelector('.primary-action');
@@ -137,26 +159,22 @@ if (!token) {
             upgradeBtn.textContent = 'Comunidade';
             upgradeBtn.setAttribute('href', 'https://t.me/nox_ia');
           }
+        } else {
+           accountPlanEl.classList.remove('pro-glow');
+           document.querySelector('.account-panel')?.classList.remove('is-pro');
+           const upgradeBtn = document.querySelector('.primary-action');
+           if (upgradeBtn) {
+             upgradeBtn.textContent = 'Upgrade';
+             upgradeBtn.setAttribute('href', '/upgrade');
+           }
         }
       }
       
-      if (accountUsageEl) accountUsageEl.textContent = `${usage.today}/${usage.limit}`;
-      if (accountRemainingEl) accountRemainingEl.textContent = String(remaining);
+      if (accountUsageEl) accountUsageEl.textContent = `${data.today}/${data.limit}`;
+      if (accountRemainingEl) accountRemainingEl.textContent = String(data.remaining);
+      if (accountBalanceEl) accountBalanceEl.textContent = String(data.balance ?? 0);
 
-      try {
-        const ledgerResponse = await fetch(`${apiUrl}/api/ledger`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (ledgerResponse.ok) {
-          const ledger = await ledgerResponse.json();
-          if (accountBalanceEl) accountBalanceEl.textContent = String(ledger.balance ?? 0);
-        }
-      } catch {
-        if (accountBalanceEl) accountBalanceEl.textContent = '--';
-      }
-
-      setPlanStatus(usage.tier || usage.plan || 'guest');
+      setPlanStatus(data.entitlement || data.plan || 'guest');
     } catch {
       setStatus('Conexão indisponível. Tente novamente em instantes.');
     }
@@ -184,10 +202,10 @@ if (!token) {
   .panel-logo-bg {
     position: absolute;
     right: calc(50% - 240px);
-    top: calc(50% - 250px);
+    top: calc(50% - 330px);
     height: 140px;
     width: auto;
-    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.2));
+    filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.92));
     z-index: 1; /* Fica atrás do painel */
     pointer-events: none;
     opacity: 0.9;
@@ -198,14 +216,18 @@ if (!token) {
     position: relative;
     z-index: 2; /* Fica à frente da logo para gerar a refração */
     width: 100%;
-    max-width: 430px;
-    padding: 30px 24px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 22px;
-    background: rgba(12, 14, 20, 0.6);
-    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.58);
-    backdrop-filter: blur(22px);
-    -webkit-backdrop-filter: blur(22px);
+    max-width: 410px;
+    padding: 40px 28px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 28px;
+    background: radial-gradient(
+      circle at 90% 10%, 
+      rgba(255, 255, 255, 0.0) 0%, 
+      rgba(12, 14, 20, 0.6) 60%
+    );
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px) saturate(1.4);
+    -webkit-backdrop-filter: blur(32px) saturate(1.4);
   }
 
   .pro-glow {
@@ -253,9 +275,9 @@ if (!token) {
   .account-stats div {
     min-width: 0;
     padding: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
-    background: rgba(0, 0, 0, 0.28);
+    background: rgba(0, 0, 0, 0.18);
   }
 
   dt {
@@ -274,9 +296,40 @@ if (!token) {
 
   .account-status {
     min-height: 20px;
-    margin: 18px 0 0;
+    margin: 18px 0 22px;
     color: rgba(255, 255, 255, 0.58);
     font-size: 0.86rem;
+  }
+
+  .conversion-cta {
+    margin: 0 0 24px;
+    padding: 16px;
+    border: 1px dashed rgba(185, 214, 49, 0.3);
+    border-radius: 12px;
+    background: rgba(185, 214, 49, 0.05);
+    text-align: center;
+  }
+
+  .conversion-cta p {
+    margin-bottom: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+
+  .cta-link {
+    display: inline-block;
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+  }
+
+  .cta-link:hover {
+    text-decoration: underline;
   }
 
   .account-actions {
