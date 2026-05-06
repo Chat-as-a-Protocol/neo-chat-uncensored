@@ -6,7 +6,7 @@
           NØX · PROJECT CONTEXT
 ========================================
 Status: active
-Updated: 2026-05-03
+Updated: 2026-05-06
 ========================================
 ```
 
@@ -33,7 +33,19 @@ Deploy    Railway + Cloudflare
 ```
 
 Auth por senha/magic-link usa Postgres. Contas via Magic Link nascem sem senha (`password_hash` NULL).
-Redis é a fonte de verdade para quotas de mensagens (race-safe) e cache operacional.
+Redis: cache operacional, quota de guests/free e contagem de mensagens (race-safe).
+Ledger (Postgres + Redis fallback): fonte de verdade de saldo para usuários pagantes. **LEDGER-FIRST.**
+
+### Regra LEDGER-FIRST
+
+```text
+Fluxo: User → API → Ledger.getBalance() → Venice → Ledger.addEntry(CONSUMPTION)
+
+paid_basic / paid_pro  → autorização via saldo do ledger  → saldo ≤0 retorna HTTP 402
+guest / free           → quota acumulada por consumo (limite do plano)
+Venice falhar          → não debita
+Webhook duplicado      → ON CONFLICT(reference) → não duplica crédito
+```
 
 ────────────────────────────────────────
 
@@ -75,4 +87,5 @@ Tiers atuais:
 - `paid_pro`: EL CHAPO / P.R.Ø (acesso total e personas avançadas).
 
 O backend normaliza `free`, `premium` e `pro` para estes tiers canônicos.
-As quotas de mensagens no backend são protegidas contra condições de corrida via incrementos atômicos.
+Usuários pagantes (`paid_basic`, `paid_pro`) são autorizados via `ledgerService.getBalance()` — não pelo limite Redis do plano.
+Guests e usuários free usam o sistema de quota acumulada (consumo vs. limite do plano).

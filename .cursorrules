@@ -1,106 +1,197 @@
 <!-- markdownlint-disable MD003 MD007 MD013 MD022 MD023 MD025 MD029 MD032 MD033 MD034 -->
-# NØX.AI CANONICAL RULES
+# NØX · CANONICAL RULES
 
 ```text
 ========================================
-    NØX.AI · SOVEREIGN PROTOCOL
+    NØX · SOVEREIGN PROTOCOL
 ========================================
-Status: PRODUCTION READY (SSR)
-Version: v3.0.0 (Hardened)
-Tiers: free | pro
+Repo:    gitea.com/noxia/changeman
+App:     https://noxai.chat
+API:     https://api.noxai.chat
+Updated: 2026-05-06
 ========================================
 ```
 
 > **Project:** neo-chat-uncensored
 > **Org:** Chat-as-a-Protocol
-> **Context:** Infrastructure & Economy Sovereignty
 > **Architect:** Antigravity
 
 ────────────────────────────────────────
 
 ## ⟠ Objetivo
 
-Este arquivo é a Fonte Única de Verdade (SSoT). Qualquer agente operando neste repositório deve seguir estas diretrizes para manter a integridade do ecossistema NØX.
+SSoT operacional. Todo agente neste repo segue estas regras sem exceção.
 
 ────────────────────────────────────────
 
-## ⧉ Stack Canônica (Updated)
+## ⧉ Stack Canônica
 
 ```text
 ┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ LAYER          ┃ TECH                     ┃ MOTIVO                 ┃
+┃ LAYER          ┃ TECH                     ┃ NOTA                   ┃
 ┣━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ Runtime        ┃ Node.js >=22.12.0        ┃ SSR Performance        ┃
-┃ Frontend       ┃ Astro 6 (Server Mode)    ┃ SSR / Auth Guard       ┃
-┃ Billing        ┃ Tiktoken (js-tiktoken)   ┃ 99% Token Precision    ┃
-┃ Ledger         ┃ Redis-based Categorized  ┃ BI & Analytics Ready   ┃
-┃ Persona Engine ┃ Manifesto-driven (MD)    ┃ Dynamic Injection      ┃
-┃ PWA            ┃ Custom Service Worker    ┃ Network-First + Shell  ┃
-┃ Auth           ┃ Fail-Closed JWT          ┃ Zero-Trust Security    ┃
+┃ Runtime        ┃ Node.js >=22.12.0        ┃ fnm v22.22.2           ┃
+┃ Frontend       ┃ Astro 6 SSR + @astrojs/node ┃ output: server      ┃
+┃ Backend        ┃ Express + Helmet + Zod   ┃ backend/src/server.js  ┃
+┃ LLM            ┃ Venice (Uncensored)      ┃ executor, não verdade  ┃
+┃ Ledger         ┃ Postgres + Redis fallback┃ LEDGER-FIRST           ┃
+┃ Billing        ┃ js-tiktoken cl100k_base  ┃ precisão real          ┃
+┃ Auth           ┃ JWT Fail-Closed          ┃ Zero-Trust             ┃
+┃ Payments       ┃ FlowPay via api.flowpay.cash ┃ webhook HMAC-SHA256┃
+┃ Email          ┃ Resend via backend       ┃ send@noxai.chat        ┃
+┃ Deploy         ┃ Railway + Cloudflare     ┃ 2 serviços separados   ┃
+┃ Package Manager┃ pnpm                     ┃ NUNCA npm ou yarn      ┃
 ┗━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ────────────────────────────────────────
 
-## ⨷ Regras de Arquitetura
-
-### 1. SSR & Segurança
-- **Output**: Deve ser sempre `server`. Páginas estáticas são proibidas para rotas protegidas.
-- **Auth Guard**: Executado no servidor via `Astro.cookies`. Bloqueio imediato (302) para `/login` se o token estiver ausente.
-- **Fail-Closed**: Middlewares de backend nunca devem ter bypasses automáticos baseados em `NODE_ENV`. O sistema deve falhar bloqueado por padrão.
-
-### 2. Sistema de Tiers (Normalização)
-- **Tiers Suportados**: Apenas `free` e `pro`.
-- **Normalização**: Qualquer entrada `premium` deve ser mapeada para `pro` no início do processamento.
-- **Quota Hot-Path**: Leituras no Redis para cota e tier devem ser paralelizadas via `Promise.all`.
-
-### 3. Faturamento e Ledger
-- **Categorias (LEDGER_TYPES)**:
-  - `TOKEN_CONSUMPTION`: Débito por uso de IA.
-  - `PRO_SUBSCRIPTION`: Evento de assinatura (valor 0).
-  - `TOKEN_PURCHASE`: Créditos avulsos comprados.
-- **Token Count**: Nunca usar heurísticas baseadas em caracteres. Usar **Tiktoken** (`cl100k_base`).
-
-### 4. Persona Engine
-- **Manifestos**: Armazenados em `src/content/manifests/` como Markdown + Frontmatter.
-- **Cache**: Manifestos parseados devem ser cacheados no Redis por 1 hora.
-- **Tier Gate**: Manifestos com `tier: pro` só podem ser carregados por usuários `pro`.
-
-### 5. PWA (Service Worker)
-- **Filtros**: O SW deve ignorar métodos não-GET e requisições cross-origin.
-- **App Shell**: Implementar fallback offline para a raiz (`/`) em caso de erro de navegação.
-- **Dev Guard**: Registro do SW apenas em `import.meta.env.PROD`.
-
-────────────────────────────────────────
-
-## ◬ API Endpoints (Hardened)
+## ⨷ Variáveis de Ambiente
 
 ```text
-: METHOD : ROUTE                 : AUTH : FUNCTION                     :
-:........:.......................:......:..............................:
-: POST   : /api/chat             :  OK  : Tiktoken SSE Proxy + Persona :
-: POST   : /api/tokens/purchase  :  OK  : Buy Credits (Non-Pro only)   :
-: GET    : /health               :  NO  : Railway Monitoring (200 OK)  :
-: POST   : /webhooks/flowpay     : HMAC : Categorized Credit Injection :
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ VARIÁVEL                       ┃ DESCRIÇÃO / REGRA                                   ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ VENICE_API_KEY                 ┃ Chave da API Venice. Obrigatória em produção.        ┃
+┃ VENICE_MODEL                   ┃ ID do modelo Venice a usar.                         ┃
+┃ JWT_SECRET                     ┃ Secret para assinar tokens JWT. Obrigatório.         ┃
+┃ FLOWPAY_API_URL                ┃ https://api.flowpay.cash — NUNCA api.noxai.chat     ┃
+┃ FLOWPAY_API_KEY                ┃ Chave de autenticação FlowPay.                      ┃
+┃ FLOWPAY_WEBHOOK_SECRET         ┃ Secret para validar HMAC-SHA256 do webhook.         ┃
+┃ DATABASE_URL                   ┃ Postgres. Obrigatório para usuários identificados.  ┃
+┃ REDIS_URL                      ┃ Redis. Fallback em memória se ausente (dev only).   ┃
+┃ FRONTEND_URL                   ┃ Lista de origens CORS separadas por vírgula.        ┃
+┃                                ┃ Ex: https://noxai.chat,https://www.noxai.chat       ┃
+┃ PUBLIC_API_URL                 ┃ https://api.noxai.chat — URL do backend no frontend.┃
+┃                                ┃ OBRIGATÓRIO no serviço FRONTEND do Railway.         ┃
+┃ RESEND_API_KEY                 ┃ Chave Resend para e-mails transacionais.            ┃
+┃ RESEND_FROM_EMAIL              ┃ NØX <send@noxai.chat>                               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ────────────────────────────────────────
 
-## ⨀ Memória de Design (Design Tokens)
+## ⍟ Regras de Arquitetura
 
-- **Estética**: High-End Cyberpunk / Sovereign.
-- **Cores**: Dark Mode Native, `--accent` para neon-green.
-- **Mobile**: Grid 9:16 mandatório em todas as páginas de UI.
+### 1. LEDGER-FIRST (Lei Suprema)
+
+```text
+Fluxo canônico:
+  User → API → Ledger.getBalance() → Venice → Ledger.addEntry(CONSUMPTION)
+
+Invariantes:
+  - Pagamento ≠ Consumo. São eventos distintos no ledger.
+  - Ledger é a única fonte de verdade de saldo.
+  - Venice é executor. Não controla saldo.
+  - Falha da Venice → NÃO debita.
+  - Webhook duplicado → ON CONFLICT(reference) → NÃO duplica crédito.
+```
+
+**Lógica do `checkQuota`:**
+
+- `paid_basic` / `paid_pro` → `ledgerService.getBalance()`. Saldo ≤ 0 → **HTTP 402**.
+- `guest` / `free` → quota acumulada por consumo (sistema legado de limite).
+- Redis `limit:userId` NÃO bloqueia usuário com saldo positivo no ledger.
+
+**`LEDGER_TYPES` canônicos:**
+
+- `TOKEN_PURCHASE` → crédito (webhook FlowPay confirma pagamento)
+- `TOKEN_CONSUMPTION` → débito (chat bem-sucedido, via Tiktoken)
+- `PRO_SUBSCRIPTION` → evento de assinatura (amount = 0)
+
+### 2. CORS (Proibido usar pacotes externos)
+
+```text
+- NUNCA usar o pacote `cors`. Sempre middleware manual no topo de server.js.
+- allowedOrigins: lista estrita (hardcoded + FRONTEND_URL do env).
+- OPTIONS + isAllowed → 204. OPTIONS sem isAllowed → passa para Express (404/405).
+- Sempre setar Vary: Origin em respostas com origem permitida.
+- helmet({ crossOriginResourcePolicy: false }) — obrigatório.
+```
+
+### 3. SSR & Segurança
+
+- Output: sempre `server`. Páginas estáticas proibidas para rotas protegidas.
+- Auth Guard: executado no servidor via `Astro.cookies`. Bloqueio 302 → `/login`.
+- Fail-Closed: middlewares nunca têm bypasses por `NODE_ENV`.
+- `trust proxy: 1` — Railway/Cloudflare.
+
+### 4. Tiers (Normalização)
+
+```text
+Entrada         → Canônico interno
+"premium"       → "pro"
+"paid_pro"      → "pro"  (normalize)
+"free"          → "free"
+"guest"         → "guest"
+```
+
+Tiers ativos em `shared/plans.json`: `guest`, `free`, `paid_basic`, `paid_pro`.
+
+### 5. Webhook FlowPay
+
+- Rota: `POST /api/webhooks/flowpay`
+- Validação: HMAC-SHA256 com `X-Nexus-Signature` ou `X-FlowPay-Signature`.
+- Idempotência antecipada: `redis.get(webhook_processed:ref)` antes de processar.
+- Ao confirmar: `ledgerService.addEntry(userId, tokens, TOKEN_PURCHASE, reference)`.
+- `ON CONFLICT(reference) DO NOTHING` no Postgres garante idempotência no ledger.
+
+### 6. PWA
+
+- Incrementar `CACHE_NAME` em `sw.js` após qualquer mudança em assets estáticos.
+- SW registrado apenas em `import.meta.env.PROD`.
+
+### 7. Persona Engine
+
+- Manifestos: `src/content/manifests/*.md` com frontmatter `tier`.
+- Cache Redis: 1 hora por manifesto.
+- `tier: pro` → só carrega para usuários `pro`.
+- Runtime prompt: `shared/runtime-prompt.md` — aplicado por último (recency bias).
+
+────────────────────────────────────────
+
+## ◬ API Endpoints
+
+```text
+METHOD  ROUTE                        AUTH   FUNÇÃO
+──────  ───────────────────────────  ─────  ──────────────────────────────
+POST    /api/auth/guest              OPEN   Sessão temporária (7d JWT)
+POST    /api/auth/signup             OPEN   Criação de conta
+POST    /api/auth/login              OPEN   Login senha
+POST    /api/chat                    JWT    Venice proxy + Ledger debit
+GET     /api/usage                   JWT    Saldo e uso atual
+GET     /api/ledger                  JWT    Extrato completo do ledger
+POST    /api/tokens/purchase         JWT    Iniciar compra de créditos
+POST    /api/product/purchase        JWT    Iniciar compra de produto PRO
+GET     /health                      OPEN   Railway healthcheck
+POST    /api/webhooks/flowpay        HMAC   Crédito FlowPay → ledger
+```
+
+────────────────────────────────────────
+
+## ⧖ Validação Antes de Push
+
+```bash
+# Frontend
+fnm exec --using v22.22.2 pnpm check
+fnm exec --using v22.22.2 pnpm build
+
+# Backend
+node --check backend/src/server.js
+node --test backend/src/services/ledger.test.js
+
+# Tudo junto
+make check
+make build
+```
 
 ────────────────────────────────────────
 
 ## ⍟ Fechamento
 
 ```text
-▓▓▓ NØX.AI SYSTEM
+▓▓▓ NØX · SOVEREIGN PROTOCOL
 ────────────────────────────────────────
-nox@noxai.onion
-
-"The protocol is the law."
+"O ledger é a lei. Venice é o executor."
 ────────────────────────────────────────
 ```

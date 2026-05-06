@@ -5,8 +5,8 @@
 ========================================
           NØX · EXECUTION BACKLOG
 ========================================
-Status: release candidate
-Updated: 2026-05-02
+Status: active
+Updated: 2026-05-06
 ========================================
 ```
 
@@ -24,6 +24,8 @@ Updated: 2026-05-02
 ┃ Planos             ┃ shared/plans.json
 ┃ Preços             ┃ /precos público, /upgrade identificado
 ┃ Guest Mode         ┃ Controlado, não exibido em /upgrade
+┃ CORS               ┃ Preflight 204 só para origins permitidas
+┃ Ledger             ┃ LEDGER-FIRST ativo — paid via getBalance()
 ┗━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -45,6 +47,8 @@ Updated: 2026-05-02
 - Service FlowPay com erro seguro para HTML/self-call.
 - Testes unitários de ledger, billing, payments e FlowPay.
 - `/precos` público para descoberta comercial sem login.
+- **CORS Hardened**: preflight `OPTIONS` responde `204` só para origins válidas; `Vary: Origin` e `crossOriginResourcePolicy: false` no Helmet.
+- **LEDGER-FIRST**: `checkQuota` usa `ledgerService.getBalance()` para usuários pagantes. Saldo insuficiente retorna HTTP 402. Venice falhar não debita.
 
 ────────────────────────────────────────
 

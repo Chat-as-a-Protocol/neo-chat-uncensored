@@ -6,7 +6,7 @@
           NØX · TECHNICAL MEMORY
 ========================================
 Status: active
-Updated: 2026-05-03
+Updated: 2026-05-06
 ========================================
 ```
 
@@ -72,6 +72,29 @@ Causa: O túnel (`neo-tunnel`) estava configurado para a porta 4321 (Frontend), 
 Correção: Atualizado o `Makefile` do `neo-tunnel` e do `neo-nexus` para apontar o serviço `flowpay` para `localhost:3001`.
 Regra: Sempre rodar `make tunnel-flowpay` a partir do Nexus para expor o backend do chat para o ecossistema externo.
 
+### CORS Preflight Silencioso (2026-05-06)
+
+Sintoma: `Access-Control-Allow-Origin` ausente em respostas de preflight (`OPTIONS`). Browser bloqueava todas as requisições de `noxai.chat` para `api.noxai.chat`.
+Causa: Dois bugs no middleware CORS do `server.js`:
+- O `if (method === "OPTIONS")` respondia `200` **independente** do `isAllowed`, enviando preflight vazio para origins não permitidas (e válidas cuja lógica falhava silenciosamente).
+- `helmet()` sem `crossOriginResourcePolicy: false` podia interferir com headers cross-origin.
+- Header `Vary: Origin` ausente permitia caches intermediários servirem resposta CORS incorreta.
+Correção:
+- Preflight agora responde `204` apenas quando `isAllowed && method === 'OPTIONS'`.
+- Adicionado `crossOriginResourcePolicy: false` no Helmet.
+- Adicionado `Vary: Origin` em todas as respostas com origem permitida.
+
+### LEDGER-FIRST: checkQuota (2026-05-06)
+
+Sintoma: Usuários com saldo comprado (créditos FlowPay) eram bloqueados pelo limite de plano do Redis (`limit:userId`), ignorando o saldo real do ledger.
+Causa: `checkQuota` usava `getTotalConsumption() >= redisLimit` para todos os usuários — o Redis limit do plano mandava mais que o ledger, quebrando a regra LEDGER-FIRST.
+Correção (patch cirúrgico em `server.js`):
+- **Usuários pagantes** (`paid_basic`, `paid_pro`): autorização via `ledgerService.getBalance()`. Saldo insuficiente retorna **HTTP 402**.
+- **Guests e free**: mantêm o sistema de limite por consumo acumulado (quota diária).
+- Modo não-streaming: debit só ocorre se Venice retornar resposta válida (`assistantText` não vazia).
+- Modo streaming: debit síncrono via Tiktoken após acumulação do stream completo — Venice falhar = sem debit.
+- Referência de webhook com `ON CONFLICT(reference)` garante idempotência; crédito duplicado não duplica.
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas
@@ -79,4 +102,6 @@ Regra: Sempre rodar `make tunnel-flowpay` a partir do Nexus para expor o backend
 - **Zero Emojis**: Usar glifos geométricos (`⟠`, `⨷`, `◬`) conforme `MARKDOWN_STYLE_GUIDE.md`.
 - **Soberania de Dados**: Senha é opcional para magic-link; DB deve aceitar NULL.
 - **Faturamento Preciso**: SSE deve ser bufferizado para não perder JSON delta.
-- **Deploy**: Realizar `railway up` para sincronizar o estado local com a produção.
+- **LEDGER-FIRST**: Ledger é a única fonte de verdade de saldo. Venice é executor, não autoridade financeira.
+- **HTTP 402**: Saldo insuficiente de crédito comprado retorna 402, não 403.
+- **Deploy**: Realizar `git push origin main` + `railway up` para sincronizar produção.
