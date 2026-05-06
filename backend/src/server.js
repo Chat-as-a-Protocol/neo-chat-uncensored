@@ -75,22 +75,24 @@ const allowedOrigins = [
 // 0. CORS MANUAL (Brute Force) - Garante headers em todas as respostas
 app.use((req, res, next) => {
   const { method, headers: { origin } } = req;
-  
+
   // Verificação estrita contra a lista oficial
   const isAllowed = origin && allowedOrigins.includes(origin.replace(/\/$/, ""));
-  
+
   if (isAllowed) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-nexus-signature, x-flowpay-signature, Accept, X-Requested-With, Origin");
     res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Vary", "Origin");
   }
 
-  // Resposta imediata para Preflight (OPTIONS)
-  if (method === "OPTIONS") {
-    return res.status(200).end();
+  // Preflight (OPTIONS): só responde 200 se a origin é permitida
+  // Se não permitida, deixa passar para o Express retornar 404/405 sem headers CORS
+  if (method === "OPTIONS" && isAllowed) {
+    return res.status(204).end();
   }
-  
+
   next();
 });
 app.set("trust proxy", 1); // Confiar no proxy (Cloudflare/Railway) para pegar o IP real
@@ -193,6 +195,8 @@ app.use((req, res, next) => {
 
 app.use(
   helmet({
+    // Desativar crossOriginResourcePolicy para não interferir com CORS manual
+    crossOriginResourcePolicy: false,
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
