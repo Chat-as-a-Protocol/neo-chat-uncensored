@@ -23,7 +23,7 @@ START_TIME=$(date +%s)
 curl -N -X POST https://api.noxai.chat/api/chat \
      -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"messages": [{"role": "user", "content": "Explique o protocolo NØX em 3 parágrafos."}]}' \
+     -d '{"messages": [{"role": "user", "content": "Oi"}]}' \
      --no-buffer
 
 END_TIME=$(date +%s)
