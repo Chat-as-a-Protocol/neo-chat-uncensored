@@ -147,4 +147,33 @@ export const ledgerService = {
     const entriesStr = await redis.lrange(`ledger:${userId}`, 0, -1);
     return entriesStr.map((e) => JSON.parse(e)).sort((a, b) => b.createdAt - a.createdAt);
   },
+
+  /**
+   * Verifica se o usuário possui uma entrada de assinatura PRO confirmada no ledger.
+   * Não depende de planKey — verifica evidência real de pagamento.
+   */
+  async hasActiveSubscription(userId) {
+    if (shouldUsePostgres(userId)) {
+      const result = await query(
+        `SELECT COUNT(*)::int AS cnt FROM ledger
+         WHERE user_id = $1 AND type = $2`,
+        [userId, LEDGER_TYPES.PRO_SUBSCRIPTION],
+      );
+      return (result.rows[0]?.cnt ?? 0) > 0;
+    }
+
+    const entriesStr = await redis.lrange(`ledger:${userId}`, 0, -1);
+    return entriesStr
+      .map((e) => JSON.parse(e))
+      .some((e) => e.type === LEDGER_TYPES.PRO_SUBSCRIPTION);
+  },
+
+  /**
+   * Verifica se o usuário possui saldo positivo de tokens no ledger.
+   * Saldo = soma de todas as entradas (créditos - débitos).
+   */
+  async hasLedgerBalance(userId) {
+    const balance = await this.getBalance(userId);
+    return { has: balance > 0, balance };
+  },
 };

@@ -850,29 +850,51 @@ const checkQuota = async (req, res, next) => {
       }
     }
 
-    // ── LEDGER-FIRST: Usuários pagantes usam saldo real do ledger ──
-    const isPaidUser = !isGuest && planKey !== "guest" && planKey !== "free";
+    // ── LEDGER-FIRST: Árvore de decisão de entitlement ──
+    //
+    // Modo 1 (LEDGER):       saldo > 0 → autoriza por saldo real
+    // Modo 2 (SUBSCRIPTION): sem saldo, mas tem assinatura PRO confirmada no ledger
+    // Modo 3 (FREE/GUEST):   quota acumulada por consumo
+    // Modo 4 (402):          pagante sem saldo e sem assinatura ativa
+    //
+    const isFreeOrGuest = isGuest || planKey === "guest" || planKey === "free";
 
-    if (isPaidUser) {
-      // Fonte de verdade: saldo = créditos comprados - consumo acumulado
-      const balance = await ledgerService.getBalance(req.user.id);
-      if (balance <= 0) {
+    if (!isFreeOrGuest) {
+      // Busca paralela: saldo e assinatura ao mesmo tempo
+      const [{ has: hasBalance, balance }, hasSubscription] = await Promise.all([
+        ledgerService.hasLedgerBalance(req.user.id),
+        ledgerService.hasActiveSubscription(req.user.id),
+      ]);
+
+      if (hasBalance) {
+        // MODO LEDGER: tokens comprados disponíveis
+        logger.info(`[Quota] LEDGER mode — user ${req.user.id}, balance ${balance}`);
+        req.ledgerBalance = balance;
+        req.currentUsage = 0;
+        req.dailyLimit = balance;
+        req.quotaMode = "ledger";
+      } else if (hasSubscription) {
+        // MODO SUBSCRIPTION: assinatura PRO ativa confirmada no ledger, sem tokens avulsos
+        // Usa o limite do plano (maxOutputTokens) mas não bloqueia por saldo
+        logger.info(`[Quota] SUBSCRIPTION mode — user ${req.user.id}`);
+        req.ledgerBalance = null;
+        req.currentUsage = 0;
+        req.dailyLimit = limit; // Limite do plano (plans.json / Redis)
+        req.quotaMode = "subscription";
+      } else {
+        // SEM SALDO E SEM ASSINATURA: usuário pagante inativo
         logger.warn(
-          `[Ledger] Insufficient balance for user ${req.user.id}: ${balance} tokens`,
+          `[Ledger] No balance, no active subscription for user ${req.user.id}`,
         );
         return res.status(402).json({
           error: "Insufficient balance",
           message: "Saldo insuficiente. Adquira mais créditos para continuar.",
-          balance,
+          balance: balance ?? 0,
           upgradeUrl: "/upgrade",
         });
       }
-      // Passa o saldo para o handler do chat usar
-      req.ledgerBalance = balance;
-      req.currentUsage = 0; // Não usado para pagantes (ledger é a verdade)
-      req.dailyLimit = balance; // Exposto para compatibilidade com campos legados
     } else {
-      // Guests e free: sistema de limite baseado em consumo acumulado
+      // MODO FREE/GUEST: quota acumulada por consumo
       const usage = await ledgerService.getTotalConsumption(req.user.id);
       if (usage >= limit) {
         logger.warn(
@@ -891,7 +913,8 @@ const checkQuota = async (req, res, next) => {
       }
       req.currentUsage = usage;
       req.dailyLimit = limit;
-      req.ledgerBalance = null; // Não relevante para guests/free
+      req.ledgerBalance = null;
+      req.quotaMode = "free";
     }
 
     req.userTier = accessTier;
