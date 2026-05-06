@@ -2,7 +2,7 @@
   "tiers": {
     "guest": {
       "name": "Guest Mode",
-      "limit": 500,
+      "limit": 1200,
       "messageLimit": 3,
       "maxOutputTokens": 384,
       "benefits": [
@@ -14,7 +14,7 @@
     },
     "free": {
       "name": "Identified User",
-      "limit": 1000,
+      "limit": 2000,
       "messageLimit": null,
       "maxOutputTokens": 1024,
       "benefits": [

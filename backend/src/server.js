@@ -74,8 +74,7 @@ const allowedOrigins = [
     ...getEnvOrigins(),
     "https://noxai.chat",
     "https://www.noxai.chat",
-    "https://inspiring-vitality-production.up.railway.app",
-    "https://inspiring-vitality.up.railway.app",
+    "https://laughter.up.railway.app",
   ]),
 ];
 
@@ -87,13 +86,18 @@ app.use((req, res, next) => {
   } = req;
 
   // Verificação estrita contra a lista oficial + fallback automático para localhost em dev
+  const requestOrigin = origin || "";
   const isLocal =
-    origin && (origin.includes("localhost:") || origin.includes("127.0.0.1:"));
+    requestOrigin.includes("localhost:") || requestOrigin.includes("127.0.0.1:");
   const isAllowed =
-    origin && (allowedOrigins.includes(origin.replace(/\/$/, "")) || isLocal);
+    requestOrigin &&
+    (requestOrigin.includes("noxai.chat") ||
+      requestOrigin.includes("up.railway.app") ||
+      allowedOrigins.includes(requestOrigin.replace(/\/$/, "")) ||
+      isLocal);
 
   if (isAllowed) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Origin", requestOrigin);
     res.setHeader(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, OPTIONS",
