@@ -52,6 +52,16 @@ const addRedisEntry = async (userId, amount, type, reference) => {
 
 export const ledgerService = {
   async addEntry(userId, amount, type, reference) {
+    const allowNegative = process.env.ALLOW_NEGATIVE_BALANCE === "true";
+
+    // Prevent negative balance if not explicitly allowed
+    if (amount < 0 && !allowNegative) {
+      const currentBalance = await this.getBalance(userId);
+      if (currentBalance + amount < 0) {
+        throw new Error("INSUFFICIENT_FUNDS");
+      }
+    }
+
     if (shouldUsePostgres(userId)) {
       // CTE: insere e calcula o saldo resultante na mesma operação
       const result = await query(

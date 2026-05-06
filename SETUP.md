@@ -10,6 +10,18 @@ Runtime: Astro SSR + Express
 ========================================
 ```
 
+READ-ONLY MODE ATIVO
+
+Sem autorização explícita com:
+AUTORIZO APLICAR PATCH
+
+Você não pode alterar nada.
+
+Apenas:
+- analisar
+- sugerir
+- gerar diff
+
 ## ⟠ Objetivo
 
 Documento operacional para rodar, validar e publicar NØX.
@@ -67,6 +79,14 @@ Comandos diretos úteis:
 fnm exec --using v25.9.0 pnpm check
 fnm exec --using v25.9.0 pnpm build
 fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
+```
+
+Proteçao de chaves:
+
+```bash
+echo ".env" >> .gitignore
+echo ".env.*" >> .gitignore
+echo "!.env.example" >> .gitignore
 ```
 
 ────────────────────────────────────────

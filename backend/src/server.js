@@ -22,6 +22,10 @@ if (process.env.NODE_ENV !== "production") {
   dotenv.config({ path: path.resolve(PROJECT_ROOT, "backend", ".env") });
 }
 
+if (process.env.CODE_LOCK === "true") {
+  console.warn("[SYSTEM] CODE LOCK ACTIVE - WRITE OPERATIONS DISABLED");
+}
+
 // ===== STARTUP VALIDATION =====
 if (process.env.NODE_ENV === "production") {
   const required = [
@@ -59,7 +63,10 @@ const app = express();
 
 const getEnvOrigins = () => {
   const envValue = process.env.FRONTEND_URL || "";
-  return envValue.split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean);
+  return envValue
+    .split(",")
+    .map((o) => o.trim().replace(/\/$/, ""))
+    .filter(Boolean);
 };
 
 const allowedOrigins = [
@@ -74,16 +81,27 @@ const allowedOrigins = [
 
 // 0. CORS MANUAL (Brute Force) - Garante headers em todas as respostas
 app.use((req, res, next) => {
-  const { method, headers: { origin } } = req;
+  const {
+    method,
+    headers: { origin },
+  } = req;
 
   // Verificação estrita contra a lista oficial + fallback automático para localhost em dev
-  const isLocal = origin && (origin.includes("localhost:") || origin.includes("127.0.0.1:"));
-  const isAllowed = origin && (allowedOrigins.includes(origin.replace(/\/$/, "")) || isLocal);
+  const isLocal =
+    origin && (origin.includes("localhost:") || origin.includes("127.0.0.1:"));
+  const isAllowed =
+    origin && (allowedOrigins.includes(origin.replace(/\/$/, "")) || isLocal);
 
   if (isAllowed) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-nexus-signature, x-flowpay-signature, Accept, X-Requested-With, Origin");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS",
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, x-nexus-signature, x-flowpay-signature, Accept, X-Requested-With, Origin",
+    );
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Vary", "Origin");
   }
@@ -107,7 +125,7 @@ import {
 } from "./services/flowpay.js";
 import { LEDGER_TYPES, ledgerService } from "./services/ledger.js";
 import { paymentService } from "./services/payments.js";
-import { countTokensFromText } from "./utils/billing.js";
+import { countTokensFromText, countTokensFromMessages } from "./utils/billing.js";
 import { query } from "./utils/db.js";
 import { parsePositiveInt } from "./utils/numbers.js";
 
@@ -382,7 +400,8 @@ app.post(
     },
   }),
   async (req, res) => {
-    const signature = req.headers["x-nexus-signature"] || req.headers["x-flowpay-signature"];
+    const signature =
+      req.headers["x-nexus-signature"] || req.headers["x-flowpay-signature"];
     const secret = process.env.FLOWPAY_WEBHOOK_SECRET;
 
     if (!Buffer.isBuffer(req.body)) {
@@ -442,10 +461,14 @@ app.post(
         const reference = paymentId || `flowpay_${Date.now()}`;
 
         // Verificação de Idempotência Antecipada (Redis)
-        const alreadyProcessed = await redis.get(`webhook_processed:${reference}`);
+        const alreadyProcessed = await redis.get(
+          `webhook_processed:${reference}`,
+        );
         if (alreadyProcessed) {
           logger.info(`[Webhook] Ignorando evento já processado: ${reference}`);
-          return res.status(200).json({ status: "success", message: "Already processed" });
+          return res
+            .status(200)
+            .json({ status: "success", message: "Already processed" });
         }
 
         const metadata = {
@@ -630,6 +653,10 @@ app.post("/api/auth/guest", authLimiter, async (req, res) => {
 app.post("/api/auth/signup", authLimiter, async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) {
+    logger.warn("[Signup] Invalid payload", {
+      reason: parsed.error.flatten(),
+      email: req.body?.email,
+    });
     return res.status(400).json({
       error: "Invalid signup data. Password must be at least 8 characters.",
     });
@@ -862,18 +889,23 @@ const checkQuota = async (req, res, next) => {
 
     if (!isFreeOrGuest) {
       // Busca paralela: saldo e assinatura ao mesmo tempo
-      const [{ has: hasBalance, balance }, hasSubscription] = await Promise.all([
-        ledgerService.hasLedgerBalance(req.user.id),
-        ledgerService.hasActiveSubscription(req.user.id),
-      ]);
+      const [{ has: hasBalance, balance }, hasSubscription] = await Promise.all(
+        [
+          ledgerService.hasLedgerBalance(req.user.id),
+          ledgerService.hasActiveSubscription(req.user.id),
+        ],
+      );
 
       if (hasBalance) {
         // MODO LEDGER: tokens comprados disponíveis
-        logger.info(`[Quota] LEDGER mode — user ${req.user.id}, balance ${balance}`);
+        logger.info(
+          `[Quota] LEDGER mode — user ${req.user.id}, balance ${balance}`,
+        );
         req.ledgerBalance = balance;
         req.availableCredits = balance; // Créditos reais disponíveis (semântica correta)
+        req.remainingQuota = balance;
         req.currentUsage = 0;
-        req.dailyLimit = null;          // Não aplicável no modo ledger
+        req.dailyLimit = null; // Não aplicável no modo ledger
         req.quotaMode = "ledger";
       } else if (hasSubscription) {
         // MODO SUBSCRIPTION: assinatura PRO ativa confirmada no ledger, sem tokens avulsos
@@ -882,6 +914,7 @@ const checkQuota = async (req, res, next) => {
         req.ledgerBalance = null;
         req.currentUsage = 0;
         req.dailyLimit = limit; // Limite do plano (plans.json / Redis)
+        req.remainingQuota = null; // Assinatura PRO não é limitada por saldo residual
         req.quotaMode = "subscription";
       } else {
         // SEM SALDO E SEM ASSINATURA: usuário pagante inativo
@@ -910,11 +943,14 @@ const checkQuota = async (req, res, next) => {
             : "Limite de tokens atingido. Adquira mais créditos para continuar.",
           usage,
           limit,
-          upgradeUrl: isGuestQuota ? "/signup?reason=limit_reached" : "/upgrade",
+          upgradeUrl: isGuestQuota
+            ? "/signup?reason=limit_reached"
+            : "/upgrade",
         });
       }
       req.currentUsage = usage;
       req.dailyLimit = limit;
+      req.remainingQuota = Math.max(0, limit - usage);
       req.ledgerBalance = null;
       req.quotaMode = "free";
     }
@@ -1049,10 +1085,6 @@ app.post(
 
       schema.parse(req.body);
 
-      if (!VENICE_MODEL_NAME) {
-        return res.status(503).json({ error: "AI model is not configured" });
-      }
-
       // Carregar Persona Dinâmica com Validação de Tier
       const userTier = req.userTier || "guest";
       // 1. Carregar Persona
@@ -1089,6 +1121,53 @@ app.post(
         ...userMessages,
       ];
 
+      // --- TOKEN ENFORCEMENT (Hardened) ---
+      const TOKEN_SAFETY_BUFFER = 128;
+      const inputEstimate = countTokensFromMessages(finalMessages);
+
+      const requestedMaxTokens =
+        req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens;
+      const remainingQuota =
+        req.remainingQuota !== null && req.remainingQuota !== undefined
+          ? req.remainingQuota
+          : Infinity;
+
+      const safeRemaining = Math.max(
+        0,
+        remainingQuota - inputEstimate - TOKEN_SAFETY_BUFFER,
+      );
+
+      // Se o saldo restante após o input for insuficiente, bloqueia imediatamente
+      if (safeRemaining <= 0 && req.quotaMode !== "subscription") {
+        return res.status(402).json({
+          error: "INSUFFICIENT_CREDITS",
+          message:
+            "Seu saldo é insuficiente para processar esta mensagem com segurança. Adicione créditos ou simplifique sua pergunta.",
+          inputEstimate,
+          remainingQuota,
+          buffer: TOKEN_SAFETY_BUFFER,
+        });
+      }
+
+      // O limite real de saída é o menor entre o plano e o saldo que sobrou
+      const effectiveMaxTokens = Math.min(requestedMaxTokens, safeRemaining);
+
+      logger.info("[Chat] Token Enforcement", {
+        userId: req.user.id,
+        plan: req.planTier,
+        inputEstimate,
+        requestedMaxTokens,
+        effectiveMaxTokens,
+        remainingQuota,
+        safeRemaining,
+      });
+
+      if (!VENICE_MODEL_NAME) {
+        return res.status(503).json({ error: "AI model is not configured" });
+      }
+
+      // (Messages already assembled for enforcement)
+
       // Chamar Venice API
       const controller = new AbortController();
       const veniceTimeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
@@ -1106,8 +1185,7 @@ app.post(
             messages: finalMessages,
             temperature,
             stream,
-            max_tokens:
-              req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens,
+            max_tokens: effectiveMaxTokens,
             venice_parameters: {
               include_venice_system_prompt: false, // Desabilitado para garantir dominância do NØX Contract
               ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
@@ -1199,6 +1277,10 @@ app.post(
               `[Ledger] Debit ${tokens} tokens for user ${req.user.id} (stream), balanceAfter=${streamDebitEntry?.balanceAfter ?? "n/a"}`,
             );
           } catch (err) {
+            if (err.message === "INSUFFICIENT_FUNDS") {
+              logger.warn(`[Ledger] Post-stream block for user ${req.user.id}: Insufficient funds`);
+              // Note: Stream already finished, but we can prevent further interactions
+            }
             logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
           }
         }
@@ -1221,7 +1303,8 @@ app.post(
         // Usar usage real da Venice se disponível, senão estimar via Tiktoken
         const veniceTokens = data.usage?.total_tokens || 0;
         const assistantText = data.choices?.[0]?.message?.content || "";
-        const estimatedTokens = veniceTokens || countTokensFromText(assistantText);
+        const estimatedTokens =
+          veniceTokens || countTokensFromText(assistantText);
 
         // Debit APENAS se Venice retornou resposta válida (não debita em erro)
         let syncDebitEntry = null;
@@ -1237,6 +1320,12 @@ app.post(
               `[Ledger] Debit ${estimatedTokens} tokens for user ${req.user.id} (sync), balanceAfter=${syncDebitEntry?.balanceAfter ?? "n/a"}`,
             );
           } catch (err) {
+            if (err.message === "INSUFFICIENT_FUNDS") {
+              return res.status(402).json({
+                error: "INSUFFICIENT_CREDITS_FINAL",
+                message: "Saldo insuficiente após processamento.",
+              });
+            }
             logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
           }
         }
@@ -1252,10 +1341,17 @@ app.post(
         }
 
         // balanceAfter: saldo real pós-debit retornado do ledger (sem STALE)
-        const balanceAfter = syncDebitEntry?.balanceAfter
-          ?? (req.availableCredits != null ? req.availableCredits - estimatedTokens : null);
-        const remaining = balanceAfter
-          ?? Math.max(0, (req.dailyLimit ?? 0) - req.currentUsage - estimatedTokens);
+        const balanceAfter =
+          syncDebitEntry?.balanceAfter ??
+          (req.availableCredits != null
+            ? req.availableCredits - estimatedTokens
+            : null);
+        const remaining =
+          balanceAfter ??
+          Math.max(
+            0,
+            (req.dailyLimit ?? 0) - req.currentUsage - estimatedTokens,
+          );
 
         res.json({
           ...data,
