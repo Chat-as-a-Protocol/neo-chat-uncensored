@@ -45,10 +45,16 @@ Updated: 2026-05-06
 - Resend para magic link e confirmação.
 - `/upgrade` mobile-first e sem card de Guest Mode.
 - Service FlowPay com erro seguro para HTML/self-call.
-- Testes unitários de ledger, billing, payments e FlowPay.
+- Testes unitários de ledger, billing, payments e FlowPay (35 testes, 35/35).
 - `/precos` público para descoberta comercial sem login.
+
 - **CORS Hardened**: preflight `OPTIONS` responde `204` só para origins válidas; `Vary: Origin` e `crossOriginResourcePolicy: false` no Helmet.
-- **LEDGER-FIRST**: `checkQuota` usa `ledgerService.getBalance()` para usuários pagantes. Saldo insuficiente retorna HTTP 402. Venice falhar não debita.
+
+- **LEDGER-FIRST**: `checkQuota` com árvore de 3 modos (LEDGER / SUBSCRIPTION / FREE) via `hasLedgerBalance` + `hasActiveSubscription`. HTTP 402 apenas sem saldo e sem assinatura real.
+
+- **Payments hardening**: `metadata.type` vazio retorna `kind:unknown`; `token_purchase` com tokens ≤0 retorna `kind:unknown`. Sem fail-open para `pro_subscription`.
+
+- **balanceAfter**: `addEntry` retorna saldo pós-debit (CTE Postgres + soma Redis). `/api/chat` usa saldo real, sem STALE.
 
 ────────────────────────────────────────
 
@@ -127,8 +133,7 @@ BAIXA       Webhook idempotência por paymentId: se FlowPay emitir mesmo
 - `ON CONFLICT(reference)` no `ledger.addEntry` → webhook duplicado mesmo ID: seguro.
 - Debit só após Venice responder → timeout/erro não debita: seguro.
 - `req.availableCredits` (LEDGER mode) separado de `req.dailyLimit` (SUBSCRIPTION/FREE): semântica correta.
-- Avaliar renderer Markdown completo no frontend.
-- Criar migração assistida se aparecer usuário legado existente apenas no Redis.
+- ~~newBalance STALE~~ → **resolvido**: `addEntry` retorna `balanceAfter` real (CTE Postgres + Redis).
 
 ────────────────────────────────────────
 

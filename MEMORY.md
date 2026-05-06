@@ -95,6 +95,39 @@ Correção (patch cirúrgico em `server.js`):
 - Modo streaming: debit síncrono via Tiktoken após acumulação do stream completo — Venice falhar = sem debit.
 - Referência de webhook com `ON CONFLICT(reference)` garante idempotência; crédito duplicado não duplica.
 
+### Entitlement Tree — 3 modos de acesso (2026-05-06)
+
+Sintoma: edge case crítico — usuário `paid_pro` por assinatura pura (`pro_analyst`) com `balance = 0` recebia HTTP 402, pois `checkQuota` só verificava saldo do ledger.
+Causa: `isPaidUser` sem distinguir entre ledger balance e assinatura ativa.
+Correção: Substituição da lógica por árvore de decisão com duas funções no `ledgerService`:
+- `hasLedgerBalance(userId)` → `{ has: boolean, balance: number }`
+- `hasActiveSubscription(userId)` → verifica entrada `PRO_SUBSCRIPTION` real no ledger, não só `planKey`
+Decisão em checkQuota:
+  1. `hasBalance` → LEDGER mode (tokens comprados)
+  2. `hasSubscription` → SUBSCRIPTION mode (pro_analyst sem tokens avulsos)
+  3. free/guest → quota acumulada
+  4. else → HTTP 402
+`req.availableCredits` (semântico) separado de `req.dailyLimit` (quota).
+
+### Hardening payments.js — remover fallback pro_subscription (2026-05-06)
+
+Sintoma: `metadata.type` ausente ou inválido silenciosamente virava `"pro_subscription"`, comportamento quasi fail-open.
+Cause: `String(metadata.type || "pro_subscription")` como default.
+Correção:
+- `metadata.type` vazio → `kind: "unknown"` imediato + warn. Não assume subscription.
+- `token_purchase` com `tokens ≤ 0` → `kind: "unknown"`. Barrado antes do webhook.
+Impacto: nenhuma regressão (testes de caminho válido mantidos; 2 novos casos de segurança adicionados).
+
+### addEntry retorna balanceAfter — eliminar STALE no /api/chat (2026-05-06)
+
+Sintoma: `/api/chat` respondia `quota.remaining` calculado com `req.ledgerBalance - tokens`, capturado antes do consumo — impreciso em requests paralelos.
+Cause: `addEntry` não retornava o saldo resultante.
+Correção sem migration de schema:
+- Postgres: CTE que executa `INSERT` + `SELECT SUM(amount) AS balance_after` na mesma operação atômica.
+- Redis: soma imediata após `lpush`.
+- `server.js`: captura `entry.balanceAfter` de `addEntry` e usa como `remaining` na resposta. Fallback para estimativa local se `addEntry` falhar.
+Regra: `balanceAfter` é sempre pós-debit real — não STALE.
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas
@@ -104,4 +137,6 @@ Correção (patch cirúrgico em `server.js`):
 - **Faturamento Preciso**: SSE deve ser bufferizado para não perder JSON delta.
 - **LEDGER-FIRST**: Ledger é a única fonte de verdade de saldo. Venice é executor, não autoridade financeira.
 - **HTTP 402**: Saldo insuficiente de crédito comprado retorna 402, não 403.
+- **balanceAfter**: `addEntry` sempre retorna saldo pós-debit. Não usar `req.ledgerBalance - tokens` como estimativa de saldo restante.
+- **kind:unknown**: `resolveFlowPayEntitlement` retorna `kind: "unknown"` para metadata incompleto ou tokens inválidos. Webhook deve rejeitar entitlement desconhecido.
 - **Deploy**: Realizar `git push origin main` + `railway up` para sincronizar produção.
