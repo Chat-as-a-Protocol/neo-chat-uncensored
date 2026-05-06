@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nox-chat-v4';
+const CACHE_NAME = 'nox-chat-v5';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
@@ -12,7 +12,7 @@ const ASSETS_TO_CACHE = [
 
 // Instalação com log de progresso
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando v4...');
+  console.log('[SW] Instalando v5...');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       for (const url of ASSETS_TO_CACHE) {
