@@ -128,3 +128,69 @@ test("Ledger Service - Integration Tests", async (t) => {
     },
   );
 });
+
+test("Ledger Service - Entitlement Helpers", async (t) => {
+  if (redis._flush) redis._flush();
+
+  // ── hasLedgerBalance ──────────────────────────────────────────
+
+  await t.test("hasLedgerBalance → false when balance is zero", async () => {
+    const userId = "balance_zero_user";
+    const result = await ledgerService.hasLedgerBalance(userId);
+    assert.strictEqual(result.has, false);
+    assert.strictEqual(result.balance, 0);
+  });
+
+  await t.test("hasLedgerBalance → true after TOKEN_PURCHASE", async () => {
+    const userId = "balance_positive_user";
+    await ledgerService.addEntry(userId, 1000, LEDGER_TYPES.TOKEN_PURCHASE, "pay_1k_abc");
+    const result = await ledgerService.hasLedgerBalance(userId);
+    assert.strictEqual(result.has, true);
+    assert.strictEqual(result.balance, 1000);
+  });
+
+  await t.test("hasLedgerBalance → false after full consumption", async () => {
+    const userId = "balance_depleted_user";
+    await ledgerService.addEntry(userId, 500, LEDGER_TYPES.TOKEN_PURCHASE, "pay_500");
+    await ledgerService.addEntry(userId, -500, LEDGER_TYPES.TOKEN_CONSUMPTION, "chat_500");
+    const result = await ledgerService.hasLedgerBalance(userId);
+    assert.strictEqual(result.has, false);
+    assert.strictEqual(result.balance, 0);
+  });
+
+  // ── hasActiveSubscription ─────────────────────────────────────
+
+  await t.test("hasActiveSubscription → false with no entries", async () => {
+    const userId = "sub_none_user";
+    const has = await ledgerService.hasActiveSubscription(userId);
+    assert.strictEqual(has, false);
+  });
+
+  await t.test("hasActiveSubscription → false with only TOKEN_PURCHASE (paid_basic path)", async () => {
+    const userId = "sub_token_only_user";
+    await ledgerService.addEntry(userId, 1000, LEDGER_TYPES.TOKEN_PURCHASE, "pay_tokens_only");
+    const has = await ledgerService.hasActiveSubscription(userId);
+    assert.strictEqual(has, false);
+  });
+
+  await t.test("hasActiveSubscription → true after PRO_SUBSCRIPTION (pro_analyst path)", async () => {
+    const userId = "sub_pro_user";
+    await ledgerService.addEntry(userId, 0, LEDGER_TYPES.PRO_SUBSCRIPTION, "pay_pro_analyst_abc");
+    const has = await ledgerService.hasActiveSubscription(userId);
+    assert.strictEqual(has, true);
+  });
+
+  await t.test("hasActiveSubscription → true even when balance is zero (no 402 for PRO)", async () => {
+    const userId = "sub_pro_zero_balance_user";
+    // Simula pro_analyst sem tokens avulsos: amount=0, PRO_SUBSCRIPTION
+    await ledgerService.addEntry(userId, 0, LEDGER_TYPES.PRO_SUBSCRIPTION, "pay_pro_no_tokens");
+    const [{ has: hasBalance }, hasSubscription] = await Promise.all([
+      ledgerService.hasLedgerBalance(userId),
+      ledgerService.hasActiveSubscription(userId),
+    ]);
+    // Este é o caso crítico: balance=0 mas assinatura ativa → SUBSCRIPTION MODE, não 402
+    assert.strictEqual(hasBalance, false);
+    assert.strictEqual(hasSubscription, true);
+  });
+});
+
