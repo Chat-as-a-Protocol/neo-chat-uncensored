@@ -52,9 +52,9 @@ SSoT operacional. Todo agente neste repo segue estas regras sem exceção.
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ VARIÁVEL                       ┃ DESCRIÇÃO / REGRA                                   ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ VENICE_API_KEY                 ┃ Chave da API Venice. Obrigatória em produção.        ┃
+┃ VENICE_API_KEY                 ┃ Chave da API Venice. Obrigatória em produção.       ┃
 ┃ VENICE_MODEL                   ┃ ID do modelo Venice a usar.                         ┃
-┃ JWT_SECRET                     ┃ Secret para assinar tokens JWT. Obrigatório.         ┃
+┃ JWT_SECRET                     ┃ Secret para assinar tokens JWT. Obrigatório.        ┃
 ┃ FLOWPAY_API_URL                ┃ https://api.flowpay.cash — NUNCA api.noxai.chat     ┃
 ┃ FLOWPAY_API_KEY                ┃ Chave de autenticação FlowPay.                      ┃
 ┃ FLOWPAY_WEBHOOK_SECRET         ┃ Secret para validar HMAC-SHA256 do webhook.         ┃
