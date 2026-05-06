@@ -18,3 +18,19 @@ export const countTokensFromText = (text) => {
     return Math.ceil(text.length / 3);
   }
 };
+/**
+ * Estima o número de tokens em uma lista de mensagens, incluindo overhead de estrutura.
+ * @param {Array} messages Lista de mensagens [{role, content}]
+ * @returns {number} Estimativa total de tokens
+ */
+export const countTokensFromMessages = (messages) => {
+  if (!Array.isArray(messages)) return 0;
+  let tokens = 0;
+
+  for (const msg of messages) {
+    tokens += countTokensFromText(msg.content || "");
+    tokens += 6; // Overhead médio por mensagem (role + estrutura JSON)
+  }
+
+  return tokens + 10; // Overhead final do chat
+};

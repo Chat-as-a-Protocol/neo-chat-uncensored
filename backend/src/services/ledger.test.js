@@ -39,6 +39,14 @@ test("Ledger Service - Integration Tests", async (t) => {
       const today = new Date().toISOString().split("T")[0];
       const guestId = "guest_quota_regression";
 
+      // Setup: Add initial credit to allow debits
+      await ledgerService.addEntry(
+        guestId,
+        2000,
+        "TEST_CREDIT",
+        "guest_setup_credit",
+      );
+
       await ledgerService.addEntry(
         guestId,
         -904,
@@ -78,6 +86,14 @@ test("Ledger Service - Integration Tests", async (t) => {
         reference: "previous_day_chat",
         createdAt: previousDay,
       }),
+    );
+
+    // Setup: Add credit to compensate manual lpush and allow new debit
+    await ledgerService.addEntry(
+      guestId,
+      1000,
+      "TEST_CREDIT",
+      "previous_day_setup_credit",
     );
 
     await ledgerService.addEntry(
@@ -125,6 +141,28 @@ test("Ledger Service - Integration Tests", async (t) => {
 
       const balance = await ledgerService.getBalance(user3);
       assert.strictEqual(balance, 100); // Should only have counted once
+    },
+  );
+
+  await t.test(
+    "should throw INSUFFICIENT_FUNDS when balance is zero",
+    async () => {
+      const brokeUserId = "broke_user_test";
+
+      // Tenta debitar sem ter saldo
+      await assert.rejects(
+        ledgerService.addEntry(
+          brokeUserId,
+          -1,
+          LEDGER_TYPES.TOKEN_CONSUMPTION,
+          "ref_fail",
+        ),
+        { message: "INSUFFICIENT_FUNDS" },
+      );
+
+      // Verifica se o saldo permanece zero
+      const balance = await ledgerService.getBalance(brokeUserId);
+      assert.strictEqual(balance, 0);
     },
   );
 });
