@@ -630,6 +630,10 @@ app.post("/api/auth/guest", authLimiter, async (req, res) => {
 app.post("/api/auth/signup", authLimiter, async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) {
+    logger.warn("[Signup] Invalid payload", {
+      reason: parsed.error.flatten(),
+      email: req.body?.email,
+    });
     return res.status(400).json({
       error: "Invalid signup data. Password must be at least 8 characters.",
     });
@@ -872,6 +876,7 @@ const checkQuota = async (req, res, next) => {
         logger.info(`[Quota] LEDGER mode — user ${req.user.id}, balance ${balance}`);
         req.ledgerBalance = balance;
         req.availableCredits = balance; // Créditos reais disponíveis (semântica correta)
+        req.remainingQuota = balance;
         req.currentUsage = 0;
         req.dailyLimit = null;          // Não aplicável no modo ledger
         req.quotaMode = "ledger";
@@ -882,6 +887,7 @@ const checkQuota = async (req, res, next) => {
         req.ledgerBalance = null;
         req.currentUsage = 0;
         req.dailyLimit = limit; // Limite do plano (plans.json / Redis)
+        req.remainingQuota = null; // Assinatura PRO não é limitada por saldo residual
         req.quotaMode = "subscription";
       } else {
         // SEM SALDO E SEM ASSINATURA: usuário pagante inativo
@@ -915,6 +921,7 @@ const checkQuota = async (req, res, next) => {
       }
       req.currentUsage = usage;
       req.dailyLimit = limit;
+      req.remainingQuota = Math.max(0, limit - usage);
       req.ledgerBalance = null;
       req.quotaMode = "free";
     }
@@ -1049,6 +1056,42 @@ app.post(
 
       schema.parse(req.body);
 
+      // --- TOKEN ENFORCEMENT (Hardened) ---
+      const inputContent = messages.map((m) => m.content).join("\n");
+      const inputEstimate = countTokensFromText(inputContent);
+
+      const requestedMaxTokens =
+        req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens;
+      const remainingQuota =
+        req.remainingQuota !== null && req.remainingQuota !== undefined
+          ? req.remainingQuota
+          : Infinity;
+
+      const safeRemaining = remainingQuota - inputEstimate;
+
+      // Se o saldo restante após o input for insuficiente, bloqueia imediatamente
+      if (safeRemaining <= 0 && req.quotaMode !== "subscription") {
+        return res.status(402).json({
+          error: "INSUFFICIENT_CREDITS",
+          message:
+            "Seu saldo é insuficiente para processar esta mensagem. Adicione créditos ou simplifique sua pergunta.",
+          inputEstimate,
+          remainingQuota,
+        });
+      }
+
+      // O limite real de saída é o menor entre o plano e o saldo que sobrou
+      const effectiveMaxTokens = Math.min(requestedMaxTokens, safeRemaining);
+
+      logger.info("[Chat] Token Enforcement", {
+        userId: req.user.id,
+        plan: req.planTier,
+        inputEstimate,
+        requestedMaxTokens,
+        effectiveMaxTokens,
+        remainingQuota,
+      });
+
       if (!VENICE_MODEL_NAME) {
         return res.status(503).json({ error: "AI model is not configured" });
       }
@@ -1106,8 +1149,7 @@ app.post(
             messages: finalMessages,
             temperature,
             stream,
-            max_tokens:
-              req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens,
+            max_tokens: effectiveMaxTokens,
             venice_parameters: {
               include_venice_system_prompt: false, // Desabilitado para garantir dominância do NØX Contract
               ...(req.body.enableWebSearch && { enable_web_search: "auto" }),

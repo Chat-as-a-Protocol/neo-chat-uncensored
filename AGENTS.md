@@ -90,3 +90,45 @@ Toda entrega deve informar:
 3. patch aplicado
 4. comandos executados
 5. risco residual
+
+# AGENTS.md · CODE CHANGE LOCK
+
+## Regra principal
+
+Nenhum agente de IA pode alterar código sem autorização explícita do operador.
+
+Autorização válida precisa conter exatamente uma destas frases:
+
+- `AUTORIZO ALTERAR CÓDIGO`
+- `AUTORIZO APLICAR PATCH`
+- `AUTORIZO CRIAR PR`
+
+Sem uma dessas frases, o agente deve apenas:
+- analisar
+- sugerir
+- explicar
+- gerar diff proposto
+- apontar riscos
+
+## Proibido sem autorização
+
+- editar arquivos
+- aplicar patch
+- criar commits
+- instalar dependências
+- alterar configs de deploy
+- rodar migrations
+- modificar variáveis de ambiente
+- mexer em autenticação, ledger, billing, CORS ou pagamentos
+
+## Fluxo obrigatório
+
+1. Diagnosticar.
+2. Mostrar arquivos afetados.
+3. Mostrar diff proposto.
+4. Esperar autorização explícita.
+5. Só então executar.
+
+## Se houver urgência
+
+Mesmo em urgência, não alterar código sem autorização explícita.
