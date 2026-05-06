@@ -788,12 +788,10 @@ const createUserRateLimit = () =>
     },
   });
 
-// ===== CHECK QUOTA MIDDLEWARE =====
+// ===== CHECK QUOTA MIDDLEWARE (LEDGER-FIRST) =====
 const checkQuota = async (req, res, next) => {
   try {
-    // Busca paralela para reduzir latência (Hot Path)
-    const [usage, redisTier, redisLimit] = await Promise.all([
-      ledgerService.getTotalConsumption(req.user.id),
+    const [redisTier, redisLimit] = await Promise.all([
       redis.get(`tier:${req.user.id}`).catch(() => null),
       redis.get(`limit:${req.user.id}`).catch(() => null),
     ]);
@@ -802,11 +800,11 @@ const checkQuota = async (req, res, next) => {
     const clientIp =
       req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
 
-    // Camada 2: Proteção por IP para Guests (Prevenir Browser Grinding)
+    // Proteção por IP para Guests (Prevenir Browser Grinding)
     if (isGuest) {
       const ipUsageKey = `usage:ip:${clientIp}`;
       const ipUsage = parseInt((await redis.get(ipUsageKey)) || "0");
-      const GUEST_IP_TOKEN_LIMIT = 1500; // ~3 guests por IP
+      const GUEST_IP_TOKEN_LIMIT = 1500;
 
       if (ipUsage >= GUEST_IP_TOKEN_LIMIT) {
         logger.warn(`[Quota] IP Limit reached for ${clientIp}`);
@@ -829,7 +827,6 @@ const checkQuota = async (req, res, next) => {
       FALLBACK_GUEST_PLAN.limit,
     );
     const { messageLimit } = tierConfig;
-
     const limit = parsePositiveInt(redisLimit, defaultLimit);
 
     // Validação de Contagem de Mensagens (Apenas para Guests)
@@ -842,12 +839,9 @@ const checkQuota = async (req, res, next) => {
         logger.warn(
           `[Quota] Message limit reached for user ${req.user.id}: ${newCount}/${messageLimit}`,
         );
-
-        const isGuest = Boolean(req.user.guest);
         const errorMessage = isGuest
           ? "E aí tá curtindo? Dá uma moral aí, conclua o cadastro e te levo de volta para o chat."
           : "Limite de mensagens atingido para sua conta gratuita.";
-
         return res.status(403).json({
           error: "Message limit reached",
           message: errorMessage,
@@ -856,24 +850,50 @@ const checkQuota = async (req, res, next) => {
       }
     }
 
-    if (usage >= limit) {
-      logger.warn(
-        `[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`,
-      );
-      const isGuestQuota = Boolean(req.user.guest) || planKey === "guest";
-      return res.status(403).json({
-        error: "Quota exceeded",
-        message: isGuestQuota
-          ? "Créditos gratuitos encerrados. Crie sua conta para continuar."
-          : "Limite de tokens atingido. Adquira mais créditos para continuar.",
-        usage,
-        limit,
-        upgradeUrl: isGuestQuota ? "/signup?reason=limit_reached" : "/upgrade",
-      });
+    // ── LEDGER-FIRST: Usuários pagantes usam saldo real do ledger ──
+    const isPaidUser = !isGuest && planKey !== "guest" && planKey !== "free";
+
+    if (isPaidUser) {
+      // Fonte de verdade: saldo = créditos comprados - consumo acumulado
+      const balance = await ledgerService.getBalance(req.user.id);
+      if (balance <= 0) {
+        logger.warn(
+          `[Ledger] Insufficient balance for user ${req.user.id}: ${balance} tokens`,
+        );
+        return res.status(402).json({
+          error: "Insufficient balance",
+          message: "Saldo insuficiente. Adquira mais créditos para continuar.",
+          balance,
+          upgradeUrl: "/upgrade",
+        });
+      }
+      // Passa o saldo para o handler do chat usar
+      req.ledgerBalance = balance;
+      req.currentUsage = 0; // Não usado para pagantes (ledger é a verdade)
+      req.dailyLimit = balance; // Exposto para compatibilidade com campos legados
+    } else {
+      // Guests e free: sistema de limite baseado em consumo acumulado
+      const usage = await ledgerService.getTotalConsumption(req.user.id);
+      if (usage >= limit) {
+        logger.warn(
+          `[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`,
+        );
+        const isGuestQuota = isGuest || planKey === "guest";
+        return res.status(403).json({
+          error: "Quota exceeded",
+          message: isGuestQuota
+            ? "Créditos gratuitos encerrados. Crie sua conta para continuar."
+            : "Limite de tokens atingido. Adquira mais créditos para continuar.",
+          usage,
+          limit,
+          upgradeUrl: isGuestQuota ? "/signup?reason=limit_reached" : "/upgrade",
+        });
+      }
+      req.currentUsage = usage;
+      req.dailyLimit = limit;
+      req.ledgerBalance = null; // Não relevante para guests/free
     }
 
-    req.currentUsage = usage;
-    req.dailyLimit = limit;
     req.userTier = accessTier;
     req.planTier = planKey;
     req.maxOutputTokens = parsePositiveInt(
@@ -1138,7 +1158,8 @@ app.post(
         }
         processStreamChunk(null); // Sinaliza fim para processar buffer residual
 
-        // Registrar consumo no ledger (Síncrono conforme solicitado)
+        // Registrar consumo no ledger APENAS após resposta bem-sucedida da Venice
+        // Tokens baseados no conteúdo real acumulado do stream (Tiktoken)
         const tokens = countTokensFromText(assistantContent);
         if (tokens > 0) {
           try {
@@ -1148,8 +1169,11 @@ app.post(
               LEDGER_TYPES.TOKEN_CONSUMPTION,
               "chat_" + randomUUID(),
             );
+            logger.info(
+              `[Ledger] Debit ${tokens} tokens for user ${req.user.id} (stream)`,
+            );
           } catch (err) {
-            logger.error("Ledger error:", err);
+            logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
           }
         }
 
@@ -1168,17 +1192,27 @@ app.post(
         // Modo não-streaming
         const data = await veniceResponse.json();
 
-        // Contar tokens aproximados
-        const tokens = data.usage?.total_tokens || 0;
+        // Usar usage real da Venice se disponível, senão estimar via Tiktoken
+        const veniceTokens = data.usage?.total_tokens || 0;
+        const assistantText = data.choices?.[0]?.message?.content || "";
+        const estimatedTokens = veniceTokens || countTokensFromText(assistantText);
 
-        ledgerService
-          .addEntry(
-            req.user.id,
-            -tokens,
-            LEDGER_TYPES.TOKEN_CONSUMPTION,
-            "venice_sync_" + randomUUID(),
-          )
-          .catch((err) => logger.error("Ledger error:", err));
+        // Debit APENAS se Venice retornou resposta válida (não debita em erro)
+        if (estimatedTokens > 0 && assistantText) {
+          try {
+            await ledgerService.addEntry(
+              req.user.id,
+              -estimatedTokens,
+              LEDGER_TYPES.TOKEN_CONSUMPTION,
+              "chat_sync_" + randomUUID(),
+            );
+            logger.info(
+              `[Ledger] Debit ${estimatedTokens} tokens for user ${req.user.id} (sync)`,
+            );
+          } catch (err) {
+            logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
+          }
+        }
 
         // Camada 2: Registrar consumo no IP se for guest
         if (req.user.guest) {
@@ -1186,16 +1220,20 @@ app.post(
             req.headers["x-forwarded-for"]?.split(",")[0] ||
             req.socket.remoteAddress;
           const ipUsageKey = `usage:ip:${clientIp}`;
-          await redis.incrby(ipUsageKey, tokens);
-          await redis.expire(ipUsageKey, 86400); // 24h reset por IP
+          await redis.incrby(ipUsageKey, estimatedTokens);
+          await redis.expire(ipUsageKey, 86400);
         }
+
+        const newBalance = req.ledgerBalance
+          ? req.ledgerBalance - estimatedTokens
+          : Math.max(0, req.dailyLimit - req.currentUsage - estimatedTokens);
 
         res.json({
           ...data,
           quota: {
-            used: req.currentUsage + tokens,
+            used: req.currentUsage + estimatedTokens,
             limit: req.dailyLimit,
-            remaining: Math.max(0, req.dailyLimit - req.currentUsage - tokens),
+            remaining: newBalance,
           },
         });
       }
