@@ -93,5 +93,5 @@ Tiers atuais:
 - `paid_basic`: Operator (acesso prioritário, créditos NEØ / VOID).
 - `paid_pro`: EL CHAPO 亗 (acesso total e personas avançadas).
 
-Usuários identificados (`free`, `paid_basic`, `paid_pro`) são autorizados via saldo real no `ledgerService.getBalance()`. 
+Usuários identificados (`free`, `paid_basic`, `paid_pro`) são autorizados via saldo real no `ledgerService.getBalance()`.
 Sessões `guest` usam o sistema de quota acumulada (consumo vs. limite do plano) persistido em Redis por IP.
