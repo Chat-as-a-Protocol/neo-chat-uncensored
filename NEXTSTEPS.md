@@ -56,6 +56,9 @@ Updated: 2026-05-06
 
 - **balanceAfter**: `addEntry` retorna saldo pós-debit (CTE Postgres + soma Redis). `/api/chat` usa saldo real, sem STALE.
 
+- **Protocol Hardening v1**: JWT de identidade pura, cota dinâmica via Postgres, welcome bonus (1000 tokens) e blindagem de stream no ledger. **CONCLUÍDO (2026-05-06)**.
+- **plans.json v2**: Nomes e benefícios normalizados (`Citizen`, `Operator`). **CONCLUÍDO**.
+
 ────────────────────────────────────────
 
 ## ⨷ Pendente Imediato

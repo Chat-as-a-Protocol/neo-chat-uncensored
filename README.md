@@ -13,18 +13,17 @@ Domains: noxai.chat / api.noxai.chat
 ========================================
 ```
 
-> **Version:** v4.1.0
+> **Version:** v4.2.0
 > **Status:** active
 > **Protocol:** NΞØ / FlowPay / Venice
 
-## ⟠ Objetivo
+## ⟠ Arquitetura de Confiança
 
-NØX é uma interface mobile-first para acesso a uma LLM
-via identidade própria, ledger de uso e checkout FlowPay.
+O NØX opera sob três pilares de integridade técnica:
 
-O projeto não vende "um chat genérico".
-Ele empacota acesso, experiência, cobrança e auditabilidade
-em um front com marca própria.
+1. **Pure Identity (JWT)**: Tokens de acesso contêm apenas a identidade (`userId`). A autorização de recursos e tiers é resolvida dinamicamente no Backend via PostgreSQL, garantindo que mudanças de plano sejam refletidas instantaneamente em todos os dispositivos.
+2. **Ledger Resilience**: Todo consumo de IA é processado em blocos `try/finally`. Tokens parciais são debitados mesmo em caso de interrupção de conexão ou erro de stream.
+3. **Deterministic Billing**: Novos usuários recebem um `welcome_bonus` no Ledger, transformando a cota gratuita em créditos reais rastreáveis desde a primeira interação.
 
 ────────────────────────────────────────
 

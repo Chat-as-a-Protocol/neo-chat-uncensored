@@ -6,7 +6,7 @@
           NØX · PROJECT CONTEXT
 ========================================
 Status: active
-Updated: 2026-05-06 (PIX produção validado)
+Updated: 2026-05-06 (Protocol Hardening v1)
 ========================================
 ```
 
@@ -33,8 +33,11 @@ Deploy    Railway + Cloudflare
 ```
 
 Auth por senha/magic-link usa Postgres. Contas via Magic Link nascem sem senha (`password_hash` NULL).
-Redis: cache operacional, quota de guests/free e contagem de mensagens (race-safe).
-Ledger (Postgres + Redis fallback): fonte de verdade de saldo para usuários pagantes. **LEDGER-FIRST.**
+JWT segue o padrão de **Identidade Pura** (contém apenas o `userId`). O backend resolve o tier dinamicamente via Postgres em cada request.
+
+Redis: cache operacional, quota de guests e contagem de mensagens (race-safe).
+Ledger (Postgres + Redis fallback): fonte de verdade de saldo para usuários identificados. **LEDGER-FIRST.**
+Todos os novos usuários ganham um `welcome_bonus` de 1000 tokens no ato do registro.
 
 ### Regra LEDGER-FIRST
 
@@ -85,10 +88,10 @@ gitea.com/noxia      -> repositório soberano
 Fonte de verdade: `shared/plans.json`.
 
 Tiers atuais:
-- `guest`: Visitante (limites estritos).
-- `paid_basic`: Usuário identificado (créditos NEØ / VOID).
-- `paid_pro`: EL CHAPO / P.R.Ø (acesso total e personas avançadas).
+- `guest`: Ghost Access (limites estritos).
+- `free`: Citizen (usuário identificado, 1k tokens welcome bonus).
+- `paid_basic`: Operator (acesso prioritário, créditos NEØ / VOID).
+- `paid_pro`: EL CHAPO 亗 (acesso total e personas avançadas).
 
-O backend normaliza `free`, `premium` e `pro` para estes tiers canônicos.
-Usuários pagantes (`paid_basic`, `paid_pro`) são autorizados via `ledgerService.getBalance()` — não pelo limite Redis do plano.
-Guests e usuários free usam o sistema de quota acumulada (consumo vs. limite do plano).
+Usuários identificados (`free`, `paid_basic`, `paid_pro`) são autorizados via saldo real no `ledgerService.getBalance()`. 
+Sessões `guest` usam o sistema de quota acumulada (consumo vs. limite do plano) persistido em Redis por IP.
