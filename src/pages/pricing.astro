@@ -2,8 +2,8 @@
 import Layout from '../layouts/Layout.astro';
 import plans from '../../shared/plans.json';
 
-const packages = Object.values(plans.packages);
-const products = Object.values(plans.products || {});
+const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, ...pkg }));
+
 
 const brl = (value: number) =>
   new Intl.NumberFormat('pt-BR', {
@@ -46,30 +46,7 @@ const brl = (value: number) =>
       ))}
     </section>
 
-    {products.length > 0 && (
-      <section class="price-list product-list" aria-label="Produtos P.R.O">
-        {products.map((product) => (
-          <article class="price-card is-product">
-            <div class="card-top">
-              <div>
-                <span class="badge">Produto P.R.O</span>
-                <h2>{product.name}</h2>
-                <p>{product.category}</p>
-              </div>
-              <strong>{brl(product.price)}</strong>
-            </div>
 
-            <ul>
-              {product.benefits.map((benefit) => (
-                <li>{benefit}</li>
-              ))}
-            </ul>
-
-            <a href="/signup" class="price-action">Criar conta para ativar</a>
-          </article>
-        ))}
-      </section>
-    )}
 
     <footer class="pricing-footer">
       <a href="/login">Já tenho conta</a>

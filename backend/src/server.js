@@ -8,7 +8,9 @@ import jwt from "jsonwebtoken";
 import crypto, { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createLogger, format, transports } from "winston";
+import logger from "./lib/logger.js";
+import { plans, getUserPlan, FALLBACK_GUEST_PLAN, normalizeAccessTier, resolvePlanKey } from "./utils/plans.js";
+import { checkQuota } from "./middleware/quota.js";
 import { z } from "zod";
 
 import { fileURLToPath } from "node:url";
@@ -137,63 +139,32 @@ import {
 import { query } from "./utils/db.js";
 import { parsePositiveInt } from "./utils/numbers.js";
 
-// Carregar Configuração de Planos (NØX)
-const plansPath = path.resolve(PROJECT_ROOT, "shared", "plans.json");
+// Carregar Configuração de Planos (NØX) -> Agora vem de utils/plans.js
 const runtimePromptPath = path.resolve(
   PROJECT_ROOT,
   "shared",
   "runtime-prompt.md",
 );
-let plans = { tiers: {}, packages: {} };
-try {
-  const plansData = await fs.readFile(plansPath, "utf-8");
-  plans = JSON.parse(plansData);
-} catch (err) {
-  console.error("ERRO: Falha ao carregar shared/plans.json");
-}
 
-const FALLBACK_GUEST_PLAN = {
-  limit: 500,
-  messageLimit: 5,
-  maxOutputTokens: 384,
-};
+
 
 const VENICE_API_BASE = (
   process.env.VENICE_API_BASE || "https://api.venice.ai/api/v1"
 ).replace(/\/+$/, "");
 const VENICE_MODEL_NAME = VENICE_MODEL?.trim();
 
-const normalizeAccessTier = (rawTier) => {
-  if (rawTier === "premium" || rawTier === "paid_pro") return "pro";
-  return rawTier || "guest";
-};
 
-const resolvePlanKey = (accessTier, isGuest) => {
-  if (isGuest || accessTier === "guest") return "guest";
-  if (accessTier === "pro") return plans.tiers.paid_pro ? "paid_pro" : "pro";
-  if (accessTier === "paid_basic") return "paid_basic";
-  return plans.tiers[accessTier] ? accessTier : "guest";
-};
 
-const getUserPlan = ({ redisTier, jwtTier, isGuest }) => {
-  const accessTier = normalizeAccessTier(
-    isGuest ? "guest" : redisTier || jwtTier,
-  );
-  const planKey = resolvePlanKey(accessTier, isGuest);
-  return {
-    accessTier,
-    planKey,
-    tierConfig:
-      plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN,
-  };
-};
+
+
+
 
 const persistUserPlan = async (userId, tier) => {
   const accessTier = normalizeAccessTier(tier);
   const planKey = resolvePlanKey(accessTier, accessTier === "guest");
   const tierConfig =
     plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN;
-  const limit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
+  const limit = parsePositiveInt(tierConfig.initialBalance, FALLBACK_GUEST_PLAN.initialBalance);
 
   await redis.set(`tier:${userId}`, planKey);
   await redis.set(`limit:${userId}`, String(limit));
@@ -201,16 +172,7 @@ const persistUserPlan = async (userId, tier) => {
   return { accessTier, planKey, limit };
 };
 
-// Logger
-const loggerTransports = [new transports.Console()];
-if (process.env.NODE_ENV !== "production") {
-  loggerTransports.push(new transports.File({ filename: "app.log" }));
-}
 
-const logger = createLogger({
-  format: format.combine(format.timestamp(), format.json()),
-  transports: loggerTransports,
-});
 
 // Middleware de Log de Acesso
 app.use((req, res, next) => {
@@ -642,6 +604,14 @@ app.post("/api/auth/guest", authLimiter, async (req, res) => {
     const email = `${userId}@guest.nox.local`;
     const tier = "guest";
 
+    // Registrar initialBalance no Ledger para o Guest
+    await ledgerService.addEntry(
+      userId,
+      plans.tiers.guest?.initialBalance || FALLBACK_GUEST_PLAN.initialBalance,
+      LEDGER_TYPES.TOKEN_PURCHASE,
+      "guest_init"
+    );
+
     const token = jwt.sign(
       { id: userId, email, tier, guest: true },
       effectiveJwtSecret,
@@ -694,7 +664,7 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
     try {
       await ledgerService.addEntry(
         userId,
-        tierConfig.limit,
+        tierConfig.initialBalance,
         LEDGER_TYPES.TOKEN_PURCHASE,
         "welcome_bonus_" + userId,
       );
@@ -897,8 +867,8 @@ const checkQuota = async (req, res, next) => {
       isGuest,
     });
     const defaultLimit = parsePositiveInt(
-      tierConfig.limit,
-      FALLBACK_GUEST_PLAN.limit,
+      tierConfig.initialBalance,
+      FALLBACK_GUEST_PLAN.initialBalance,
     );
     const { messageLimit } = tierConfig;
     const limit = parsePositiveInt(redisLimit, defaultLimit);
@@ -1801,8 +1771,8 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
     }
 
     const defaultLimit = parsePositiveInt(
-      tierConfig.limit,
-      FALLBACK_GUEST_PLAN.limit,
+      tierConfig.initialBalance,
+      FALLBACK_GUEST_PLAN.initialBalance,
     );
     const limit = parsePositiveInt(redisLimit, defaultLimit);
     const totalUsage = parseInt(usage);
@@ -1851,9 +1821,9 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
   }
 
   try {
-    const selected = plans.products?.pro_analyst;
+    const selected = plans.packages?.["40k"];
     if (!selected) {
-      return res.status(503).json({ error: "P.R.O product is not configured" });
+      return res.status(503).json({ error: "P.R.O package is not configured" });
     }
 
     // Use a single canonical frontend URL for callbacks, even if multiple are allowed for CORS
@@ -1865,7 +1835,7 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
     const data = await createFlowPayCharge({
       valor: selected.price, // Gateway espera 'valor'
       moeda: "BRL", // Gateway espera 'moeda'
-      id_transacao: buildFlowPayTransactionId("product", selected.id),
+      id_transacao: buildFlowPayTransactionId("tokens", "40k"),
       wallet: "pix", // Forçar pix
       product_id: selected.id,
       ...customerFields,
@@ -1995,8 +1965,8 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Invalid request format" });
 
     const { productId } = parsed.data;
-    const selected = plans.products?.[productId];
-    if (!selected) return res.status(400).json({ error: "Invalid product" });
+    const selected = plans.packages?.[productId];
+    if (!selected) return res.status(400).json({ error: "Invalid package" });
 
     const frontendBaseUrl = process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(",")[0]
@@ -2007,8 +1977,8 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
       valor: selected.price,
       moeda: "BRL",
       id_transacao: buildFlowPayTransactionId(
-        "product",
-        selected.id || productId,
+        "tokens",
+        productId,
       ),
       wallet: "pix",
       product_id: selected.id || productId,

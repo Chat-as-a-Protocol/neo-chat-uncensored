@@ -8,8 +8,8 @@ if (!token) {
   return Astro.redirect('/login');
 }
 
-const packages = Object.values(plans.packages);
-const products = Object.values(plans.products || {});
+const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, ...pkg }));
+
 ---
 
 <Layout title="NØX - Upgrade">
@@ -47,32 +47,7 @@ const products = Object.values(plans.products || {});
         ))}
       </section>
 
-      {products.length > 0 && (
-        <section class="plans-stack products-stack" aria-label="Produtos P.R.O">
-          {products.map((product) => (
-            <article class="plan-card is-product">
-              <div class="plan-head">
-                <div>
-                  <span class="badge pro-badge">P.R.O</span>
-                  <h2>{product.name}</h2>
-                  <p>{product.category}</p>
-                </div>
-                <strong class="price">R$ {product.price}</strong>
-              </div>
 
-              <ul class="features">
-                {product.benefits.map((benefit) => (
-                  <li>{benefit}</li>
-                ))}
-              </ul>
-
-              <button onclick={`buyProduct('${product.id}')`} class="btn-token">
-                ATIVAR P.R.O
-              </button>
-            </article>
-          ))}
-        </section>
-      )}
 
       <section class="pix-result" id="pix-result" hidden aria-live="polite">
         <div class="pix-result-head">

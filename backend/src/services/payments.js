@@ -31,20 +31,11 @@ const findPackageByMetadata = (metadata, packages) => {
   ) || null;
 };
 
-const findProductByMetadata = (metadata, products) => {
-  const productId = String(metadata.productId || metadata.product_id || metadata.product || "").trim();
-  if (productId && products[productId]) return products[productId];
 
-  const personaId = String(metadata.personaId || metadata.persona_id || "").trim();
-  if (!personaId) return null;
-
-  return Object.values(products).find((product) => product.persona_id === personaId) || null;
-};
 
 export const deriveFlowPayMetadataFromReference = (reference = "", plans = {}) => {
   const safePlans = plans || {};
   const packages = safePlans.packages || {};
-  const products = safePlans.products || {};
   const value = String(reference || "");
 
   const tokenPrefix = "nox_tokens_";
@@ -60,25 +51,7 @@ export const deriveFlowPayMetadataFromReference = (reference = "", plans = {}) =
         packageId,
         tokens: selectedPackage.tokens,
         price: selectedPackage.price,
-        tierUpgrade: selectedPackage.tier_upgrade,
-      };
-    }
-  }
-
-  const productPrefix = "nox_product_";
-  if (value.startsWith(productPrefix)) {
-    const productId = Object.keys(products).find((id) =>
-      value.startsWith(`${productPrefix}${id}_`),
-    );
-    const selectedProduct = productId ? products[productId] : null;
-
-    if (selectedProduct) {
-      return {
-        type: "product_purchase",
-        productId,
-        personaId: selectedProduct.persona_id,
-        price: selectedProduct.price,
-        tierUpgrade: selectedProduct.tier_upgrade,
+        tierUpgrade: selectedPackage.tier,
       };
     }
   }
@@ -94,9 +67,8 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
 
   const safePlans = plans || {};
   const packages = safePlans.packages || {};
-  const products = safePlans.products || {};
 
-  // Sem type explícito → desconhecido. Não assume subscription por default.
+  // Sem type explícito → desconhecido.
   const purchaseType = String(metadata.type || "").toLowerCase();
   if (!purchaseType) {
     console.warn("[Payments] resolveFlowPayEntitlement: metadata.type ausente, retornando unknown.");
@@ -107,7 +79,7 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
     const selectedPackage = findPackageByMetadata(metadata, packages);
     const tokens = parsePositiveInt(metadata.tokens, parsePositiveInt(selectedPackage?.tokens));
     const tierUpgrade = normalizeTierUpgrade(
-      metadata.tierUpgrade || metadata.tier_upgrade || selectedPackage?.tier_upgrade,
+      metadata.tierUpgrade || metadata.tier_upgrade || selectedPackage?.tier,
     );
 
     // tokens <= 0 em token_purchase é dado inválido — barrar aqui antes do webhook
@@ -124,27 +96,7 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
     };
   }
 
-  const selectedProduct = findProductByMetadata(metadata, products);
-
-  return {
-    kind: "subscription",
-    tokens: 0,
-    tierUpgrade:
-      normalizeTierUpgrade(
-        metadata.tierUpgrade ||
-          metadata.tier_upgrade ||
-          selectedProduct?.tier_upgrade ||
-          metadata.plan,
-      ) || null, // REMOVED FAIL-OPEN: No longer defaults to paid_pro on invalid data
-    packageId: null,
-    productId:
-      selectedProduct?.id ||
-      metadata.productId ||
-      metadata.product_id ||
-      metadata.product ||
-      null,
-    personaId: selectedProduct?.persona_id || metadata.personaId || metadata.persona_id || null,
-  };
+  return { kind: "unknown", tokens: 0, tierUpgrade: null, packageId: null };
 };
 
 export const paymentService = {

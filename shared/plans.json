@@ -1,96 +1,76 @@
 {
   "tiers": {
     "guest": {
-      "name": "Ghost Access",
-      "limit": 500,
-      "messageLimit": 5,
-      "maxOutputTokens": 384,
+      "name": "Guest",
+      "initialBalance": 500,
+      "maxOutputTokens": 184,
       "benefits": [
-        "Acesso efêmero, sem login",
-        "Degustação de 500 tokens",
+        "Acesso sem cadastro",
+        "500 tokens iniciais",
         "Respostas compactas",
-        "Zero persistência de histórico"
+        "Histórico não persistido"
       ]
     },
     "free": {
-      "name": "Citizen",
-      "limit": 1000,
-      "messageLimit": null,
-      "maxOutputTokens": 1024,
+      "name": "Identified",
+      "initialBalance": 1000,
+      "maxOutputTokens": 324,
       "benefits": [
-        "Identidade NØX confirmada",
-        "Histórico de chat persistente",
-        "Cota de 1.000 tokens",
+        "Cadastro confirmado",
+        "1.000 tokens de boas-vindas",
+        "Histórico persistido",
         "Acesso a Personas básicas"
-      ]
-    },
-    "paid_basic": {
-      "name": "Operator",
-      "limit": 5000,
-      "messageLimit": null,
-      "maxOutputTokens": 2048,
-      "benefits": [
-        "Prioridade no processamento",
-        "Cota estendida de tokens",
-        "Respostas longas e detalhadas",
-        "Histórico completo salvo"
-      ]
-    }
-  },
-  "products": {
-    "pro_analyst": {
-      "id": "pro_analyst",
-      "name": "P.R.Ø",
-      "persona_id": "analyst",
-      "category": "business",
-      "price": 499,
-      "tier_upgrade": "paid_basic",
-      "benefits": [
-        "Acesso ao núcleo de arquitetura do NØX",
-        "Leitura fria de risco, ROI e oportunidade",
-        "Diagnóstico estratégico de movimentos",
-        "Para enxergar o mapa antes de mover a peça"
       ]
     }
   },
   "packages": {
     "1k": {
-      "id": "1k",
       "name": "† NEØ †",
       "tokens": 1000,
       "price": 49,
-      "tier_upgrade": "paid_basic",
+      "tier": "paid_basic",
+      "maxOutputTokens": 548,
       "benefits": [
-        "1.000 créditos reais no Ledger",
+        "1.000 créditos no Ledger",
         "Upgrade para Operator",
-        "Respostas detalhadas liberadas",
-        "Ideal para táticas rápidas"
+        "Respostas detalhadas liberadas"
       ]
     },
     "5k": {
-      "id": "5k",
       "name": "× VOID.ᴇxᴇ ×",
       "tokens": 5000,
       "price": 79,
-      "tier_upgrade": "paid_basic",
+      "tier": "paid_basic",
+      "maxOutputTokens": 824,
       "benefits": [
-        "5.000 créditos reais no Ledger",
+        "5.000 créditos no Ledger",
         "Upgrade para Operator",
-        "Margem para roadmaps complexos",
-        "Foco em execução de médio prazo"
+        "Ideal para projetos de médio prazo"
       ]
     },
     "10k": {
-      "id": "10k",
       "name": "∅ DARKNET ∅",
       "tokens": 10000,
       "price": 149,
-      "tier_upgrade": "paid_basic",
+      "tier": "paid_basic",
+      "maxOutputTokens": 1024,
       "benefits": [
-        "10.000 créditos reais no Ledger",
+        "10.000 créditos no Ledger",
         "Upgrade para Operator",
-        "Volume máximo para projetos completos",
-        "Capacidade total de execução NØX"
+        "Volume máximo para projetos completos"
+      ]
+    },
+    "40k": {
+      "name": "P.R.Ø",
+      "tokens": 40000,
+      "price": 499,
+      "tier": "paid_pro",
+      "maxOutputTokens": 4096,
+      "benefits": [
+        "Acesso ao arquiteto de NØX.ai",
+        "Leitura fria de risco, ROI e oportunidade",
+        "Diagnóstico estratégico de movimentos",
+        "Para enxergar o mapa antes de mover a peça"
       ]
     }
   }
