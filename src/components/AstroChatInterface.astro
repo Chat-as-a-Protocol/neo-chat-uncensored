@@ -144,6 +144,8 @@
     tier?: string;
     plan?: string;
     remaining?: number;
+    balance?: number;
+    name?: string;
   }
 
   class ChatApiError extends Error {
@@ -828,6 +830,7 @@
       if (count && indicator) {
         const limit = Number(data.limit || 0);
         const remaining = Number(data.remaining || 0);
+        const balance = Number(data.balance ?? 0);
         const today = limit - remaining;
         const exhausted = isUsageExhausted(data);
         const safeToday = Number.isFinite(today) && Number.isFinite(limit) && limit > 0
@@ -836,7 +839,12 @@
         const isProTier = data.tier === 'pro' || data.tier === 'premium' || data.plan === 'paid_pro';
         const shouldShowUpgrade = !isProTier && Number.isFinite(today) && Number.isFinite(limit) && limit > 0 && today >= limit * 0.8;
 
-        count.textContent = `${safeToday}/${limit}`;
+        if (balance > 0) {
+          // Mostra o saldo direto no badge do chat
+          count.textContent = String(balance);
+        } else {
+          count.textContent = `${safeToday}/${limit}`;
+        }
 
         const upgradePrompt = document.getElementById('upgrade-prompt');
         const upgradeButton = upgradePrompt?.querySelector('button');

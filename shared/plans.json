@@ -21,6 +21,24 @@
         "Histórico salvo em conta",
         "Acesso a Personas básicas"
       ]
+    },
+    "paid_basic": {
+      "name": "Paid Basic",
+      "initialBalance": 0,
+      "maxOutputTokens": 1024,
+      "benefits": [
+        "Créditos acumulativos via Ledger",
+        "Limite de saída expandido para 1024 tokens"
+      ]
+    },
+    "paid_pro": {
+      "name": "Paid Pro",
+      "initialBalance": 0,
+      "maxOutputTokens": 4096,
+      "benefits": [
+        "Acesso ao arquiteto de NØX.ai",
+        "Maior limite de saída (4096 tokens)"
+      ]
     }
   },
   "packages": {

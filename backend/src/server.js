@@ -765,7 +765,7 @@ const authenticateToken = async (req, res, next) => {
 
     // Consulta em runtime (Fase 1) - Busca tier real no banco
     const { rows } = await query(
-      "SELECT id, email, tier FROM users WHERE id = $1",
+      "SELECT id, email, tier, name FROM users WHERE id = $1",
       [decoded.id],
     );
 
@@ -777,6 +777,7 @@ const authenticateToken = async (req, res, next) => {
       id: rows[0].id,
       email: rows[0].email,
       tier: rows[0].tier || "guest",
+      name: rows[0].name,
     };
 
     next();
@@ -1627,11 +1628,12 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
       tier: accessTier,
       plan: planKey,
       balance,
-      remaining: Math.max(0, limit - totalUsage),
+      remaining: Math.max(0, balance > 0 ? balance : limit - totalUsage),
       maxOutputTokens: parsePositiveInt(
         tierConfig.maxOutputTokens,
         FALLBACK_GUEST_PLAN.maxOutputTokens,
       ),
+      name: req.user.name,
     });
   } catch (err) {
     logger.error(

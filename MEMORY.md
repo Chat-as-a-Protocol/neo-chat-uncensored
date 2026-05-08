@@ -152,6 +152,14 @@ Correção:
 Resultado: PIX gerado com sucesso — `chargeId`, `brCode`, `qrCode` e `status: ACTIVE` retornados. QR renderizado na UI `/upgrade`.
 Regra: A `FLOWPAY_API_KEY` no NØX deve sempre bater com `FLOWPAY_INTERNAL_API_KEY` do Cloudflare Worker `flowpay-api`.
 
+### Falha de Webhook e Desajuste de Rota (2026-05-08)
+
+Sintoma: Webhooks do FlowPay não eram processados pelo Chat após pagamento PIX real.
+Causa 1: O Chat esperava o webhook em `/api/webhooks/flowpay`, mas o Nexus está configurado no `ecosystem.json` para enviar para `/webhooks/flowpay` (sem o prefixo `/api`).
+Causa 2: Após ajuste da rota, a requisição falhou com `401 Unauthorized` devido a `Missing signature`. O chat não encontrou `x-nexus-signature` nem `x-flowpay-signature` nos headers enviados pelo Nexus.
+Causa 3: A tela `/upgrade` não faz polling, dependendo exclusivamente do webhook invisível para saber quando redirecionar.
+Regra: O fluxo canônico é `Provider -> FlowPay -> Nexus -> Chat`. O chat deve estar preparado para receber do Nexus na rota combinada no `ecosystem.json`.
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas

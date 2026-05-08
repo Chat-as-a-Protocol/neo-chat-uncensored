@@ -20,6 +20,10 @@ if (!token) {
 
       <dl class="account-stats">
         <div>
+          <dt>Usuário</dt>
+          <dd id="account-name">--</dd>
+        </div>
+        <div>
           <dt>Plano</dt>
           <dd id="account-plan">--</dd>
         </div>
@@ -60,6 +64,7 @@ if (!token) {
   const apiUrl = configuredApiUrl && (isLocalhost || !configuredApiIsLocal)
     ? configuredApiUrl
     : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
+  const accountNameEl = document.getElementById('account-name');
   const accountPlanEl = document.getElementById('account-plan');
   const accountUsageEl = document.getElementById('account-usage');
   const accountRemainingEl = document.getElementById('account-remaining');
@@ -173,8 +178,17 @@ if (!token) {
       if (accountUsageEl) {
         const limit = Number(data.limit || 0);
         const remaining = Number(data.remaining || 0);
-        accountUsageEl.textContent = `${limit - remaining}/${limit}`;
+        const balance = Number(data.balance ?? 0);
+        
+        if (balance > 0) {
+          // Usuário pago: mostra saldo disponível
+          accountUsageEl.textContent = `${balance}`;
+        } else {
+          // Guest/free: mostra consumo
+          accountUsageEl.textContent = `${limit - remaining}/${limit}`;
+        }
       }
+      if (accountNameEl) accountNameEl.textContent = data.name || 'Usuário';
       if (accountRemainingEl) accountRemainingEl.textContent = String(data.remaining);
       if (accountBalanceEl) accountBalanceEl.textContent = String(data.balance ?? 0);
 
