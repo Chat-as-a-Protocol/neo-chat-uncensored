@@ -826,8 +826,9 @@
       const indicator = document.getElementById('quota-indicator');
       const count = indicator?.querySelector('.quota-count');
       if (count && indicator) {
-        const today = Number(data.today || 0);
         const limit = Number(data.limit || 0);
+        const remaining = Number(data.remaining || 0);
+        const today = limit - remaining;
         const exhausted = isUsageExhausted(data);
         const safeToday = Number.isFinite(today) && Number.isFinite(limit) && limit > 0
           ? Math.min(Math.max(today, 0), limit)

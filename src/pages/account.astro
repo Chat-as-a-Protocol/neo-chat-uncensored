@@ -170,7 +170,11 @@ if (!token) {
         }
       }
       
-      if (accountUsageEl) accountUsageEl.textContent = `${data.today}/${data.limit}`;
+      if (accountUsageEl) {
+        const limit = Number(data.limit || 0);
+        const remaining = Number(data.remaining || 0);
+        accountUsageEl.textContent = `${limit - remaining}/${limit}`;
+      }
       if (accountRemainingEl) accountRemainingEl.textContent = String(data.remaining);
       if (accountBalanceEl) accountBalanceEl.textContent = String(data.balance ?? 0);
 

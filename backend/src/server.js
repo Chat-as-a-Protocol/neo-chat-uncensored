@@ -604,12 +604,12 @@ app.post("/api/auth/guest", authLimiter, async (req, res) => {
     const email = `${userId}@guest.nox.local`;
     const tier = "guest";
 
-    // Registrar initialBalance no Ledger para o Guest
+    // Registrar initialBalance no Ledger para o Guest como GRANT
     await ledgerService.addEntry(
       userId,
       plans.tiers.guest?.initialBalance || FALLBACK_GUEST_PLAN.initialBalance,
-      LEDGER_TYPES.TOKEN_PURCHASE,
-      "guest_init"
+      LEDGER_TYPES.TOKEN_GRANT,
+      `guest_init_${userId}`
     );
 
     const token = jwt.sign(
@@ -1602,12 +1602,11 @@ const usageLimiter = rateLimit({
 app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
   try {
     const userId = req.user.id;
-    const [usage, redisTier, redisLimit, balance, isPro] = await Promise.all([
+    const [usage, redisTier, redisLimit, balance] = await Promise.all([
       ledgerService.getTotalConsumption(userId),
       redis.get(`tier:${userId}`).catch(() => null),
       redis.get(`limit:${userId}`).catch(() => null),
       ledgerService.getBalance(userId),
-      ledgerService.hasActiveSubscription(userId),
     ]);
 
     const { accessTier, planKey, tierConfig } = getUserPlan({
@@ -1615,14 +1614,6 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
       jwtTier: req.user.tier,
       isGuest: Boolean(req.user.guest),
     });
-
-    // Definir Entitlement Soberano
-    let entitlement = "free";
-    if (isPro) {
-      entitlement = "paid_pro";
-    } else if (balance > 0) {
-      entitlement = "credits";
-    }
 
     const defaultLimit = parsePositiveInt(
       tierConfig.initialBalance,
@@ -1632,11 +1623,9 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
     const totalUsage = parseInt(usage);
 
     res.json({
-      today: totalUsage,
       limit,
       tier: accessTier,
       plan: planKey,
-      entitlement,
       balance,
       remaining: Math.max(0, limit - totalUsage),
       maxOutputTokens: parsePositiveInt(
