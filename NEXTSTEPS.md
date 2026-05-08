@@ -6,9 +6,125 @@
           NØX · EXECUTION BACKLOG
 ========================================
 Status: active
-Updated: 2026-05-06
+Updated: 2026-05-08
 ========================================
 ```
+
+## ⧉ Checkpoint 2026-05-08
+
+```text
+STATUS CURTO
+────────────
+Hotfix de chat/ledger/guest aplicado e validado.
+Alias de webhook do Nexus aplicado no chat.
+Compra PIX ainda precisa de teste real assinado via Nexus.
+```
+
+### Concluído Hoje
+
+- `checkQuota` não desconta mais histórico/input/buffer do saldo do usuário.
+- Débito não-streaming passou a usar `completion_tokens`/output, não `total_tokens`.
+- Guest/free não são mais confundidos com compra real.
+- `TOKEN_GRANT` criado para crédito inicial gratuito no Ledger.
+- `TOKEN_PURCHASE` reservado para compra real via FlowPay/packages.
+- `/api/usage` de guest novo validado:
+
+```json
+{
+  "limit": 500,
+  "tier": "guest",
+  "plan": "guest",
+  "balance": 500,
+  "remaining": 500,
+  "maxOutputTokens": 184
+}
+```
+
+- Validações locais passaram:
+
+```bash
+node --check backend/src/server.js
+pnpm --dir backend test
+pnpm check
+pnpm build
+```
+
+- Alias de webhook aplicado no chat:
+
+```text
+POST /api/webhooks/flowpay  -> handler canônico
+POST /webhooks/flowpay      -> alias compatível com Nexus
+```
+
+- Smoke test do alias em produção passou:
+
+```bash
+curl -i -X POST https://api.noxai.chat/webhooks/flowpay \
+  -H "Content-Type: application/json" \
+  --data '{}'
+```
+
+Resultado esperado e observado:
+
+```text
+HTTP 401
+Unauthorized: Missing Signature
+```
+
+Interpretação: a rota existe em produção. O `401` é correto para chamada manual sem assinatura HMAC.
+
+### Evidência do Log Atual
+
+Log visto no Railway após o `curl` manual:
+
+```text
+[Webhook] Received FlowPay event from Nexus
+[Webhook] Missing signature
+POST /webhooks/flowpay - 401
+```
+
+Interpretação: isso confirma path/handler, mas não confirma fan-out assinado real do Nexus.
+
+### Pendente Imediato
+
+1. Fazer nova compra PIX real após o alias publicado.
+2. Observar logs do backend procurando:
+
+```text
+POST /webhooks/flowpay
+[Webhook] Received FlowPay event from Nexus
+[Webhook] User <id> purchased <tokens> tokens
+[Email] Payment email sent for user <id>
+```
+
+3. Verificar Ledger no Postgres, sem `LIMIT` manual no Railway Data UI:
+
+```sql
+SELECT id, user_id, amount, type, reference, created_at
+FROM ledger
+WHERE reference LIKE '%nox_tokens_1k%'
+ORDER BY created_at DESC
+```
+
+4. Se o webhook real ainda retornar `401 Missing Signature`, conferir no Nexus se o fan-out está enviando `X-Nexus-Signature` e se o secret usado pelo Nexus corresponde ao `FLOWPAY_WEBHOOK_SECRET` do backend NØX.
+5. Se o webhook processar e Ledger creditar, validar:
+
+```text
+/upgrade redireciona ou atualiza estado
+/success aparece
+e-mail Resend chega
+/api/usage reflete novo saldo
+```
+
+### Regra Para Retomar
+
+```text
+NÃO alterar Nexus/ecosystem.json como hotfix local.
+O Nexus é control plane de vários projetos.
+Para o NØX, manter compatibilidade local via alias no chat.
+```
+
+────────────────────────────────────────
 
 ## ⧉ Estado Atual
 
