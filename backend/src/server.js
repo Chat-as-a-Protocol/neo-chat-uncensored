@@ -359,7 +359,7 @@ const sendPaymentEmail = async ({
  * Recebe notificações de pagamento e atualiza o tier do usuário.
  */
 app.post(
-  "/api/webhooks/flowpay",
+  ["/api/webhooks/flowpay", "/webhooks/flowpay"],
   express.raw({
     type: (req) => {
       const contentType = req.headers["content-type"];
