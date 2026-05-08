@@ -230,5 +230,28 @@ test("Ledger Service - Entitlement Helpers", async (t) => {
     assert.strictEqual(hasBalance, false);
     assert.strictEqual(hasSubscription, true);
   });
+
+  await t.test(
+    "should allow negative balance when options.allowNegative is true",
+    async () => {
+      const negativeUser = "negative_user_test";
+
+      // Tenta debitar sem saldo, mas passando allowNegative
+      const entry = await ledgerService.addEntry(
+        negativeUser,
+        -100,
+        LEDGER_TYPES.TOKEN_CONSUMPTION,
+        "ref_negative",
+        { allowNegative: true },
+      );
+
+      assert.notStrictEqual(entry, null);
+      assert.strictEqual(entry.balanceAfter, -100);
+
+      // Verifica se o saldo ficou negativo
+      const balance = await ledgerService.getBalance(negativeUser);
+      assert.strictEqual(balance, -100);
+    },
+  );
 });
 

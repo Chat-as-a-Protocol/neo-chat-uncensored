@@ -51,11 +51,11 @@ const addRedisEntry = async (userId, amount, type, reference) => {
 };
 
 export const ledgerService = {
-  async addEntry(userId, amount, type, reference) {
-    const allowNegative = process.env.ALLOW_NEGATIVE_BALANCE === "true";
+  async addEntry(userId, amount, type, reference, options = {}) {
+    const allowNegativeEnv = process.env.ALLOW_NEGATIVE_BALANCE === "true";
 
     // Prevent negative balance if not explicitly allowed
-    if (amount < 0 && !allowNegative) {
+    if (amount < 0 && !allowNegativeEnv && !options.allowNegative) {
       const currentBalance = await this.getBalance(userId);
       if (currentBalance + amount < 0) {
         throw new Error("INSUFFICIENT_FUNDS");

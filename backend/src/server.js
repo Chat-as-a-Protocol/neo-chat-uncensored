@@ -789,7 +789,7 @@ const authenticateToken = async (req, res, next) => {
     // If JWT_SECRET is compromised, guest_ prefix can be forged.
     // Rotate secret immediately if exposure is suspected.
     if (decoded.id && decoded.id.toString().startsWith("guest_")) {
-      req.user = { id: decoded.id, tier: "guest" };
+      req.user = { id: decoded.id, tier: "guest", guest: true };
       return next();
     }
 
@@ -1305,13 +1305,14 @@ app.post(
         } finally {
           // Registrar consumo no ledger SEMPRE, mesmo em erro parcial
           const tokens = countTokensFromText(assistantContent);
-          if (tokens > 0 && !req.user.guest) {
+          if (tokens > 0) {
             try {
               const streamDebitEntry = await ledgerService.addEntry(
                 req.user.id,
                 -tokens,
                 LEDGER_TYPES.TOKEN_CONSUMPTION,
                 "chat_" + randomUUID(),
+                { allowNegative: req.quotaMode === "quota" }
               );
               logger.info(
                 `[Ledger] Debit ${tokens} tokens for user ${req.user.id} (stream), balanceAfter=${streamDebitEntry?.balanceAfter ?? "n/a"}`,
@@ -1353,6 +1354,7 @@ app.post(
               -estimatedTokens,
               LEDGER_TYPES.TOKEN_CONSUMPTION,
               "chat_sync_" + randomUUID(),
+              { allowNegative: req.quotaMode === "quota" }
             );
             logger.info(
               `[Ledger] Debit ${estimatedTokens} tokens for user ${req.user.id} (sync), balanceAfter=${syncDebitEntry?.balanceAfter ?? "n/a"}`,
