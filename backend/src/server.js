@@ -925,57 +925,34 @@ const checkQuota = async (req, res, next) => {
     }
 
     // ── LEDGER-FIRST: Árvore de decisão de entitlement ──
-    //
-    // Modo 1 (LEDGER):       saldo > 0 → autoriza por saldo real
-    // Modo 2 (SUBSCRIPTION): sem saldo, mas tem assinatura PRO confirmada no ledger
-    // Modo 3 (FREE/GUEST):   quota acumulada por consumo
-    // Modo 4 (402):          pagante sem saldo e sem assinatura ativa
-    //
-    const isFreeOrGuest = isGuest || planKey === "guest" || planKey === "free";
+    // Prioridade máxima: Saldo real de tokens comprados no Ledger.
+    // Isso garante que mesmo um usuário 'free' ou 'guest' que comprou tokens não seja bloqueado por quotas gratuitas.
+    const [{ has: hasBalance, balance }, hasSubscription] = await Promise.all([
+      ledgerService.hasLedgerBalance(req.user.id),
+      ledgerService.hasActiveSubscription(req.user.id),
+    ]);
 
-    if (!isFreeOrGuest) {
-      // Busca paralela: saldo e assinatura ao mesmo tempo
-      const [{ has: hasBalance, balance }, hasSubscription] = await Promise.all(
-        [
-          ledgerService.hasLedgerBalance(req.user.id),
-          ledgerService.hasActiveSubscription(req.user.id),
-        ],
+    if (hasBalance) {
+      // MODO 1 (LEDGER): tokens comprados disponíveis (Fonte de verdade absoluta)
+      logger.info(
+        `[Quota] LEDGER mode — user ${req.user.id}, balance ${balance}`,
       );
-
-      if (hasBalance) {
-        // MODO LEDGER: tokens comprados disponíveis
-        logger.info(
-          `[Quota] LEDGER mode — user ${req.user.id}, balance ${balance}`,
-        );
-        req.ledgerBalance = balance;
-        req.availableCredits = balance; // Créditos reais disponíveis (semântica correta)
-        req.remainingQuota = balance;
-        req.currentUsage = 0;
-        req.dailyLimit = null; // Não aplicável no modo ledger
-        req.quotaMode = "ledger";
-      } else if (hasSubscription) {
-        // MODO SUBSCRIPTION: assinatura PRO ativa confirmada no ledger, sem tokens avulsos
-        // Usa o limite do plano (maxOutputTokens) mas não bloqueia por saldo
-        logger.info(`[Quota] SUBSCRIPTION mode — user ${req.user.id}`);
-        req.ledgerBalance = null;
-        req.currentUsage = 0;
-        req.dailyLimit = limit; // Limite do plano (plans.json / Redis)
-        req.remainingQuota = null; // Assinatura PRO não é limitada por saldo residual
-        req.quotaMode = "subscription";
-      } else {
-        // SEM SALDO E SEM ASSINATURA: usuário pagante inativo
-        logger.warn(
-          `[Ledger] No balance, no active subscription for user ${req.user.id}`,
-        );
-        return res.status(402).json({
-          error: "Insufficient balance",
-          message: "Saldo insuficiente. Adquira mais créditos para continuar.",
-          balance: balance ?? 0,
-          upgradeUrl: "/upgrade",
-        });
-      }
-    } else {
-      // MODO FREE/GUEST: quota acumulada por consumo
+      req.ledgerBalance = balance;
+      req.availableCredits = balance;
+      req.remainingQuota = balance;
+      req.currentUsage = 0;
+      req.dailyLimit = null;
+      req.quotaMode = "ledger";
+    } else if (hasSubscription) {
+      // MODO 2 (SUBSCRIPTION): assinatura PRO ativa confirmada no ledger
+      logger.info(`[Quota] SUBSCRIPTION mode — user ${req.user.id}`);
+      req.ledgerBalance = null;
+      req.currentUsage = 0;
+      req.dailyLimit = limit;
+      req.remainingQuota = null;
+      req.quotaMode = "subscription";
+    } else if (isGuest || planKey === "guest" || planKey === "free") {
+      // MODO 3 (FREE/GUEST): quota acumulada por consumo para usuários sem saldo/assinatura
       const usage = await ledgerService.getTotalConsumption(req.user.id);
       if (usage >= limit) {
         logger.warn(
@@ -998,7 +975,18 @@ const checkQuota = async (req, res, next) => {
       req.dailyLimit = limit;
       req.remainingQuota = Math.max(0, limit - usage);
       req.ledgerBalance = null;
-      req.quotaMode = "free";
+      req.quotaMode = "quota";
+    } else {
+      // MODO 4 (402): Usuário pagante sem saldo e sem assinatura ativa
+      logger.warn(
+        `[Ledger] No balance, no active subscription for user ${req.user.id}`,
+      );
+      return res.status(402).json({
+        error: "Insufficient balance",
+        message: "Saldo insuficiente. Adquira mais créditos para continuar.",
+        balance: balance ?? 0,
+        upgradeUrl: "/upgrade",
+      });
     }
 
     req.userTier = accessTier;
@@ -1167,37 +1155,40 @@ app.post(
         ...userMessages,
       ];
 
-      // --- TOKEN ENFORCEMENT (Hardened) ---
-      const TOKEN_SAFETY_BUFFER = 128;
-      // System prompt é custo operacional da plataforma — não debita cota do usuário
+      // --- TOKEN ENFORCEMENT (NØX Logic) ---
+      // O input (histórico + mensagem atual) é cortesia da plataforma NØX.
+      // O bloqueio e o débito real ocorrem apenas sobre a capacidade de resposta (output).
       const inputEstimate = countTokensFromMessages(userMessages);
 
       const requestedMaxTokens =
         req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens;
       const remainingQuota =
-        req.remainingQuota !== null && req.remainingQuota !== undefined
-          ? req.remainingQuota
-          : Infinity;
+        req.quotaMode === "subscription"
+          ? Infinity
+          : Number.isFinite(Number(req.remainingQuota))
+            ? Number(req.remainingQuota)
+            : 0;
 
-      const safeRemaining = Math.max(
-        0,
-        remainingQuota - inputEstimate - TOKEN_SAFETY_BUFFER,
-      );
+      // O saldo disponível para a RESPOSTA é o saldo total restante.
+      // Não subtraímos o inputEstimate do saldo do usuário, pois ele só paga pelo output.
+      const safeRemaining = Math.max(0, remainingQuota);
 
-      // Se o saldo restante após o input for insuficiente, bloqueia imediatamente
+      // Se o saldo for 0 ou menos, bloqueia o início da geração.
       if (safeRemaining <= 0 && req.quotaMode !== "subscription") {
         return res.status(402).json({
           error: "INSUFFICIENT_CREDITS",
           message:
-            "Seu saldo é insuficiente para processar esta mensagem com segurança. Adicione créditos ou simplifique sua pergunta.",
-          inputEstimate,
+            "Seu saldo de tokens encerrou. Adquira mais créditos para continuar a conversa.",
           remainingQuota,
-          buffer: TOKEN_SAFETY_BUFFER,
         });
       }
 
-      // O limite real de saída é o menor entre o plano e o saldo que sobrou
-      const effectiveMaxTokens = Math.min(requestedMaxTokens, safeRemaining);
+      // O limite real de saída é o menor entre o plano e o saldo que resta.
+      // Mantemos uma margem mínima de 1 para evitar erros de API com max_tokens=0.
+      const effectiveMaxTokens = Math.min(
+        requestedMaxTokens,
+        Math.max(1, safeRemaining),
+      );
 
       logger.info("[Chat] Token Enforcement", {
         userId: req.user.id,
@@ -1347,11 +1338,11 @@ app.post(
         // Modo não-streaming
         const data = await veniceResponse.json();
 
-        // Usar usage real da Venice se disponível, senão estimar via Tiktoken
-        const veniceTokens = data.usage?.total_tokens || 0;
+        // Usar usage real da Venice (apenas output/completion) se disponível, senão estimar via Tiktoken
+        // O NØX não cobra do usuário o custo de prompt/history (Input).
         const assistantText = data.choices?.[0]?.message?.content || "";
         const estimatedTokens =
-          veniceTokens || countTokensFromText(assistantText);
+          data.usage?.completion_tokens || countTokensFromText(assistantText);
 
         // Debit APENAS se Venice retornou resposta válida (não debita em erro)
         let syncDebitEntry = null;
