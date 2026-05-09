@@ -131,7 +131,7 @@ import {
   formatFlowPayError,
 } from "./services/flowpay.js";
 import { LEDGER_TYPES, ledgerService } from "./services/ledger.js";
-import { paymentService } from "./services/payments.js";
+import { paymentService, normalizePlanPriceToCents, normalizeFlowPayAmountToCents } from "./services/payments.js";
 import {
   countTokensFromMessages,
   countTokensFromText,
@@ -170,6 +170,13 @@ const persistUserPlan = async (userId, tier) => {
   await redis.set(`limit:${userId}`, String(limit));
 
   return { accessTier, planKey, limit };
+};
+
+const resolveUsageEntitlement = (planKey) => {
+  if (planKey === "paid_basic") return "credits";
+  if (planKey === "paid_pro") return "paid_pro";
+  if (planKey === "free") return "free";
+  return "guest";
 };
 
 
@@ -247,6 +254,9 @@ const buildFlowPayTransactionId = (kind, id) => {
   const safeId = String(id || "unknown").replace(/[^a-zA-Z0-9_-]/g, "-");
   return `nox_${kind}_${safeId}_${randomUUID()}`;
 };
+
+const resolvePackageTierUpgrade = (selected) =>
+  selected?.tier || selected?.tier_upgrade || null;
 
 const resolveFlowPayWebhookUserId = async ({ data = {}, metadata = {} }) => {
   const directUserId = data.userId || metadata.userId;
@@ -441,11 +451,11 @@ app.post(
             .json({ status: "success", message: "Already processed" });
         }
 
-        const metadata = {
-          ...paymentService.deriveMetadataFromReference(reference, plans),
-          ...(data?.metadata || {}),
-        };
-        const userId = await resolveFlowPayWebhookUserId({ data, metadata });
+        const trustedMetadata = paymentService.deriveMetadataFromReference(reference, plans);
+        const externalMetadata = data?.metadata || {};
+
+        // Passamos externalMetadata para resolver o usuário, pois ele pode conter o userId
+        const userId = await resolveFlowPayWebhookUserId({ data, metadata: externalMetadata });
 
         if (!userId) {
           throw new Error("Missing userId in payload");
@@ -454,13 +464,29 @@ app.post(
         const amountBrl = Number(
           data?.amount ??
             data?.value ??
-            metadata.amountBrl ??
-            metadata.price ??
+            externalMetadata.amountBrl ??
+            externalMetadata.price ??
             0,
         );
         const currency = String(
-          data?.currency || metadata.currency || "BRL",
+          data?.currency || externalMetadata.currency || "BRL",
         ).toUpperCase();
+
+        // Validação de Valor em Centavos
+        const paidAmountCents = normalizeFlowPayAmountToCents(amountBrl);
+        const selectedPackage = plans.packages?.[trustedMetadata.packageId];
+        const expectedAmountCents = normalizePlanPriceToCents(selectedPackage?.price);
+
+        if (!paidAmountCents || !expectedAmountCents || paidAmountCents < expectedAmountCents) {
+          logger.warn(`[Webhook] Bloqueio por divergência de valor ou dado inválido`, {
+            reference,
+            expectedAmountCents,
+            paidAmountCents,
+            packageId: trustedMetadata.packageId,
+            reason: !paidAmountCents || !expectedAmountCents ? "invalid_data" : "insufficient_amount"
+          });
+          throw new Error("Valor pago insuficiente ou inválido para o pacote solicitado.");
+        }
 
         const paymentRecord = await paymentService.recordFlowPayPayment({
           providerReference: reference,
@@ -469,7 +495,8 @@ app.post(
           currency,
           status: String(data?.status || "received").toLowerCase(),
           metadata: {
-            ...metadata,
+            ...trustedMetadata,
+            ...externalMetadata,
             event,
             paymentId: paymentId || null,
           },
@@ -483,7 +510,7 @@ app.post(
 
         let entry;
         let tierName = "P.R.O";
-        const entitlement = paymentService.resolveEntitlement(metadata, plans);
+        const entitlement = paymentService.resolveEntitlement(trustedMetadata, externalMetadata, plans);
         const isTokenPurchase = entitlement.kind === "token_purchase";
 
         if (isTokenPurchase) {
@@ -753,7 +780,7 @@ const authenticateToken = async (req, res, next) => {
   if (!token) return res.sendStatus(401);
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, effectiveJwtSecret);
 
     // SECURITY NOTE: guest bypass relies on JWT signature integrity.
     // If JWT_SECRET is compromised, guest_ prefix can be forged.
@@ -791,7 +818,7 @@ const authenticateToken = async (req, res, next) => {
 };
 
 const generateToken = (user) => {
-  return jwt.sign({ id: user.id }, JWT_SECRET, {
+  return jwt.sign({ id: user.id }, effectiveJwtSecret, {
     expiresIn: "7d",
   });
 };
@@ -1622,9 +1649,11 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
     );
     const limit = parsePositiveInt(redisLimit, defaultLimit);
     const totalUsage = parseInt(usage);
+    const entitlement = resolveUsageEntitlement(planKey);
 
     res.json({
       limit,
+      entitlement,
       tier: accessTier,
       plan: planKey,
       balance,
@@ -1666,9 +1695,16 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
   }
 
   try {
-    const selected = plans.packages?.["40k"];
+    const productId = "40k";
+    const selected = plans.packages?.[productId];
     if (!selected) {
       return res.status(503).json({ error: "P.R.O package is not configured" });
+    }
+    const tierUpgrade = resolvePackageTierUpgrade(selected);
+    if (!tierUpgrade) {
+      return res
+        .status(503)
+        .json({ error: "P.R.O package tier is not configured" });
     }
 
     // Use a single canonical frontend URL for callbacks, even if multiple are allowed for CORS
@@ -1680,18 +1716,19 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
     const data = await createFlowPayCharge({
       valor: selected.price, // Gateway espera 'valor'
       moeda: "BRL", // Gateway espera 'moeda'
-      id_transacao: buildFlowPayTransactionId("tokens", "40k"),
+      id_transacao: buildFlowPayTransactionId("tokens", productId),
       wallet: "pix", // Forçar pix
-      product_id: selected.id,
+      product_id: `nox_tokens_${productId}`,
       ...customerFields,
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
         ...getPaymentUserMetadata(req.user),
-        productId: selected.id,
+        productId,
+        packageId: productId,
         personaId: selected.persona_id,
-        plan: selected.tier_upgrade,
-        tierUpgrade: selected.tier_upgrade,
+        plan: tierUpgrade,
+        tierUpgrade,
         userId: req.user.id,
         amountBrl: selected.price,
         type: "product_purchase",
@@ -1734,6 +1771,11 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     const { package: pkg } = parsed.data;
     const selected = plans.packages?.[pkg];
     if (!selected) return res.status(400).json({ error: "Invalid package" });
+    const packageId = pkg;
+    const tierUpgrade = resolvePackageTierUpgrade(selected);
+    if (!tierUpgrade) {
+      return res.status(503).json({ error: "Package tier is not configured" });
+    }
 
     // Normalização canônica da URL de callback (conforme padrão /api/flowpay/create-charge)
     const frontendBaseUrl = process.env.FRONTEND_URL
@@ -1744,18 +1786,18 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     const data = await createFlowPayCharge({
       valor: selected.price, // Gateway espera 'valor'
       moeda: "BRL", // Gateway espera 'moeda'
-      id_transacao: buildFlowPayTransactionId("tokens", selected.id || pkg),
+      id_transacao: buildFlowPayTransactionId("tokens", packageId),
       wallet: "pix", // Forçar pix conforme pix-provider.ts
-      product_id: `nox_tokens_${selected.id || pkg}`,
+      product_id: `nox_tokens_${packageId}`,
       ...customerFields,
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
         ...getPaymentUserMetadata(req.user),
-        packageId: selected.id || pkg,
+        packageId,
         tokens: selected.tokens,
         price: selected.price,
-        tierUpgrade: selected.tier_upgrade,
+        tierUpgrade,
         userId: req.user.id,
         type: "tokens_purchase",
       },
@@ -1812,6 +1854,10 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
     const { productId } = parsed.data;
     const selected = plans.packages?.[productId];
     if (!selected) return res.status(400).json({ error: "Invalid package" });
+    const tierUpgrade = resolvePackageTierUpgrade(selected);
+    if (!tierUpgrade) {
+      return res.status(503).json({ error: "Package tier is not configured" });
+    }
 
     const frontendBaseUrl = process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(",")[0]
@@ -1826,16 +1872,17 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
         productId,
       ),
       wallet: "pix",
-      product_id: selected.id || productId,
+      product_id: `nox_tokens_${productId}`,
       ...customerFields,
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
         ...getPaymentUserMetadata(req.user),
-        productId: selected.id || productId,
+        productId,
+        packageId: productId,
         personaId: selected.persona_id,
         price: selected.price,
-        tierUpgrade: selected.tier_upgrade,
+        tierUpgrade,
         userId: req.user.id,
         type: "product_purchase",
       },

@@ -59,9 +59,30 @@ export const deriveFlowPayMetadataFromReference = (reference = "", plans = {}) =
   return {};
 };
 
-export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
-  if (!metadata || typeof metadata !== "object") {
-    console.error("[Payments] Error: resolveFlowPayEntitlement called with null/invalid metadata");
+const parseBrlMajorUnit = (value) => {
+  if (typeof value === "string") {
+    return Number(value.replace(",", "."));
+  }
+  return Number(value);
+};
+
+export const normalizePlanPriceToCents = (price) => {
+  if (price === null || price === undefined) return null;
+  const p = parseBrlMajorUnit(price);
+  if (!Number.isFinite(p) || p <= 0) return null;
+  return Math.round(p * 100);
+};
+
+export const normalizeFlowPayAmountToCents = (amountBrl) => {
+  if (amountBrl === null || amountBrl === undefined) return null;
+  const p = parseBrlMajorUnit(amountBrl);
+  if (!Number.isFinite(p) || p <= 0) return null;
+  return Math.round(p * 100);
+};
+
+export const resolveFlowPayEntitlement = (trustedMetadata = {}, _externalMetadata = {}, plans = {}) => {
+  if (!trustedMetadata || typeof trustedMetadata !== "object") {
+    console.error("[Payments] Error: resolveFlowPayEntitlement called with null/invalid trustedMetadata");
     return { kind: "unknown", tokens: 0, tierUpgrade: null, packageId: null };
   }
 
@@ -69,17 +90,27 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
   const packages = safePlans.packages || {};
 
   // Sem type explícito → desconhecido.
-  const purchaseType = String(metadata.type || "").toLowerCase();
+  const purchaseType = String(trustedMetadata.type || "").toLowerCase();
   if (!purchaseType) {
-    console.warn("[Payments] resolveFlowPayEntitlement: metadata.type ausente, retornando unknown.");
+    console.warn("[Payments] resolveFlowPayEntitlement: trustedMetadata.type ausente, retornando unknown.");
     return { kind: "unknown", tokens: 0, tierUpgrade: null, packageId: null };
   }
 
   if (TOKEN_PURCHASE_TYPES.has(purchaseType)) {
-    const selectedPackage = findPackageByMetadata(metadata, packages);
-    const tokens = parsePositiveInt(metadata.tokens, parsePositiveInt(selectedPackage?.tokens));
+    const selectedPackage = findPackageByMetadata(trustedMetadata, packages);
+
+    // Autoridade de tokens: Pacote > Derivado
+    const tokens = parsePositiveInt(
+      selectedPackage?.tokens,
+      parsePositiveInt(trustedMetadata.tokens)
+    );
+
+    // Autoridade de Tier: Pacote (Novo) > Pacote (Legado) > Derivado (Novo) > Derivado (Legado)
     const tierUpgrade = normalizeTierUpgrade(
-      metadata.tierUpgrade || metadata.tier_upgrade || selectedPackage?.tier,
+      selectedPackage?.tier ||
+      selectedPackage?.tier_upgrade ||
+      trustedMetadata.tierUpgrade ||
+      trustedMetadata.tier_upgrade
     );
 
     // tokens <= 0 em token_purchase é dado inválido — barrar aqui antes do webhook
@@ -92,7 +123,7 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
       kind: "token_purchase",
       tokens,
       tierUpgrade,
-      packageId: selectedPackage?.id || metadata.packageId || metadata.package || null,
+      packageId: selectedPackage?.id || trustedMetadata.packageId || trustedMetadata.package || null,
     };
   }
 

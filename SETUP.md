@@ -81,7 +81,7 @@ fnm exec --using v25.9.0 pnpm build
 fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
 ```
 
-Proteçao de chaves:
+Proteção de chaves:
 
 ```bash
 echo ".env" >> .gitignore

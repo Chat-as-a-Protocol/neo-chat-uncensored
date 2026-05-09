@@ -94,19 +94,19 @@ if (!token) {
     }
   }
 
-  function setPlanStatus(tier: string) {
+  function setPlanStatus(entitlement: string) {
     if (!accountStatusEl) return;
     
     const benefits = {
       'guest': 'Modo degustação: 500 tokens e 3 interações por conversa.',
       'free': 'Usuário Identificado: 1.000 tokens e histórico de chat persistente.',
-      'paid_basic': 'Plano Basic: 5.000 tokens e acesso ampliado.',
+      'paid_basic': 'Créditos Ativos: saldo $NØX disponível para uso ampliado.',
       'paid_pro': 'Status ELITE: Acesso total ao núcleo NØX e suporte de arquitetura.'
     };
 
-    const key = tier.includes('pro') ? 'paid_pro' : 
-                tier.includes('basic') ? 'paid_basic' : 
-                tier.includes('free') ? 'free' : 'guest';
+    const key = entitlement.includes('pro') || entitlement.includes('premium') ? 'paid_pro' :
+                entitlement.includes('credits') || entitlement.includes('basic') ? 'paid_basic' :
+                entitlement.includes('free') ? 'free' : 'guest';
                 
     accountStatusEl.textContent = benefits[key] || 'Conta ativa e sincronizada.';
     accountStatusEl.style.opacity = '1';
@@ -114,8 +114,8 @@ if (!token) {
   }
 
   function formatPlan(entitlement: string) {
-    if (entitlement === 'paid_pro') return 'P.R.Ø (ELITE)';
-    if (entitlement === 'credits') return 'Créditos Ativos';
+    if (entitlement === 'paid_pro' || entitlement === 'pro' || entitlement === 'premium') return 'P.R.Ø (ELITE)';
+    if (entitlement === 'credits' || entitlement === 'paid_basic' || entitlement === 'basic') return 'Créditos Ativos';
     if (entitlement === 'free') return 'Identificado';
     return 'Guest Mode';
   }
@@ -145,18 +145,19 @@ if (!token) {
       }
 
       const data = await response.json();
+      const entitlement = data.entitlement || data.plan || data.tier || 'guest';
       
       // 3. Aplicar Identidade, Saldo e Gatilhos
-      const planLabel = formatPlan(data.entitlement);
+      const planLabel = formatPlan(entitlement);
       const conversionCta = document.getElementById('conversion-cta');
       
       if (conversionCta) {
-        conversionCta.style.display = (data.entitlement === 'guest' || data.plan === 'guest') ? 'block' : 'none';
+        conversionCta.style.display = entitlement === 'guest' ? 'block' : 'none';
       }
 
       if (accountPlanEl) {
         accountPlanEl.textContent = planLabel;
-        if (data.entitlement === 'paid_pro') {
+        if (entitlement === 'paid_pro' || entitlement === 'pro' || entitlement === 'premium') {
           accountPlanEl.classList.add('pro-glow');
           document.querySelector('.account-panel')?.classList.add('is-pro');
           const upgradeBtn = document.querySelector('.primary-action');
@@ -192,7 +193,7 @@ if (!token) {
       if (accountRemainingEl) accountRemainingEl.textContent = String(data.remaining);
       if (accountBalanceEl) accountBalanceEl.textContent = String(data.balance ?? 0);
 
-      setPlanStatus(data.entitlement || data.plan || 'guest');
+      setPlanStatus(entitlement);
     } catch {
       setStatus('Conexão indisponível. Tente novamente em instantes.');
     }
