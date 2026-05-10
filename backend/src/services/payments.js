@@ -59,6 +59,31 @@ export const deriveFlowPayMetadataFromReference = (reference = "", plans = {}) =
   return {};
 };
 
+export const resolveCanonicalFlowPayReference = (data = {}, plans = {}) => {
+  const safePlans = plans || {};
+  const packages = safePlans.packages || {};
+  const candidates = [
+    data?.reference,
+    data?.orderId,
+    data?.id_transacao,
+    data?.chargeId,
+    data?.metadata?.reference,
+    data?.metadata?.chargeId,
+    data?.paymentId,
+    data?.id,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (!value) continue;
+
+    const metadata = deriveFlowPayMetadataFromReference(value, safePlans);
+    if (metadata.packageId && packages[metadata.packageId]) return value;
+  }
+
+  return null;
+};
+
 const parseBrlMajorUnit = (value) => {
   if (typeof value === "string") {
     return Number(value.replace(",", "."));
@@ -133,6 +158,7 @@ export const resolveFlowPayEntitlement = (trustedMetadata = {}, _externalMetadat
 export const paymentService = {
   resolveEntitlement: resolveFlowPayEntitlement,
   deriveMetadataFromReference: deriveFlowPayMetadataFromReference,
+  resolveCanonicalReference: resolveCanonicalFlowPayReference,
 
   async recordFlowPayPayment({
     providerReference,

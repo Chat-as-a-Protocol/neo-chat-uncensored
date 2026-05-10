@@ -2,6 +2,7 @@ import test, { describe } from "node:test";
 import assert from "node:assert";
 import {
   deriveFlowPayMetadataFromReference,
+  resolveCanonicalFlowPayReference,
   resolveFlowPayEntitlement,
   normalizePlanPriceToCents,
   normalizeFlowPayAmountToCents,
@@ -40,6 +41,81 @@ describe("Payments Service - Unit Tests", () => {
         plans,
       );
       assert.deepStrictEqual(result, {});
+    });
+  });
+
+  describe("resolveCanonicalFlowPayReference", () => {
+    const plans = {
+      packages: {
+        "1k": { tokens: 1000, price: 49, tier: "paid_basic" },
+        "40k": { tokens: 40000, price: 499, tier: "paid_pro" },
+      },
+    };
+
+    test("prioriza reference/orderId canônico antes de paymentId/id", () => {
+      const result = resolveCanonicalFlowPayReference(
+        {
+          paymentId: "gateway_internal_123",
+          id: "gateway_id_456",
+          orderId: "nox_tokens_40k_testuuid",
+        },
+        plans,
+      );
+
+      assert.strictEqual(result, "nox_tokens_40k_testuuid");
+    });
+
+    test("aceita metadata.reference antes de paymentId interno", () => {
+      const result = resolveCanonicalFlowPayReference(
+        {
+          metadata: { reference: "nox_tokens_40k_testuuid" },
+          paymentId: "gateway_internal_123",
+        },
+        plans,
+      );
+
+      assert.strictEqual(result, "nox_tokens_40k_testuuid");
+    });
+
+    test("aceita metadata.chargeId antes de paymentId interno", () => {
+      const result = resolveCanonicalFlowPayReference(
+        {
+          metadata: { chargeId: "nox_tokens_40k_testuuid" },
+          paymentId: "gateway_internal_123",
+        },
+        plans,
+      );
+
+      assert.strictEqual(result, "nox_tokens_40k_testuuid");
+    });
+
+    test("falha fechado quando referência não deriva pacote configurado", () => {
+      const result = resolveCanonicalFlowPayReference(
+        {
+          orderId: "nox_tokens_unknown_testuuid",
+          paymentId: "gateway_internal_123",
+        },
+        plans,
+      );
+
+      assert.strictEqual(result, null);
+    });
+
+    test("contrato Chat: reference 40k deriva entitlement paid_pro", () => {
+      const reference = "nox_tokens_40k_testuuid";
+      const resolved = resolveCanonicalFlowPayReference(
+        {
+          reference,
+          orderId: reference,
+        },
+        plans,
+      );
+      const metadata = deriveFlowPayMetadataFromReference(resolved, plans);
+
+      assert.strictEqual(resolved, reference);
+      assert.strictEqual(metadata.packageId, "40k");
+      assert.strictEqual(metadata.tokens, 40000);
+      assert.strictEqual(metadata.tierUpgrade, "paid_pro");
     });
   });
 

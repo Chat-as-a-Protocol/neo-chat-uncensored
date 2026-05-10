@@ -13,6 +13,27 @@ const escapeHtml = (value = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const formatBrl = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "N/A";
+
+  return amount.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+};
+
+const formatDateTime = (value) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "N/A";
+
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  });
+};
+
 /**
  * Template Base para E-mails NØX (Versão Hardened)
  * Design: BG Black 85%, Acento Verde Limão (#d4ff1a), Estética de Terminal de Luxo
@@ -153,25 +174,43 @@ export const emailService = {
   /**
    * Envia confirmação de compra de tokens
    */
-  async sendPurchaseConfirmation(to, { userName, amount, reference }) {
+  async sendPurchaseConfirmation(to, {
+    userName,
+    packageId,
+    tokens,
+    tierUpgrade,
+    amountBrl,
+    reference,
+    confirmedAt,
+  }) {
     const safeUserName = escapeHtml(userName || "Operador");
-    const safeAmount = escapeHtml(amount);
-    const safeReference = escapeHtml(reference);
+    const safePackageId = escapeHtml(packageId || "N/A");
+    const safeTokens = escapeHtml(tokens ?? "0");
+    const safeTierUpgrade = escapeHtml(tierUpgrade || "N/A");
+    const safeAmountBrl = escapeHtml(formatBrl(amountBrl));
+    const safeReference = escapeHtml(reference || "N/A");
+    const safeConfirmedAt = escapeHtml(formatDateTime(confirmedAt));
 
-    const title = "CRÉDITOS ADICIONADOS";
+    const title = "PAGAMENTO CONFIRMADO";
     const content = `
-      <p>Olá, <strong>${safeUserName}</strong>. Sua compra foi processada com sucesso.</p>
+      <p>Olá, <strong>${safeUserName}</strong>.</p>
+      <p>Seu pagamento foi confirmado e seus créditos NØX já foram liberados na sua conta.</p>
       <p>
-        <strong>Pacote:</strong> ${safeAmount} NØX<br>
-        <strong>Referência:</strong> ${safeReference}
+        <strong>Plano/Pacote:</strong> ${safePackageId}<br>
+        <strong>Créditos/Tokens:</strong> ${safeTokens}<br>
+        <strong>Status:</strong> ${safeTierUpgrade}<br>
+        <strong>Valor:</strong> ${safeAmountBrl}<br>
+        <strong>Referência:</strong> ${safeReference}<br>
+        <strong>Confirmado em:</strong> ${safeConfirmedAt}
       </p>
-      <p>Os créditos já estão disponíveis em sua conta para uso imediato.</p>
+      <p>Você já pode voltar ao chat e continuar usando o NØX.</p>
+      <p>Se você não reconhece essa compra ou não recebeu os créditos corretamente, responda este e-mail com a referência acima.</p>
     `;
 
     return sendEmail({
       from: FROM_EMAIL,
       to,
-      subject: `NØX - Créditos Adicionados (${safeAmount})`,
+      subject: "Pagamento confirmado — seus créditos NØX foram liberados",
       html: renderTemplate(title, content, {
         label: "VOLTAR AO CHAT",
         url: FRONTEND_URL,

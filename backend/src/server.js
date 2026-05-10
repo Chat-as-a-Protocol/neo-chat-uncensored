@@ -326,11 +326,12 @@ const sendPaymentEmail = async ({
   entitlement,
   isTokenPurchase,
   tierName,
+  amountBrl,
 }) => {
   try {
     const recipient = await resolveWebhookRecipient({ userId, data, metadata });
     if (!recipient) {
-      logger.info(
+      logger.warn(
         `[Email] Skipped payment email for user ${userId}: recipient unavailable`,
       );
       return;
@@ -339,8 +340,12 @@ const sendPaymentEmail = async ({
     const result = isTokenPurchase
       ? await emailService.sendPurchaseConfirmation(recipient.email, {
           userName: recipient.name,
-          amount: entitlement.tokens,
+          packageId: entitlement.packageId,
+          tokens: entitlement.tokens,
+          tierUpgrade: entitlement.tierUpgrade || tierName,
+          amountBrl,
           reference,
+          confirmedAt: new Date().toISOString(),
         })
       : await emailService.sendTierUpgrade(recipient.email, {
           userName: recipient.name,
@@ -436,9 +441,14 @@ app.post(
       const data = envelope.data || envelope.payload;
 
       if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-        const paymentId =
-          data?.paymentId || data?.orderId || data?.chargeId || data?.id;
-        const reference = paymentId || `flowpay_${Date.now()}`;
+        const providerPaymentId = data?.paymentId || data?.id || null;
+        const reference = paymentService.resolveCanonicalReference(data, plans);
+        if (!reference) {
+          logger.warn("[Webhook] Missing canonical FlowPay reference");
+          return res
+            .status(400)
+            .json({ error: "Missing canonical FlowPay reference" });
+        }
 
         // Verificação de Idempotência Antecipada (Redis)
         const alreadyProcessed = await redis.get(
@@ -495,10 +505,10 @@ app.post(
           currency,
           status: String(data?.status || "received").toLowerCase(),
           metadata: {
-            ...trustedMetadata,
             ...externalMetadata,
+            ...trustedMetadata,
             event,
-            paymentId: paymentId || null,
+            paymentId: providerPaymentId,
           },
         });
 
@@ -510,7 +520,7 @@ app.post(
 
         let entry;
         let tierName = "P.R.O";
-        const entitlement = paymentService.resolveEntitlement(trustedMetadata, externalMetadata, plans);
+        const entitlement = paymentService.resolveEntitlement(trustedMetadata, {}, plans);
         const isTokenPurchase = entitlement.kind === "token_purchase";
 
         if (isTokenPurchase) {
@@ -570,6 +580,7 @@ app.post(
           entitlement,
           isTokenPurchase,
           tierName,
+          amountBrl,
         });
 
         const successMessage = isTokenPurchase
@@ -1726,12 +1737,13 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
         ...getPaymentUserMetadata(req.user),
         productId,
         packageId: productId,
-        personaId: selected.persona_id,
+        tokens: selected.tokens,
+        price: selected.price,
         plan: tierUpgrade,
         tierUpgrade,
         userId: req.user.id,
         amountBrl: selected.price,
-        type: "product_purchase",
+        type: "tokens_purchase",
       },
     });
 
