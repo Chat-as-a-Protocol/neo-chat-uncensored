@@ -108,7 +108,7 @@ info "Criando usuário de teste temporário..."
 TEMP_EMAIL="test_delete_$(date +%s)@nox.local"
 TEMP_PASS="Test@12345"
 
-REG_RESP=$(curl -s -X POST "$API/api/auth/register" \
+REG_RESP=$(curl -s -X POST "$API/api/auth/signup" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$TEMP_EMAIL\",\"password\":\"$TEMP_PASS\",\"name\":\"TestDelete\"}")
 
@@ -126,7 +126,7 @@ else
   info "Deletando usuário do banco via psql..."
 
   # Nota: requer DATABASE_URL no ambiente
-  psql "$DATABASE_URL" -c "DELETE FROM users WHERE email = '$TEMP_EMAIL';" 2>/dev/null || \
+  { [ -n "${DATABASE_URL:-}" ] && psql "$DATABASE_URL" -c "DELETE FROM users WHERE email = '$TEMP_EMAIL';" 2>/dev/null; } || \
     railway connect Postgres -c "DELETE FROM users WHERE email = '$TEMP_EMAIL';" 2>/dev/null || \
     info "Delete manual necessário: DELETE FROM users WHERE email = '$TEMP_EMAIL';"
 
