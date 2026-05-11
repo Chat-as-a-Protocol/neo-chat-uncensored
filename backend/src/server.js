@@ -1673,7 +1673,8 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
         tierConfig.maxOutputTokens,
         FALLBACK_GUEST_PLAN.maxOutputTokens,
       ),
-      name: req.user.name,
+      name: req.user.name || null,
+      email: isDeliverableEmail(req.user.email) ? req.user.email : null,
     });
   } catch (err) {
     logger.error(

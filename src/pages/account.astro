@@ -24,6 +24,10 @@ if (!token) {
           <dd id="account-name">--</dd>
         </div>
         <div>
+          <dt>E-mail</dt>
+          <dd id="account-email">--</dd>
+        </div>
+        <div>
           <dt>Plano</dt>
           <dd id="account-plan">--</dd>
         </div>
@@ -65,6 +69,7 @@ if (!token) {
     ? configuredApiUrl
     : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
   const accountNameEl = document.getElementById('account-name');
+  const accountEmailEl = document.getElementById('account-email');
   const accountPlanEl = document.getElementById('account-plan');
   const accountUsageEl = document.getElementById('account-usage');
   const accountRemainingEl = document.getElementById('account-remaining');
@@ -72,19 +77,59 @@ if (!token) {
   const accountStatusEl = document.getElementById('account-status');
   const logoutButton = document.getElementById('logout-button');
   const tokenStorageKey = 'nox_token';
+  const tokenCookieMaxAge = 7 * 24 * 60 * 60;
+
+  function getCookie(name: string) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
+  }
+
+  function persistAuthToken(token: string) {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    localStorage.setItem(tokenStorageKey, token);
+    document.cookie = `${tokenStorageKey}=${token}; path=/; max-age=${tokenCookieMaxAge}; SameSite=Lax${secure}`;
+  }
+
+  function decodeSessionToken(token: string): { id?: string; guest?: boolean; tier?: string } | null {
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+      return JSON.parse(atob(padded));
+    } catch {
+      return null;
+    }
+  }
+
+  function isGuestToken(token: string) {
+    const session = decodeSessionToken(token);
+    return Boolean(
+      session?.guest ||
+      String(session?.id || '').startsWith('guest_') ||
+      session?.tier === 'guest'
+    );
+  }
+
+  function selectAuthToken(cookieToken: string | null, storedToken: string | null) {
+    if (cookieToken && storedToken && isGuestToken(cookieToken) && !isGuestToken(storedToken)) {
+      persistAuthToken(storedToken);
+      return storedToken;
+    }
+
+    return cookieToken || storedToken;
+  }
 
   function getAuthToken() {
-    // Tenta primeiro o cookie (fonte de verdade do SSR)
-    const cookieMatch = document.cookie.match(new RegExp('(^| )nox_token=([^;]+)'));
-    if (cookieMatch) return cookieMatch[2];
-    
-    // Fallback apenas para transição de cache antigo
-    return localStorage.getItem(tokenStorageKey);
+    return selectAuthToken(getCookie(tokenStorageKey), localStorage.getItem(tokenStorageKey));
   }
 
   function clearAuthToken() {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
     localStorage.removeItem(tokenStorageKey);
-    document.cookie = "nox_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+    document.cookie = `${tokenStorageKey}=; path=/; max-age=0; SameSite=Lax${secure}`;
   }
 
   function setStatus(message: string) {
@@ -133,7 +178,7 @@ if (!token) {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
         clearAuthToken();
         window.location.href = '/login';
         return;
@@ -189,7 +234,15 @@ if (!token) {
           accountUsageEl.textContent = `${limit - remaining}/${limit}`;
         }
       }
-      if (accountNameEl) accountNameEl.textContent = data.name || 'Usuário';
+      const displayName = typeof data.name === 'string' && data.name.trim()
+        ? data.name.trim()
+        : 'Usuário';
+      const displayEmail = typeof data.email === 'string' && data.email.trim()
+        ? data.email.trim()
+        : '--';
+
+      if (accountNameEl) accountNameEl.textContent = displayName;
+      if (accountEmailEl) accountEmailEl.textContent = displayEmail;
       if (accountRemainingEl) accountRemainingEl.textContent = String(data.remaining);
       if (accountBalanceEl) accountBalanceEl.textContent = String(data.balance ?? 0);
 
@@ -311,6 +364,7 @@ if (!token) {
     font-family: 'Space Grotesk', sans-serif;
     font-size: 1.12rem;
     font-weight: 700;
+    overflow-wrap: anywhere;
   }
 
   .account-status {

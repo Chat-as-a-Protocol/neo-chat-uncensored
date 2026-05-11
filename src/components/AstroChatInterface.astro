@@ -269,9 +269,38 @@
     document.cookie = `${tokenStorageKey}=; path=/; max-age=0; SameSite=Lax${secure}`;
   }
 
+  function decodeSessionToken(token: string): { id?: string; guest?: boolean; tier?: string } | null {
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+      return JSON.parse(atob(padded));
+    } catch {
+      return null;
+    }
+  }
+
+  function isGuestToken(token: string) {
+    const session = decodeSessionToken(token);
+    return Boolean(
+      session?.guest ||
+      String(session?.id || '').startsWith('guest_') ||
+      session?.tier === 'guest'
+    );
+  }
+
+  function selectStoredToken(cookieToken: string | undefined, storedToken: string | null) {
+    if (cookieToken && storedToken && isGuestToken(cookieToken) && !isGuestToken(storedToken)) {
+      persistAuthToken(storedToken);
+      return storedToken;
+    }
+
+    return cookieToken || storedToken;
+  }
+
   function getStoredToken() {
-    // Tenta primeiro o cookie (fonte da verdade para o servidor)
-    return getCookie(tokenStorageKey) || localStorage.getItem(tokenStorageKey);
+    return selectStoredToken(getCookie(tokenStorageKey), localStorage.getItem(tokenStorageKey));
   }
 
   async function ensureSession() {
@@ -305,24 +334,11 @@
     return guestSessionPromise;
   }
 
-  function decodeSessionToken(token: string): { guest?: boolean; tier?: string } | null {
-    try {
-      const payload = token.split('.')[1];
-      if (!payload) return null;
-      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-      return JSON.parse(atob(padded));
-    } catch {
-      return null;
-    }
-  }
-
   function isGuestSession() {
     if (quotaSynced) return isGuestAccess;
     const token = getStoredToken();
     if (!token) return true;
-    const session = decodeSessionToken(token);
-    return Boolean(session?.guest || session?.tier === 'guest');
+    return isGuestToken(token);
   }
 
   function isMobileComposerMode() {
