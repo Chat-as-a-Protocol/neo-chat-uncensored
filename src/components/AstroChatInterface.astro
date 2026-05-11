@@ -6,7 +6,6 @@
       <div id="persona-container" class="persona-selector" style="display: none;">
         <select id="persona-select" aria-label="Selecionar Persona">
           <option value="nox">NØX Core</option>
-          <option value="analyst">P.R.Ø</option>
         </select>
       </div>
 
@@ -162,7 +161,7 @@
     }
   }
 
-  const openingAssistantMessage = "Terminal NØX ativo. Envie seu comando.";
+  const openingAssistantMessage = "";
   let messages: { role: string; content: string }[] = [];
   let guestSessionPromise: Promise<string | null> | null = null;
   let isGuestAccess = true;
