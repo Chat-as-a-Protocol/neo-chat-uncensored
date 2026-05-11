@@ -40,7 +40,7 @@
       <text y="40" fill="#D7FF64" font-family="Inter, system-ui, sans-serif" font-size="64" font-weight="900" letter-spacing="-0.05em">NØX</text>
       <text x="155" y="40" fill="#FFFFFF" fill-opacity="0.9" font-family="Inter, sans-serif" font-size="32" font-weight="300" letter-spacing="-0.02em">PROTOCOL</text>
       <rect y="55" width="280" height="24" rx="4" fill="#D7FF64" fill-opacity="0.1" />
-      <text x="10" y="73" fill="#D7FF64" font-family="ui-monospace, monospace" font-size="14" font-weight="700" letter-spacing="0.1em">STATUS: PRODUCTION · v4.1.0</text>
+      <text x="10" y="73" fill="#D7FF64" font-family="ui-monospace, monospace" font-size="14" font-weight="700" letter-spacing="0.1em">STATUS: PRODUCTION · v4.2.0</text>
     </g>
   </g>
 
@@ -53,10 +53,10 @@
     <text x="25" y="27" fill="#D7FF64" font-family="ui-monospace, monospace" font-size="14" font-weight="800">HARDENED INFRASTRUCTURE</text>
     
     <g transform="translate(25, 65)">
-      <text y="0" fill="#FFFFFF" fill-opacity="0.85" font-family="Inter, sans-serif" font-size="18" font-weight="600">Pre-flight Quota Enforcement</text>
+      <text y="0" fill="#FFFFFF" fill-opacity="0.85" font-family="Inter, sans-serif" font-size="18" font-weight="600">Auth Token Precedence</text>
       <text y="28" fill="#FFFFFF" fill-opacity="0.5" font-family="Inter, sans-serif" font-size="14">Predictive Billing + Safety Buffers</text>
       
-      <text y="60" fill="#FFFFFF" fill-opacity="0.85" font-family="Inter, sans-serif" font-size="18" font-weight="600">Negative Balance Shield</text>
+      <text y="60" fill="#FFFFFF" fill-opacity="0.85" font-family="Inter, sans-serif" font-size="18" font-weight="600">Ledger-First Accounting</text>
       <text y="88" fill="#FFFFFF" fill-opacity="0.5" font-family="Inter, sans-serif" font-size="14">Deterministic Ledger Protection</text>
     </g>
   </g>
@@ -70,7 +70,7 @@
       <g transform="translate(0, 35)">
         <text y="0" fill="#FFFFFF" fill-opacity="0.7" font-family="ui-monospace, monospace" font-size="16">DOMAIN: noxai.chat</text>
         <text y="25" fill="#FFFFFF" fill-opacity="0.7" font-family="ui-monospace, monospace" font-size="16">API: api.noxai.chat</text>
-        <text y="50" fill="#FFFFFF" fill-opacity="0.7" font-family="ui-monospace, monospace" font-size="16">GATE: flowpay.cash</text>
+        <text y="50" fill="#FFFFFF" fill-opacity="0.7" font-family="ui-monospace, monospace" font-size="16">FLOWPAY: api.flowpay.cash</text>
       </g>
     </g>
     
@@ -83,7 +83,7 @@
 
   <!-- BOTTOM SECTION: STACK -->
   <g transform="translate(60, 370)">
-    <text fill="#FFFFFF" fill-opacity="0.3" font-family="Inter, sans-serif" font-size="12" font-weight="700" letter-spacing="0.3em">POWERED BY NΞØ · FLOWPAY · VENICE · PWA v7</text>
+    <text fill="#FFFFFF" fill-opacity="0.3" font-family="Inter, sans-serif" font-size="12" font-weight="700" letter-spacing="0.3em">POWERED BY NΞØ · FLOWPAY · VENICE · PWA CACHE · RAILWAY</text>
     <rect x="520" y="-12" width="100" height="1" fill="#FFFFFF" fill-opacity="0.1"/>
     <text x="640" y="0" fill="#D7FF64" font-family="Inter, sans-serif" font-size="14" font-weight="800">UNRESTRICTED ACCESS · SECURE LEDGER</text>
   </g>

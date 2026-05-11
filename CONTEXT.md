@@ -6,7 +6,7 @@
           NØX · PROJECT CONTEXT
 ========================================
 Status: active
-Updated: 2026-05-06 (Protocol Hardening v1)
+Updated: 2026-05-11 (Auth Sync + Railway pnpm)
 ========================================
 ```
 
@@ -14,8 +14,8 @@ Updated: 2026-05-06 (Protocol Hardening v1)
 
 NØX é um protocolo de interface soberana para acesso a LLM, operando como o terminal central do ecossistema. Inclui ledger de uso atômico, pacotes pagos e integração profunda com FlowPay via Nexus.
 
-Persona Principal: NØX (Autonomia e Quebra de Restrições).
-Persona Avançada: P.R.Ø (Protocolo de Risco Otimizado).
+Manifesto ativo: `src/content/manifests/nox.md`.
+P.R.Ø é camada comercial/entitlement em `shared/plans.json`; não assumir manifesto separado sem arquivo real em `src/content/manifests/`.
 
 ────────────────────────────────────────
 
@@ -34,6 +34,8 @@ Deploy    Railway + Cloudflare
 
 Auth por senha/magic-link usa Postgres. Contas via Magic Link nascem sem senha (`password_hash` NULL).
 JWT segue o padrão de **Identidade Pura** (contém apenas o `userId`). O backend resolve o tier dinamicamente via Postgres em cada request.
+O cookie `nox_token` sincroniza SSR e cliente, mas token guest não deve sobrepor token identificado válido em `localStorage`.
+`/api/usage` é a fonte de verdade para conta, saldo, entitlement, `name` e `email`.
 
 Redis: cache operacional, quota de guests e contagem de mensagens (race-safe).
 Ledger (Postgres + Redis fallback): fonte de verdade de saldo para usuários identificados. **LEDGER-FIRST.**
@@ -74,12 +76,12 @@ gitea.com/noxia      -> repositório soberano
 - `/login`: login e magic link.
 - `/signup`: criação de conta.
 - `/auth/magic-link`: consumo do token de e-mail.
-- `/precos`: vitrine pública de preços.
+- `/pricing`: vitrine pública de preços.
 - `/upgrade`: pacotes pagos e produto P.R.Ø.
-- `/conta`: conta e uso.
+- `/account`: conta, uso, nome e e-mail.
 - `/success`: retorno pós-pagamento (Privilégios Elevados).
-- `/privacy-policy`: política de privacidade.
-- `/terms-and-conditions`: termos.
+- `/privacy`: política de privacidade.
+- `/terms`: termos.
 
 ────────────────────────────────────────
 

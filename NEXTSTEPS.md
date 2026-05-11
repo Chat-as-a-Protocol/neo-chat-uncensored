@@ -138,7 +138,7 @@ Para o NØX, manter compatibilidade local via alias no chat.
 ┃ Pagamentos         ┃ FlowPay service + webhook Nexus
 ┃ E-mail             ┃ Resend via backend
 ┃ Planos             ┃ shared/plans.json
-┃ Preços             ┃ /precos público, /upgrade identificado
+┃ Preços             ┃ /pricing público, /upgrade identificado
 ┃ Guest Mode         ┃ Controlado, não exibido em /upgrade
 ┃ CORS               ┃ Preflight 204 só para origins permitidas
 ┃ Ledger             ┃ LEDGER-FIRST ativo — paid via getBalance()
@@ -162,7 +162,8 @@ Para o NØX, manter compatibilidade local via alias no chat.
 - `/upgrade` mobile-first e sem card de Guest Mode.
 - Service FlowPay com erro seguro para HTML/self-call.
 - Testes unitários de ledger, billing, payments e FlowPay (35 testes, 35/35).
-- `/precos` público para descoberta comercial sem login.
+- `/pricing` público para descoberta comercial sem login.
+- `/account` exibe nome e e-mail via `/api/usage`.
 
 - **CORS Hardened**: preflight `OPTIONS` responde `204` só para origins válidas; `Vary: Origin` e `crossOriginResourcePolicy: false` no Helmet.
 
@@ -174,6 +175,8 @@ Para o NØX, manter compatibilidade local via alias no chat.
 
 - **Protocol Hardening v1**: JWT de identidade pura, cota dinâmica via Postgres, welcome bonus (1000 tokens) e blindagem de stream no ledger. **CONCLUÍDO (2026-05-06)**.
 - **plans.json v2**: Nomes e benefícios normalizados (`Citizen`, `Operator`). **CONCLUÍDO**.
+- **Auth Sync 2026-05-11**: cookie guest não vence token identificado; token real é promovido para cookie e `/account` renderiza nome/e-mail.
+- **PNPM/Railway 2026-05-11**: overrides ficam em `pnpm-workspace.yaml`; Docker runtime copia o arquivo antes de `pnpm install --prod --frozen-lockfile`.
 
 ────────────────────────────────────────
 
@@ -181,7 +184,7 @@ Para o NØX, manter compatibilidade local via alias no chat.
 
 1. ~~Conferir variáveis do backend no Railway~~ — **CONCLUÍDO** (`FLOWPAY_API_KEY` e `FLOWPAY_API_URL` configuradas em 2026-05-06).
 2. Fazer smoke test pós-deploy:
-   signup, login, guest chat, `/api/usage`, magic link e `/conta`.
+   signup, login, guest chat, `/api/usage`, magic link e `/account`.
 3. ~~Validar geração de cobrança PIX~~ — **CONCLUÍDO** (QR renderizado na UI `/upgrade` em produção).
 4. **Confirmar webhook FlowPay via Nexus em produção** — pagamento real → nexus → ledger → tokens creditados.
 5. Verificar domínio Resend `send@noxai.chat`.
@@ -272,6 +275,7 @@ Antes de push:
 ```bash
 make check
 make build
+fnm exec --using v25.9.0 pnpm audit --prod=false
 git diff --check
 ```
 

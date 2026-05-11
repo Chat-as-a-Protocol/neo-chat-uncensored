@@ -87,6 +87,9 @@ e os manifestos autorizados em `src/content/manifests/`.
 
 Este repositório usa `pnpm`.
 Há `pnpm-workspace.yaml` local e `pnpm-lock.yaml` versionado.
+Overrides de dependências ficam em `pnpm-workspace.yaml`.
+Stages Docker que rodam `pnpm install --frozen-lockfile`
+devem copiar `pnpm-workspace.yaml` junto do lockfile.
 
 Não trocar para `npm` ou `yarn`.
 Não duplicar dependências fora do contrato do workspace.
@@ -118,6 +121,7 @@ Frontend Railway:
 Start: node dist/server/entry.mjs
 Health: /health
 PUBLIC_API_URL=https://api.noxai.chat
+Docker runtime copia package.json, pnpm-lock.yaml e pnpm-workspace.yaml antes do install.
 ```
 
 Backend Railway:

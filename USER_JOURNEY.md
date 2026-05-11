@@ -6,7 +6,7 @@
           NØX · USER JOURNEY
 ========================================
 Status: release candidate
-Version: v4.1.0
+Version: v4.2.0
 ========================================
 ```
 
@@ -20,12 +20,12 @@ Version: v4.1.0
 ┃ /login             ┃ Pública      ┃ Login e magic link
 ┃ /signup            ┃ Pública      ┃ Criação de conta identificada
 ┃ /auth/magic-link   ┃ Pública      ┃ Consumo do token de e-mail
-┃ /precos            ┃ Pública      ┃ Vitrine de preços
+┃ /pricing           ┃ Pública      ┃ Vitrine de preços
 ┃ /upgrade           ┃ Restrita     ┃ Pacotes pagos e P.R.O
-┃ /conta             ┃ Restrita     ┃ Conta, uso e saldo
+┃ /account           ┃ Restrita     ┃ Conta, uso, nome e e-mail
 ┃ /success           ┃ Restrita     ┃ Retorno pós-FlowPay
-┃ /privacy-policy    ┃ Pública      ┃ Obrigação legal
-┃ /terms-and-conditions ┃ Pública   ┃ Obrigação legal
+┃ /privacy           ┃ Pública      ┃ Obrigação legal
+┃ /terms             ┃ Pública      ┃ Obrigação legal
 ┗━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -59,6 +59,7 @@ Fluxos:
 - cadastro em `/signup`
 - magic link via Resend
 - token persistido como `nox_token`
+- cookie guest antigo não deve vencer token identificado válido
 
 Depois disso,
 o usuário pode comprar pacote de tokens ou produto P.R.O.
@@ -72,7 +73,7 @@ O runtime prompt público é responsável, defensivo e auditável.
 
 ## ⧖ Upgrade
 
-`/precos` é público e mostra valores antes do cadastro.
+`/pricing` é público e mostra valores antes do cadastro.
 
 `/upgrade` não exibe o conteúdo do Guest Mode.
 `/upgrade` é a superfície de ativação para usuário identificado.
@@ -142,10 +143,10 @@ Resultado esperado:
 ## ◬ Próximos Passos
 
 1. Conferir variáveis backend no Railway antes do deploy.
-2. Fazer smoke test pós-deploy: signup, login, guest chat, `/api/usage`, magic link e `/conta`.
+2. Fazer smoke test pós-deploy: signup, login, guest chat, `/api/usage`, magic link e `/account`.
 3. Validar compra real ponta a ponta em produção.
 4. Confirmar webhook FlowPay via Nexus.
-5. Refinar UX do statement de ledger em `/conta`.
+5. Refinar UX do statement de ledger em `/account`.
 
 ```text
 ▓▓▓ NØX

@@ -6,7 +6,7 @@
           NØX · TECHNICAL MEMORY
 ========================================
 Status: active
-Updated: 2026-05-06
+Updated: 2026-05-11
 ========================================
 ```
 
@@ -16,6 +16,7 @@ Updated: 2026-05-06
 - Repositório Canônico: Gitea (`gitea.com/noxia/changeman`).
 - Domínios: `noxai.chat` (App), `api.noxai.chat` (API).
 - Persona P.R.Ø: Protocolo de Risco Otimizado (Foco em ROI e Exploração de Sistemas).
+- Manifest ativo único: `src/content/manifests/nox.md`; `analyst.md` foi desativado/removido.
 - Auth: Suporte a Magic Link sem senha (DB permite `password_hash` NULL).
 - Quotas: Proteção contra race-conditions via `redis.incr` atômico.
 - SSE: Buffer de linha no backend para garantir precisão no faturamento de tokens.
@@ -160,6 +161,36 @@ Causa 2: Após ajuste da rota, a requisição falhou com `401 Unauthorized` devi
 Causa 3: A tela `/upgrade` não faz polling, dependendo exclusivamente do webhook invisível para saber quando redirecionar.
 Regra: O fluxo canônico é `Provider -> FlowPay -> Nexus -> Chat`. O chat deve estar preparado para receber do Nexus na rota combinada no `ecosystem.json`.
 
+### Auth Sync — cookie guest não vence token real (2026-05-11)
+
+Sintoma: `/account` podia mostrar `Guest Mode` e `Usuário` mesmo após cadastro/login quando um cookie guest antigo coexistia com token real em `localStorage`.
+Causa: Os clientes priorizavam o cookie `nox_token` sem diferenciar token guest de token identificado.
+Correção:
+- `account.astro`, `AstroChatInterface.astro` e `upgrade.astro` selecionam token não-guest quando cookie guest e token real coexistem.
+- Token real é promovido de volta para cookie para manter SSR e JS sincronizados.
+- `/api/usage` retorna `name` e `email` sanitizado; `/account` renderiza ambos.
+Regra: Cookies continuam sendo fonte de verdade do SSR, mas um cookie guest não pode sobrepor sessão identificada local válida.
+
+### PNPM/Railway — overrides no workspace (2026-05-11)
+
+Sintoma: Railway falhava em `pnpm install --prod --frozen-lockfile` com `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
+Causa: `pnpm@11` compara os `overrides` do lockfile com a config ativa; o stage runtime do Docker copiava `package.json` e `pnpm-lock.yaml`, mas não `pnpm-workspace.yaml`.
+Correção:
+- `overrides` de `fast-uri` e `yaml` ficam em `pnpm-workspace.yaml`.
+- `pnpm-lock.yaml` resolve `yaml` em `2.8.3`.
+- `Dockerfile` copia `pnpm-workspace.yaml` antes do install de produção.
+Regra: Qualquer stage Docker que rode `pnpm install --frozen-lockfile` deve receber `pnpm-workspace.yaml`.
+
+### Manifest Analyst desativado (2026-05-11)
+
+Sintoma: O produto P.R.Ø existia como camada comercial, mas o runtime tinha risco de confundir persona avançada com manifesto separado.
+Causa: `src/content/manifests/analyst.md` carregava contrato próprio e divergente do núcleo NØX.
+Correção:
+- `analyst.md` foi removido.
+- `src/content/manifests/nox.md` permanece como manifesto ativo.
+- `shared/runtime-prompt.md` continua sendo contrato runtime global.
+Regra: Não assumir que P.R.Ø possui manifesto próprio; verificar `src/content/manifests/` antes de alterar personas.
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas
@@ -171,4 +202,6 @@ Regra: O fluxo canônico é `Provider -> FlowPay -> Nexus -> Chat`. O chat deve 
 - **HTTP 402**: Saldo insuficiente de crédito comprado retorna 402, não 403.
 - **balanceAfter**: `addEntry` sempre retorna saldo pós-debit. Não usar `req.ledgerBalance - tokens` como estimativa de saldo restante.
 - **kind:unknown**: `resolveFlowPayEntitlement` retorna `kind: "unknown"` para metadata incompleto ou tokens inválidos. Webhook deve rejeitar entitlement desconhecido.
+- **Auth token precedence**: cookie guest não deve vencer token identificado válido em `localStorage`.
+- **pnpm overrides**: manter overrides em `pnpm-workspace.yaml`; Docker runtime precisa copiar esse arquivo antes de `pnpm install --frozen-lockfile`.
 - **Deploy**: Realizar `git push origin main` + `railway up` para sincronizar produção.
