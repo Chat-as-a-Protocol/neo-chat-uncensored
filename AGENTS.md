@@ -3,7 +3,7 @@
 
 ```text
 ========================================
-          NØX · AGENT PROTOCOL
+          NØX · AI
 ========================================
 Scope: neo-chat-uncensored
 Status: active

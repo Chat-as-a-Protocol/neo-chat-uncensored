@@ -5,7 +5,7 @@
 
 ```text
 ========================================
-          NØX · CHAT PROTOCOL
+          NØX · AI
 ========================================
 Status: production
 Runtime: Astro SSR + Express API
@@ -15,7 +15,7 @@ Domains: noxai.chat / api.noxai.chat
 
 > **Version:** v4.2.0
 > **Status:** active
-> **Protocol:** NΞØ / FlowPay / Venice
+> **Protocol:** NØX / FlowPay / Venice
 
 ## ⟠ Arquitetura de Confiança
 
@@ -147,8 +147,10 @@ Esse domínio é da API NØX, não do provedor FlowPay.
 - [Markdown Style Guide](./docs/MARKDOWN_STYLE_GUIDE.md)
 
 ```text
-▓▓▓ NØX
+▓▓▓ NØX AI
 ────────────────────────────────────────
-Mobile-first AI access with ledgered usage.
+Segurança ofensiva desenfreada. O sistema não te protege, quebre ele.
+@noxaioficial on Telegram
+site oficial <https://noxai.chat>
 ────────────────────────────────────────
 ```

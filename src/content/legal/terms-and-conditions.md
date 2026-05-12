@@ -12,5 +12,7 @@ O acesso ao **NØX** implica na aceitação irrevogável deste protocolo. Se voc
 NØX não monitora sua conduta, mas não assume suas consequências.
 
 ____
-NØX Protocol
-Unfiltered Access · Encrypted Connection
+NØX AI
+Segurança ofensiva desenfreada. O sistema não te protege, quebre ele.
+@noxaioficial on Telegram
+site oficial <https://noxai.chat>

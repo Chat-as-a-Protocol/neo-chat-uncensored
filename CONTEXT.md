@@ -61,11 +61,11 @@ Webhook duplicado      → ON CONFLICT(reference) → não duplica crédito
 ## ⨷ Fronteiras
 
 ```text
-noxai.chat           -> app NØX
-api.noxai.chat       -> backend NØX
-api.flowpay.cash     -> FlowPay (serviço próprio, Cloudflare Worker)
-nexus.neoprotocol.space -> Nexus (hub de eventos, Railway)
-gitea.com/noxia      -> repositório soberano
+noxai.chat                  -> app NØX
+api.noxai.chat              -> backend NØX
+api.flowpay.cash            -> FlowPay (serviço próprio, Cloudflare Worker)
+nexus.neoprotocol.space     -> Nexus (hub de eventos, Railway)
+gitea.com/noxia             -> repositório dex
 ```
 
 `FLOWPAY_API_URL` nunca aponta para `api.noxai.chat`.
