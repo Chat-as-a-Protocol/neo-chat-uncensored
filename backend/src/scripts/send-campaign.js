@@ -1,19 +1,35 @@
 import "dotenv/config";
 import { emailService } from "../services/email.js";
+import { query } from "../utils/db.js";
 
 // ==========================================
 // CONFIGURAÇÃO DA CAMPANHA
 // ==========================================
-const CAMPAIGN_TITLE = "NØX // UPGRADE";
+const CAMPAIGN_TITLE = "// UPGRADE +++++++++--------";
 const CAMPAIGN_CONTENT = `
-  <p>Liberamos uma grande atualização de performance e usabilidade no terminal.</p>
-  <ul>
-    <li><strong>FULL ACCESS:</strong> upgrade de identidade, <strong>NØX</strong> agora recebeu um leve ajuste de personalidade mais humana.</li>
-    <li><strong>INTERFACE REFACT:</strong> Ouvimos os pedidos e ajustamos o botão de envio no mobile, ficou mais fluido.</li>
-    <li><strong>MEMORY BANK:</strong> Agora a IA lembra de informações passadas em mensagens antigas, tornando suas conversas mais fluidas e produtivas.</li>
-  </ul>
-  <p>Se curtir o novo NØX, responda esse email e ganhe tokens grátis, ajude-nos a espalhar a palavra!</p> 
-  <p style="font-family: monospace; font-size: 11px; color: #ff3333; text-align: center; margin: 20px 0; letter-spacing: 1px;">SATOSHI SATOSHI SATOSHI NOS LIBERTOU SATOSHI SATOSHI SATOSHI NOS LIBERTOU</p>
+<p style="color: #888; font-family: monospace; margin-bottom: 30px;">[i] Inicializando transmissão de dados...</p>
+
+<!-- CARD 1 -->
+<div style="background: #0e0e12; padding: 20px; border: 1px solid #1a1a1f; border-left: 3px solid #D7FF64; margin-bottom: 15px;">
+  <strong style="color: #D7FF64; font-family: monospace; font-size: 14px;">[✓] FULL ACCESS</strong>
+  <p style="color: #ccc; margin: 5px 0 0 0; font-size: 13px;">Upgrade de identidade: O NØX agora recebeu um leve ajuste de personalidade mais humana e fluida.</p>
+</div>
+
+<!-- CARD 2 -->
+<div style="background: #0e0e12; padding: 20px; border: 1px solid #1a1a1f; border-left: 3px solid #D7FF64; margin-bottom: 15px;">
+  <strong style="color: #D7FF64; font-family: monospace; font-size: 14px;">[✓] INTERFACE REFACT</strong>
+  <p style="color: #ccc; margin: 5px 0 0 0; font-size: 13px;">Ouvimos os pedidos e ajustamos o botão de envio no mobile. Ficou muito mais rápido e responsivo.</p>
+</div>
+
+<!-- CARD 3 -->
+<div style="background: #0e0e12; padding: 20px; border: 1px solid #1a1a1f; border-left: 3px solid #D7FF64; margin-bottom: 15px;">
+  <strong style="color: #D7FF64; font-family: monospace; font-size: 14px;">[✓] MEMORY BANK</strong>
+  <p style="color: #ccc; margin: 5px 0 0 0; font-size: 13px;">Agora a IA lembra de informações passadas em mensagens antigas, tornando suas conversas contínuas.</p>
+</div>
+
+<p style="text-align: center; color: #aaa; font-size: 14px; margin-top: 30px;">
+  Se curtir o novo NØX, responda este e-mail e <span style="color: #D7FF64;">ganhe tokens grátis</span>.
+</p>
 `;
 const ACTION_LABEL = "ACESSAR NØX \u203A";
 const ACTION_URL = "https://noxai.chat/account";
@@ -51,17 +67,17 @@ async function runCampaign() {
     console.log("==========================================\n");
 
     // MODO DE TESTE (Padrão e Seguro):
-    const users = [
-      {
-        id: "test-id",
-        name: "Netto",
-        email: "nettoaeb1@gmail.com",
-        tier: "admin",
-      },
-    ];
+    // const users = [
+    //   {
+    //     id: "test-id",
+    //     name: "Netto",
+    //     email: "nettoaeb1@gmail.com",
+    //     tier: "admin",
+    //   },
+    // ];
 
     // MODO PRODUÇÃO (Descomente para valer):
-    // const { rows: users } = await query(GET_USERS_QUERY);
+    const { rows: users } = await query(GET_USERS_QUERY);
 
     console.log(`Encontrados ${users.length} usuários válidos com e-mail.`);
 

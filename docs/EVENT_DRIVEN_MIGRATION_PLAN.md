@@ -27,7 +27,7 @@ Migrar o sistema de mensageria síncrona atual (envio direto via Resend pelo `em
 
 ## ◬ Padronização de Banco de Dados (PostgreSQL Central)
 
-O projeto `neo-growth-system` abandonará o uso do Turso (libSQL) para aderir ao padrão **teaBASE** (PostgreSQL) estabelecido no monorepo `Chat-as-a-Protocol`. 
+O projeto `neo-growth-system` abandonará o uso do Turso (libSQL) para aderir ao padrão **teaBASE** (PostgreSQL) estabelecido no monorepo `Chat-as-a-Protocol`.
 
 Isso altera e otimiza a topologia de integração:
 - **Fonte Única de Verdade**: O Growth System terá acesso direto ao mesmo banco PostgreSQL central (via schema/permissões apropriadas) onde a tabela `users` do NØX reside.

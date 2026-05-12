@@ -1,4 +1,5 @@
-const RESEND_API_URL = "https://api.resend.com/emails";
+const RESEND_API_URL =
+  process.env.RESEND_API_URL || "https://api.resend.com/emails";
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "NØX <send@noxai.chat>";
 const FRONTEND_URL = (process.env.FRONTEND_URL || "https://noxai.chat")
   .split(",")[0]
@@ -62,7 +63,7 @@ const renderTemplate = (title, content, action = null) => {
               
               <!-- HEADER / LOGO -->
               <div style="text-align: center; margin-bottom: 40px;">
-                <img src="https://noxai.chat/nox_vert.webp" alt="NØX" width="140" style="width: 140px; height: auto; display: inline-block;" />
+                <h1 style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 56px; color: #D7FF64; font-weight: 700; letter-spacing: -0.05em; margin: 0; text-transform: uppercase;">NØX</h1>
               </div>
 
               <!-- TITLE -->
@@ -123,6 +124,15 @@ const sendEmail = async (payload) => {
     return { skipped: true, reason: "resend_api_key_missing" };
   }
 
+  // Validação básica de e-mail
+  if (
+    !payload.to ||
+    typeof payload.to !== "string" ||
+    !payload.to.includes("@")
+  ) {
+    throw new Error("[Email] Destinatário inválido ou ausente");
+  }
+
   const response = await fetch(RESEND_API_URL, {
     method: "POST",
     headers: {
@@ -132,13 +142,19 @@ const sendEmail = async (payload) => {
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json().catch(() => ({}));
+  const responseText = await response.text();
+  let data = {};
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    data = { message: responseText };
+  }
 
   if (!response.ok) {
     throw new Error(
       data?.message ||
         data?.error ||
-        `Resend email failed (${response.status})`,
+        `Resend email failed (${response.status}): ${responseText.substring(0, 100)}`,
     );
   }
 
@@ -291,15 +307,29 @@ export const emailService = {
   /**
    * Disparo genérico para Anúncios de Features / Campanhas
    */
-  async sendFeatureAnnouncement(to, { userName, title, content, actionLabel, actionUrl, scheduledAt }) {
+  async sendFeatureAnnouncement(
+    to,
+    { userName, title, content, actionLabel, actionUrl, scheduledAt },
+  ) {
     const safeName = escapeHtml(userName || "Soberano");
-    
-    // Convert newlines to <br> for the content if it's plain text, 
+
+    // Convert newlines to <br> for the content if it's plain text,
     // or assume content is already HTML formatted by the caller.
+    let formattedContent = content;
+    if (!content.includes("<")) {
+      // Converte quebras de linha
+      formattedContent = content.replace(/\n/g, "<br>");
+      // Suporte básico a negrito markdown
+      formattedContent = formattedContent.replace(
+        /\*\*(.*?)\*\*/g,
+        "<strong>$1</strong>",
+      );
+    }
+
     const htmlContent = `
       <p>Saudações, <strong>${safeName}</strong>.</p>
-      <div style="margin-top: 20px;">
-        ${content}
+      <div style="margin-top: 28px;">
+        ${formattedContent}
       </div>
     `;
 
@@ -307,10 +337,16 @@ export const emailService = {
       from: FROM_EMAIL,
       to,
       subject: title.startsWith("NØX") ? title : `NØX - ${title}`,
-      html: renderTemplate(title, htmlContent, actionLabel && actionUrl ? {
-        label: actionLabel,
-        url: actionUrl,
-      } : null),
+      html: renderTemplate(
+        title,
+        htmlContent,
+        actionLabel && actionUrl
+          ? {
+              label: actionLabel,
+              url: actionUrl,
+            }
+          : null,
+      ),
     };
 
     if (scheduledAt) {

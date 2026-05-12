@@ -24,7 +24,7 @@ Atualmente, existem dois scripts operacionais:
 
 1. **`send-campaign.js`**
    - Foco: Anúncio de novas features (Uncensored, Mobile fix, etc.).
-   - Assunto: "ATUALIZAÇÃO CRUCIAL: NØX UNCENSORED".
+   - Assunto: "FEATURE +++++++++--------"
 
 2. **`send-campaign-telegram.js`**
    - Foco: Convite e engajamento para a comunidade oficial do Telegram.
