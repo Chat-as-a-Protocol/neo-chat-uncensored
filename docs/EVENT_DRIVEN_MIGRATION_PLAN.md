@@ -36,6 +36,15 @@ Isso altera e otimiza a topologia de integração:
 
 ────────────────────────────────────────
 
+## ⍟ Requisitos de Identidade Visual e Anti-Spam
+
+Qualquer serviço de mensageria que assuma o envio pelo NØX (como o `neo-provider-resend` no Growth System) deve obrigatoriamente manter o padrão de design e conformidade estabelecido no patch de 2026-05-12:
+- **Estética Dark Mode**: O fundo deve ser `#050505` e o container `#0a0a0c`, com texto em tons de cinza claro (`#e0e0e0`) e branco.
+- **Logotipo Topográfico**: Manter o bloco `NØX` centralizado com bordas discretas e sem depender de imagens externas (evitando bloqueios de provedores).
+- **Rodapé de Descadastramento**: Deve possuir obrigatoriamente o opt-out acessível via `mailto:send@noxai.chat?subject=Unsubscribe` e link para as configurações de conta do usuário no NØX.
+
+────────────────────────────────────────
+
 ## ⧉ Etapas de Execução
 
 ### Fase 1: Setup no `neo-growth-system`

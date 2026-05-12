@@ -191,6 +191,16 @@ Correção:
 - `shared/runtime-prompt.md` continua sendo contrato runtime global.
 Regra: Não assumir que P.R.Ø possui manifesto próprio; verificar `src/content/manifests/` antes de alterar personas.
 
+### Redesign Premium do E-mail e Opt-out (2026-05-12)
+
+Sintoma: O template base de e-mails (`renderTemplate`) era básico demais (fundo branco, texto preto), desalinhado com a estética de terminal de luxo do app NØX.
+Causa: Ausência de parametrização de CSS Dark Mode e falta de regras claras de opt-out (exigidas por serviços como o Resend).
+Correção:
+- Implementado layout Dark Mode absoluto com container `#0a0a0c` e bordas discretas.
+- Criação de logotipo topográfico em CSS puro para evitar bloqueio de imagens.
+- Inclusão de rodapé de descadastramento (`Unsubscribe` via mailto) e link direto para as configurações de conta no NØX.
+Regra: Qualquer e-mail transacional ou de campanha enviado pelo sistema ou por serviços integrados (como o Growth System) deve herdar esses tokens de estilo e as opções de opt-out.
+
 ────────────────────────────────────────
 
 ## ⧉ Frontend Security Boundary (2026-05-12)
