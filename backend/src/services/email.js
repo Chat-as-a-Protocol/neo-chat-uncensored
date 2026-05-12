@@ -245,4 +245,30 @@ export const emailService = {
       }),
     });
   },
+
+  /**
+   * Disparo genérico para Anúncios de Features / Campanhas
+   */
+  async sendFeatureAnnouncement(to, { userName, title, content, actionLabel, actionUrl }) {
+    const safeName = escapeHtml(userName || "Soberano");
+    
+    // Convert newlines to <br> for the content if it's plain text, 
+    // or assume content is already HTML formatted by the caller.
+    const htmlContent = `
+      <p>Saudações, <strong>${safeName}</strong>.</p>
+      <div style="margin-top: 20px;">
+        ${content}
+      </div>
+    `;
+
+    return sendEmail({
+      from: FROM_EMAIL,
+      to,
+      subject: `NØX - ${title}`,
+      html: renderTemplate(title, htmlContent, actionLabel && actionUrl ? {
+        label: actionLabel,
+        url: actionUrl,
+      } : null),
+    });
+  },
 };
