@@ -62,9 +62,7 @@ const renderTemplate = (title, content, action = null) => {
               
               <!-- HEADER / LOGO -->
               <div style="text-align: center; margin-bottom: 40px;">
-                <div style="display: inline-block; padding: 10px 20px; border: 1px solid #222; background-color: #000;">
-                  <span style="font-size: 26px; font-weight: 900; letter-spacing: 6px; color: #ffffff; font-family: Arial, sans-serif;">NØX</span>
-                </div>
+                <img src="https://noxai.chat/nox_vert.webp" alt="NØX" style="width: 140px; height: auto; display: inline-block;" />
               </div>
 
               <!-- TITLE -->
@@ -96,6 +94,9 @@ const renderTemplate = (title, content, action = null) => {
 
               <!-- FOOTER -->
               <div style="margin-top: 50px; border-top: 1px solid #1a1a1f; padding-top: 30px; text-align: center; font-size: 12px; color: #444; line-height: 1.5;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                  <img src="https://noxai.chat/favicon.png" alt="NØX Icon" style="width: 20px; height: 20px; display: inline-block;" />
+                </div>
                 <p style="margin: 0 0 12px 0; font-weight: bold; color: #666; letter-spacing: 1px; text-transform: uppercase;">O sistema não te protege, quebre ele.</p>
                 <p style="margin: 0 0 12px 0;">Você está recebendo este e-mail pois é um Operador registrado no NØX Protocol.</p>
                 <p style="margin: 0;">
@@ -290,7 +291,7 @@ export const emailService = {
   /**
    * Disparo genérico para Anúncios de Features / Campanhas
    */
-  async sendFeatureAnnouncement(to, { userName, title, content, actionLabel, actionUrl }) {
+  async sendFeatureAnnouncement(to, { userName, title, content, actionLabel, actionUrl, scheduledAt }) {
     const safeName = escapeHtml(userName || "Soberano");
     
     // Convert newlines to <br> for the content if it's plain text, 
@@ -302,14 +303,20 @@ export const emailService = {
       </div>
     `;
 
-    return sendEmail({
+    const payload = {
       from: FROM_EMAIL,
       to,
-      subject: `NØX - ${title}`,
+      subject: title.startsWith("NØX") ? title : `NØX - ${title}`,
       html: renderTemplate(title, htmlContent, actionLabel && actionUrl ? {
         label: actionLabel,
         url: actionUrl,
       } : null),
-    });
+    };
+
+    if (scheduledAt) {
+      payload.scheduledAt = scheduledAt;
+    }
+
+    return sendEmail(payload);
   },
 };
