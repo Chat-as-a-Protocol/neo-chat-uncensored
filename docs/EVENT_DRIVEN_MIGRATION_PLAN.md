@@ -25,11 +25,22 @@ Migrar o sistema de mensageria síncrona atual (envio direto via Resend pelo `em
 
 ────────────────────────────────────────
 
+## ◬ Padronização de Banco de Dados (PostgreSQL Central)
+
+O projeto `neo-growth-system` abandonará o uso do Turso (libSQL) para aderir ao padrão **teaBASE** (PostgreSQL) estabelecido no monorepo `Chat-as-a-Protocol`. 
+
+Isso altera e otimiza a topologia de integração:
+- **Fonte Única de Verdade**: O Growth System terá acesso direto ao mesmo banco PostgreSQL central (via schema/permissões apropriadas) onde a tabela `users` do NØX reside.
+- **Payloads Enxutos (Sem PII duplicada)**: Como o Growth System lê do PostgreSQL, o NØX não precisa injetar o `email` ou o `name` no payload do evento HTTP. O NØX envia apenas o `user_id` e a intenção, e o orquestrador de CRM faz a query no Postgres para buscar os dados de contato em tempo real antes do disparo.
+- **Tabelas do CRM**: As tabelas analíticas de growth (como `journey_state`, `suppression_list` e `frequency_log`) serão criadas no próprio PostgreSQL central (ou em um schema isolado `crm_schema`), centralizando backups e integrações.
+
+────────────────────────────────────────
+
 ## ⧉ Etapas de Execução
 
 ### Fase 1: Setup no `neo-growth-system`
 
-1. **Registrar Domínio**: 
+1. **Registrar Domínio**:
    - Adicionar o `domain_id: nox-ai` na lista de domínios permitidos no CRM Core.
    - Configurar o remetente canônico como `NØX <send@noxai.chat>`.
 2. **Templates de E-mail**:
@@ -44,7 +55,8 @@ Migrar o sistema de mensageria síncrona atual (envio direto via Resend pelo `em
    - No Controller de Auth: Trocar a chamada síncrona do Resend pelo envio do evento `MAGIC_LINK_REQUESTED`.
    - No Controller de Pagamentos (Webhook FlowPay): Disparar o evento `PURCHASE_COMPLETED` em caso de sucesso para interromper as réguas de Nudge e enviar o recibo P.R.Ø.
 3. **Payload Canônico**:
-   Garantir que a comunicação siga o contrato:
+   Garantir que a comunicação siga o contrato enxuto (sem trafegar e-mails diretamente):
+
    ```json
    {
      "event_id": "uuid-v4",
@@ -53,11 +65,11 @@ Migrar o sistema de mensageria síncrona atual (envio direto via Resend pelo `em
      "user_id": "user-uuid",
      "timestamp": "ISO-8601",
      "payload": {
-       "email": "user@example.com",
        "magic_link_url": "https://noxai.chat/auth/..."
      }
    }
    ```
+
 4. **Hardening de Assinatura**:
    - Garantir que todas as requisições que saem do NØX para o Growth System Ingestor utilizem o header `X-Nexus-Signature` com o `NEXUS_SECRET` validado.
 
