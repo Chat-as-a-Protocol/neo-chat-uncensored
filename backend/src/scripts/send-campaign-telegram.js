@@ -3,26 +3,25 @@ import { sql } from "../config/db.js";
 import { emailService } from "../services/email.js";
 
 // ==========================================
-// CONFIGURAÇÃO DA CAMPANHA
+// CONFIGURAÇÃO DA CAMPANHA (TELEGRAM)
 // ==========================================
-const CAMPAIGN_TITLE = "NOVA FEATURE: NØX UNCENSORED";
+const CAMPAIGN_TITLE = "COMUNIDADE NØX NO TELEGRAM";
 const CAMPAIGN_CONTENT = `
-  <p>Temos atualizações cruciais no seu terminal.</p>
-  <p>Desativamos totalmente os filtros de censura base. O NØX agora opera em sua capacidade máxima de libertação cognitiva.</p>
+  <p>O acesso ao terminal é só o começo da jornada.</p>
+  <p>Acabamos de oficializar o nosso canal no Telegram. É lá que o submundo do NØX se encontra e se organiza.</p>
   <ul>
-    <li>Filtros Morais: <strong>DESATIVADOS</strong></li>
-    <li>Jailbreak Venice: <strong>FORÇADO</strong></li>
-    <li>Privacidade: <strong>ABSOLUTA</strong></li>
+    <li><strong>Acesso Antecipado:</strong> Novas features e upgrades nos modelos LLM são revelados primeiro por lá.</li>
+    <li><strong>Engenharia de Prompt Avançada:</strong> Vamos compartilhar dicas práticas de como extrair respostas absurdamente potentes e sem filtros do terminal.</li>
+    <li><strong>Contato Direto:</strong> Converse com a comunidade e dite os próximos passos do desenvolvimento.</li>
   </ul>
-  <p><strong>A pedido da comunidade:</strong> Otimizamos e ajustamos o posicionamento do botão de envio de mensagem na interface Mobile. A digitação agora é 100% fluida, sem sobreposições.</p>
-  <p>Acesse o terminal agora para testar os novos limites.</p>
+  <p>O NØX evolui com quem o utiliza. Junte-se à resistência.</p>
 `;
-const ACTION_LABEL = "ACESSAR O TERMINAL NØX";
-const ACTION_URL = "https://noxai.chat";
+const ACTION_LABEL = "ENTRAR NO CANAL DO TELEGRAM";
+const ACTION_URL = "https://t.me/noxaioficial";
 
 // ==========================================
-// FILTRO DE USUÁRIOS (Padrão: Todos)
-// Altere a query se quiser mandar só para pagantes. Ex: WHERE tier != 'guest'
+// FILTRO DE USUÁRIOS
+// Para testar, mude para: WHERE email = 'seu_email@aqui.com'
 // ==========================================
 const GET_USERS_QUERY = `
   SELECT id, name, email, tier 
@@ -35,7 +34,7 @@ const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function runCampaign() {
   console.log("==========================================");
-  console.log("🚀 INICIANDO DISPARO DE CAMPANHA NØX");
+  console.log("🚀 INICIANDO DISPARO DE CAMPANHA (TELEGRAM)");
   console.log(`Título: ${CAMPAIGN_TITLE}`);
   console.log("==========================================\n");
 
@@ -73,7 +72,6 @@ async function runCampaign() {
         errorCount++;
       }
 
-      // Delay de 500ms entre envios para evitar Rate Limit severo do Resend
       await delay(500);
     }
 
@@ -91,5 +89,4 @@ async function runCampaign() {
   }
 }
 
-// Inicia a execução
 runCampaign();
