@@ -15,7 +15,7 @@ Updated: 2026-05-11
 - Marca: `NØX` (Soberania Digital e Autonomia Implacável).
 - Repositório Canônico: Gitea (`gitea.com/noxia/changeman`).
 - Domínios: `noxai.chat` (App), `api.noxai.chat` (API).
-- Persona P.R.Ø: Protocolo de Risco Otimizado (Foco em ROI e Exploração de Sistemas).
+- Plano P.R.Ø: Risco Otimizado (Foco em ROI e Exploração de Sistemas).
 - Manifest ativo único: `src/content/manifests/nox.md`; `analyst.md` foi desativado/removido.
 - Auth: Suporte a Magic Link sem senha (DB permite `password_hash` NULL).
 - Quotas: Proteção contra race-conditions via `redis.incr` atômico.
@@ -190,6 +190,22 @@ Correção:
 - `src/content/manifests/nox.md` permanece como manifesto ativo.
 - `shared/runtime-prompt.md` continua sendo contrato runtime global.
 Regra: Não assumir que P.R.Ø possui manifesto próprio; verificar `src/content/manifests/` antes de alterar personas.
+
+────────────────────────────────────────
+
+## ⧉ Frontend Security Boundary (2026-05-12)
+
+O client NØX é **não-soberano por design**.
+
+- Não contém segredos.
+- Não contém chaves operacionais.
+- Não contém system prompt crítico.
+- Não decide billing, crédito, ledger ou autorização real.
+- Renderiza estado recebido do backend.
+- Pode bloquear visualmente interações, mas o backend é a fonte soberana.
+- Build de produção usa `sourcemap: false`, `minify: "terser"` e `drop_console: true`.
+
+Qualquer lógica crítica de acesso, crédito, cobrança, pagamento, token, quota ou permissão deve permanecer exclusivamente no backend/ledger.
 
 ────────────────────────────────────────
 

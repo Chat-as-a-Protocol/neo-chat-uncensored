@@ -188,6 +188,10 @@ Para o NØX, manter compatibilidade local via alias no chat.
 3. ~~Validar geração de cobrança PIX~~ — **CONCLUÍDO** (QR renderizado na UI `/upgrade` em produção).
 4. **Confirmar webhook FlowPay via Nexus em produção** — pagamento real → nexus → ledger → tokens creditados.
 5. Verificar domínio Resend `send@noxai.chat`.
+6. **Desenvolver Hamburger Menu Mobile:**
+   - Criar menu no canto superior direito do chat.
+   - O hamburger deve aparecer *apenas* quando o chat estiver ativo (`body.chat-input-focused` ou `body.keyboard-open`).
+   - O menu deve conter as opções que normalmente somem com o teclado: Upgrade, Preços, Telegram, Conta, Privacy e Terms.
 
 ────────────────────────────────────────
 
