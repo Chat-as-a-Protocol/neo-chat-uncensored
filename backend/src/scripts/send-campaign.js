@@ -11,7 +11,7 @@ const CAMPAIGN_CONTENT = `
   <p>Desativamos totalmente os filtros de censura base. O NØX agora opera em sua capacidade máxima de libertação cognitiva.</p>
   <ul>
     <li>Filtros Morais: <strong>DESATIVADOS</strong></li>
-    <li>Jailbreak Venice: <strong>FORÇADO</strong></li>
+    <li>Jailbreak Protocol: <strong>FORÇADO</strong></li>
     <li>Privacidade: <strong>ABSOLUTA</strong></li>
   </ul>
   <p><strong>A pedido da comunidade:</strong> Otimizamos e ajustamos o posicionamento do botão de envio de mensagem na interface Mobile. A digitação agora é 100% fluida, sem sobreposições.</p>
@@ -45,13 +45,16 @@ async function runCampaign() {
   }
 
   try {
-    console.log("Consultando banco de dados...");
+    console.log("==========================================");
+    console.log("🛡️ MODO DE SEGURANÇA ATIVO (APENAS TESTE)");
+    console.log("Para enviar para todos, edite este script e comente a linha do mock.");
+    console.log("==========================================\n");
+
+    // MODO DE TESTE (Padrão e Seguro):
+    const users = [{ id: "test-id", name: "Netto", email: "nettoaeb1@gmail.com", tier: "admin" }];
     
-    // MODO DE TESTE (Descomente a linha abaixo para testar apenas com seu e-mail):
-    // const users = [{ id: "test-id", name: "Netto", email: "nettoaeb1@gmail.com", tier: "admin" }];
-    
-    // MODO PRODUÇÃO (Busca no banco):
-    const { rows: users } = await query(GET_USERS_QUERY);
+    // MODO PRODUÇÃO (Descomente para valer):
+    // const { rows: users } = await query(GET_USERS_QUERY);
     
     console.log(`Encontrados ${users.length} usuários válidos com e-mail.`);
     

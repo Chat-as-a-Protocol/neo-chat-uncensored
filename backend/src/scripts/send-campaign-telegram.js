@@ -44,8 +44,16 @@ async function runCampaign() {
   }
 
   try {
-    console.log("Consultando banco de dados...");
-    const { rows: users } = await query(GET_USERS_QUERY);
+    console.log("==========================================");
+    console.log("🛡️ MODO DE SEGURANÇA ATIVO (APENAS TESTE)");
+    console.log("Para enviar para todos, edite este script e comente a linha do mock.");
+    console.log("==========================================\n");
+
+    // MODO DE TESTE (Padrão e Seguro):
+    const users = [{ id: "test-id", name: "Netto", email: "nettoaeb1@gmail.com", tier: "admin" }];
+    
+    // MODO PRODUÇÃO (Descomente para valer):
+    // const { rows: users } = await query(GET_USERS_QUERY);
     
     console.log(`Encontrados ${users.length} usuários válidos com e-mail.`);
     
