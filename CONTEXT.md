@@ -74,6 +74,21 @@ gitea.com/noxia             -> repositório dex
 
 ────────────────────────────────────────
 
+## ⧉ Ecossistema Chat-as-a-Protocol (Monorepo)
+
+O NØX (`neo-chat-uncensored`) não atua em um vácuo. Ele é o cliente autônomo e de alta performance inserido no monorepo (PNPM Workspace) do **Chat-as-a-Protocol**.
+
+Os módulos irmãos operam com **Soberania Modular** e **Zero-Trust**:
+- **`neo-flow-system`**: O núcleo do protocolo, orquestrando o estado global com alta performance via **teaBASE** (persistência SQL direta sem ORMs, garantindo posse absoluta dos dados).
+- **`neo-flow-worker`**: Executor descentralizado para filas e background jobs.
+- **`neo-flow-ingest`**: Gateway e funil de ingestão de alto volume para mensagens externas.
+- **`neo-flow-chat-ui` / `neo-flow-admin`**: Interfaces auxiliares e de gestão da plataforma.
+- **`neo-flow-infra`**: Infraestrutura Docker/Postgres (Db `chat_protocol`) que viabiliza o backend compartilhado e soberano.
+
+**A Regra:** Embora pertençam ao mesmo workspace (para coesão de dependências), o NØX opera como uma implementação front-facing independente ("não-soberano por design" na camada do cliente), consumindo as fundações do ecossistema de forma desacoplada.
+
+────────────────────────────────────────
+
 ## ⧖ Rotas
 
 - `/`: terminal principal (NØX Core / P.R.Ø).
