@@ -192,6 +192,9 @@ Para o NØX, manter compatibilidade local via alias no chat.
    - Criar menu no canto superior direito do chat.
    - O hamburger deve aparecer *apenas* quando o chat estiver ativo (`body.chat-input-focused` ou `body.keyboard-open`).
    - O menu deve conter as opções que normalmente somem com o teclado: Upgrade, Preços, Telegram, Conta, Privacy e Terms.
+7. **Migração Event-Driven (Neo Growth System):**
+   - Refatorar o envio de e-mails (`email.js`) delegando a responsabilidade para o `neo-growth-system` (através do `neo-flow-admin`/`neo-event-ingestor` ativo no Railway).
+   - Seguir o blueprint documentado em `docs/EVENT_DRIVEN_MIGRATION_PLAN.md`.
 
 ────────────────────────────────────────
 
