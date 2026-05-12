@@ -67,7 +67,7 @@ const renderTemplate = (title, content, action = null) => {
       }
 
       <div style="margin-top: 50px; border-top: 1px solid #f0f0f0; padding-top: 20px; font-size: 12px; color: #888;">
-        <strong>NØX</strong> - Protocolo de Inteligência Soberana<br>
+        <strong>NØX</strong> - O sistema não te protege, quebre ele<br>
         Este é um e-mail automático. Não responda.
       </div>
     </div>
@@ -121,7 +121,7 @@ export const emailService = {
       to,
       subject: `NØX - Bem-vindo`,
       html: renderTemplate(title, content, {
-        label: "LINK PARA ACESSAR O TERMINAL",
+        label: "LINK PARA ACESSAR NØX",
         url: FRONTEND_URL,
       }),
     });
@@ -141,9 +141,9 @@ export const emailService = {
     return sendEmail({
       from: FROM_EMAIL,
       to,
-      subject: `NØX - Link de Acesso`,
+      subject: `NØX - AI LINK`,
       html: renderTemplate(title, content, {
-        label: "CLIQUE AQUI PARA ENTRAR",
+        label: "LINK PARA ACESSAR NØX",
         url: loginUrl,
       }),
     });
@@ -174,15 +174,18 @@ export const emailService = {
   /**
    * Envia confirmação de compra de tokens
    */
-  async sendPurchaseConfirmation(to, {
-    userName,
-    packageId,
-    tokens,
-    tierUpgrade,
-    amountBrl,
-    reference,
-    confirmedAt,
-  }) {
+  async sendPurchaseConfirmation(
+    to,
+    {
+      userName,
+      packageId,
+      tokens,
+      tierUpgrade,
+      amountBrl,
+      reference,
+      confirmedAt,
+    },
+  ) {
     const safeUserName = escapeHtml(userName || "Operador");
     const safePackageId = escapeHtml(packageId || "N/A");
     const safeTokens = escapeHtml(tokens ?? "0");
