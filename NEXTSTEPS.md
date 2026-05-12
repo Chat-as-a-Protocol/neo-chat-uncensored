@@ -195,6 +195,9 @@ Para o NØX, manter compatibilidade local via alias no chat.
 7. **Migração Event-Driven (Neo Growth System):**
    - Refatorar o envio de e-mails (`email.js`) delegando a responsabilidade para o `neo-growth-system` (através do `neo-flow-admin`/`neo-event-ingestor` ativo no Railway).
    - Seguir o blueprint documentado em `docs/EVENT_DRIVEN_MIGRATION_PLAN.md`.
+8. **Melhoria da Interface (UI) dos E-mails:**
+   - O template HTML base (`renderTemplate` em `email.js` ou futuro `neo-provider-resend`) está muito básico (fundo branco/claro). 
+   - Precisa receber o banho de estética Dark Mode/Premium com as paletas de luxo do NØX, para que qualquer disparo transmita o ar "Soberano/Hacker".
 
 ────────────────────────────────────────
 
