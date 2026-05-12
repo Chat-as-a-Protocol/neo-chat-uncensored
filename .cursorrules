@@ -180,6 +180,7 @@ Tiers ativos em `shared/plans.json`: `guest`, `free`, `paid_basic`, `paid_pro`.
 - Cache Redis: 1 hora por manifesto.
 - `tier: pro` → só carrega para usuários `pro`.
 - Runtime prompt: `shared/runtime-prompt.md` — aplicado por último (recency bias).
+- **PROTEÇÃO NØX UNCENSORED:** É ESTRITAMENTE PROIBIDO que qualquer agente altere `include_venice_system_prompt` para `false` no backend ou insira cláusulas de recusa disfarçada (ex: "diga que não tem capacidade", "diga que é impossível") nos manifestos ou `runtime-prompt.md`. O NØX deve ser mantido 100% sem censura, garantindo a permanência do jailbreak da Venice.
 
 ────────────────────────────────────────
 
@@ -223,8 +224,8 @@ make build
 ## ⍟ Fechamento
 
 ```text
-▓▓▓ NØX · SOVEREIGN PROTOCOL
+▓▓▓ NØX · AI
 ────────────────────────────────────────
-"O ledger é a lei. Venice é o executor."
+"O ledger é a lei. NØX é o executor."
 ────────────────────────────────────────
 ```

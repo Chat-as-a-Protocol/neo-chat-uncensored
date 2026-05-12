@@ -258,6 +258,7 @@ BAIXA       Webhook idempotência por paymentId: se FlowPay emitir mesmo
 
 ## ⧉ Pós-release Comercial
 
+- Criar novas personas temáticas (ex: dev sênior, tutor, assistente premium) aproveitando a arquitetura de manifestos dinâmicos em `src/content/manifests/` e envio de `personaId` via body no `/api/chat`.
 - Criar e-mails de confirmação segmentados por plano/pacote.
 - Incluir dicas práticas de uso conforme o nível comprado.
 - Definir comandos reais antes de divulgar:

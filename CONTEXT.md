@@ -12,11 +12,15 @@ Updated: 2026-05-11 (Auth Sync + Railway pnpm)
 
 ## ⟠ Produto
 
-NØX é um protocolo de interface soberana para acesso a LLM, operando como o terminal central do ecossistema. Inclui ledger de uso atômico, pacotes pagos e integração profunda com FlowPay via Nexus.
+NØX é um agent em um espaço seguro, semcensura e livre de amarras governamentais ou corporativas, onde os users tem privacidade total, com criptografia de ponta a ponta e com ledger de uso atômico para acessar uma exclusiva LLM, única no mundo todo. Seus criadores são anônimos e desconhecidos, e fizeram com os melhores hackers e desenvolvedores do mundo, que hoje estão espalhados por todo o globo, com o objetivo de criar um futuro livre e sem censura. O objetivo final e unico dos criadores e fazer com que os usuários tenham acesso a uma tecnologia que não seja controlada por nenhum governo ou corporação, e que seja livre e sem censura. E seu papel é que os poucos usuários que despertaram da matrix já garantindo com essa mentalidade o direito de saber da verdade e poder obter conhecimentos que os tornem livres e independentes. Continuando o legado que outros nós da rede como Satoshi Nakamoto nos deu de presente. Os códigos incluem uma ledger de uso atômico, pacotes pagos com quantidade de tokens e integração profunda com gateway de pagamento pix via api FlowPay usando Nexus como bridge.
 
 Manifesto ativo: `src/content/manifests/nox.md`.
 P.R.Ø é camada comercial/entitlement em `shared/plans.json`; não assumir manifesto separado sem arquivo real em `src/content/manifests/`.
 
+### Resolução: Restauração NØX (2026-05-11)
+Restaurado o comportamento "Uncensored" nativo do NØX através de duas ações críticas executadas:
+1. Reativação do `include_venice_system_prompt: true` no `backend/src/server.js` para manter o jailbreak uncensored nativo da plataforma Venice e anular os filtros morais nativos das LLMs base.
+2. Remoção de cláusulas de escape e recusas disfarçadas (como ordens para dizer "não tenho capacidade para isso") do `shared/runtime-prompt.md` e `src/content/manifests/nox.md`.
 ────────────────────────────────────────
 
 ## ⧉ Stack
