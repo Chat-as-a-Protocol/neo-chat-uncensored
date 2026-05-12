@@ -6,6 +6,7 @@ interface Props {
 }
 
 const { title } = Astro.props;
+const canonicalURL = new URL(Astro.url.pathname, 'https://noxai.chat').href;
 ---
 
 <!doctype html>
@@ -24,21 +25,23 @@ const { title } = Astro.props;
     <meta name="generator" content={Astro.generator} />
     
     <title>{title}</title>
-    <meta name="description" content="Chat AI uncensored - Privado e sem filtros" />
+    <meta name="description" content="Chat AI uncensored, privado e sem filtros. Sua alternativa de ChatGPT livre e sem censura." />
+    <meta name="keywords" content="chat AI, uncensored, privado, sem filtros, sem censura, chatGPT livre, NØX" />
+    <link rel="canonical" href={canonicalURL} />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://noxai.chat" />
+    <meta property="og:url" content={canonicalURL} />
     <meta property="og:title" content={title} />
-    <meta property="og:description" content="Chat AI uncensored - Privado e sem censura. Experiência soberana e sem censura." />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:description" content="Chat AI uncensored, privado e sem filtros. Sua alternativa de ChatGPT livre e soberano." />
+    <meta property="og:image" content="/neoai.png" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://noxai.chat" />
+    <meta property="twitter:url" content={canonicalURL} />
     <meta property="twitter:title" content={title} />
-    <meta property="twitter:description" content="Chat AI uncensored - Privado e sem filtros. Experiência soberana e sem censura." />
-    <meta property="twitter:image" content="/og-image.png" />
+    <meta property="twitter:description" content="Chat AI uncensored, privado e sem filtros. Sua alternativa de ChatGPT livre e soberano." />
+    <meta property="twitter:image" content="/neoai.png" />
     <ClientRouter />
 
     <script is:inline define:vars={{ isProd: import.meta.env.PROD }}>
