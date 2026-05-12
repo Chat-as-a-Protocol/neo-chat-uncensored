@@ -89,6 +89,30 @@ Os módulos irmãos operam com **Soberania Modular** e **Zero-Trust**:
 
 ────────────────────────────────────────
 
+## ⧉ Convergência Arquitetural: NØX ⟷ Neo Growth System
+
+O envio de e-mails transacionais (como Magic Links e Recibos P.R.Ø) atualmente orquestrado de forma síncrona dentro do `neo-chat-uncensored` (via `email.js` + Resend) representa uma dívida técnica aceitável para um MVP, mas um gargalo para a escala do ecossistema.
+
+A visão arquitetural canônica delega a responsabilidade de mensageria e ciclo de vida do usuário para o workspace vizinho: **`neo-growth-system`**. 
+
+Essa transição eleva a infraestrutura de um monolito distribuído para uma **Arquitetura Orientada a Eventos (Event-Driven Architecture)**, baseada nos seguintes princípios:
+
+### 1. Inversão de Controle e Desacoplamento (Event Ingestion)
+O backend do NØX deixa de ser um disparador de e-mails. Ele atua exclusivamente como um emissor de telemetria, enviando sinais de intenção (ex: `AUTH_MAGIC_LINK_REQUESTED`, `LEDGER_PURCHASE_SUCCESS`) para o `neo-event-ingestor`. O Chat não bloqueia o fluxo esperando a resposta de um provedor de e-mail externo, diminuindo drasticamente a latência percebida pelo usuário final.
+
+### 2. Tolerância a Falhas e Filas (Queue Workers)
+Se o Resend (ou qualquer provedor) sofrer instabilidade ou rate-limiting, a requisição síncrona no Chat resultaria em perda de conversão. Ao transferir a carga para o `neo-queue-worker`, garantimos **resiliência por design**: mensagens não entregues entram automaticamente em políticas de *retry* com *exponential backoff* sem corromper o estado do chat.
+
+### 3. Abstração de Provedor e Orquestração
+A inteligência de negócios — como templates HTML, copywriting e a gestão da chave de API (`RESEND_API_KEY`) — é extraída do Chat e encapsulada no `neo-provider-resend`. O `neo-message-orchestrator` atua como o maestro, permitindo que, no futuro, o provedor seja trocado (para AWS SES ou SendGrid) com "Zero-Touch" no código-fonte do NØX.
+
+### 4. Shadow CRM e Réguas de Retenção
+Ao centralizar os eventos transacionais no `neo-growth-system`, o `neo-crm-core` constrói passivamente um "Shadow Profile" de cada usuário. Isso habilita o ecossistema a não apenas reagir a ações (enviar recibos), mas orquestrar réguas ativas (ex: "Enviar Drip Campaign ensinando prompts avançados 3 dias após a compra de um pacote Elite"), convertendo infraestrutura de mensageria em uma máquina real de Growth.
+
+**O Contrato:** O Chat gera o evento. O Growth System assegura a entrega, audita a conversão e gerencia a inteligência do cliente.
+
+────────────────────────────────────────
+
 ## ⧖ Rotas
 
 - `/`: terminal principal (NØX Core / P.R.Ø).
