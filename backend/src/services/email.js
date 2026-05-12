@@ -62,7 +62,7 @@ const renderTemplate = (title, content, action = null) => {
               
               <!-- HEADER / LOGO -->
               <div style="text-align: center; margin-bottom: 40px;">
-                <img src="https://noxai.chat/nox_vert.webp" alt="NØX" style="width: 140px; height: auto; display: inline-block;" />
+                <img src="https://noxai.chat/nox_vert.webp" alt="NØX" width="140" style="width: 140px; height: auto; display: inline-block;" />
               </div>
 
               <!-- TITLE -->
