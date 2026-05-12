@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { sql } from "../config/db.js";
+import { query } from "../utils/db.js";
 import { emailService } from "../services/email.js";
 
 // ==========================================
@@ -46,7 +46,12 @@ async function runCampaign() {
 
   try {
     console.log("Consultando banco de dados...");
-    const users = await sql(GET_USERS_QUERY);
+    
+    // MODO DE TESTE (Descomente a linha abaixo para testar apenas com seu e-mail):
+    // const users = [{ id: "test-id", name: "Netto", email: "nettoaeb1@gmail.com", tier: "admin" }];
+    
+    // MODO PRODUÇÃO (Busca no banco):
+    const { rows: users } = await query(GET_USERS_QUERY);
     
     console.log(`Encontrados ${users.length} usuários válidos com e-mail.`);
     
