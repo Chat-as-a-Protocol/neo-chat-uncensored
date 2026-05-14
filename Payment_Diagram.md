@@ -1,8 +1,7 @@
-# Payment_Diagram.md
+# diagrama de fluxo de pagamento
 
 ```mermaid
 flowchart TD
-
   A["FP envia POST '/api/webhooks/flowpay'"] --> B["Express recebe 'raw' body"]
   B --> C["Valida assinatura HMAC-SHA256"]
   C -->|inválida| Z["Resposta 401 'Unauthorized'"]

@@ -60,6 +60,41 @@ neo-chat-uncensored/
 ┗━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+## ◯ Fluxo Auth + Chat + Venice + Ledger
+
+Usuário
+  │
+  ├─ 1) Auth
+  │     POST /api/auth/signup|login
+  │     → valida credenciais
+  │     → (signup) cria user e bônus inicial no ledger
+  │     → emite JWT
+  ▼
+Backend NØX (Express)
+  │
+  ├─ 2) Chat
+  │     POST /api/chat (Bearer JWT)
+  │     → authenticateToken (JWT + Postgres)
+  │     → rate limit por usuário (Redis)
+  │     → checkQuota (plans.json + ledger)
+  │     → monta prompt (runtime-prompt + persona)
+  ▼
+Venice API
+  │
+  ├─ 3) Resposta IA
+  │     → stream SSE ou JSON
+  │     → backend conta tokens (usage ou texto)
+  ▼
+Ledger (ledgerService)
+  │
+  ├─ 4) Débito
+  │     → addEntry(userId, -tokens, TOKEN_CONSUMPTION)
+  │     → se créditos insuficientes: 402
+  │     → se ok: segue resposta da IA
+  ▼
+Usuário
+  → recebe resposta com cobrança já aplicada no ledger
+
 ────────────────────────────────────────
 
 ## ⨷ Comandos
@@ -76,9 +111,9 @@ make build
 Comandos diretos úteis:
 
 ```bash
-fnm exec --using v25.9.0 pnpm check
-fnm exec --using v25.9.0 pnpm build
-fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
+fnm exec --using v22.22.2 pnpm check
+fnm exec --using v22.22.2 pnpm build
+fnm exec --using v22.22.2 pnpm --filter chat-api-backend test
 ```
 
 Proteção de chaves:
@@ -203,6 +238,31 @@ mas são normalizados antes de aplicar regra de acesso.
 - Ledger usa idempotência por referência de pagamento.
 - FlowPay service rejeita resposta HTML e URL apontando
   para o próprio app.
+
+────────────────────────────────────────
+
+## ⧉ Testes Ponta-a-Ponta (Playwright)
+
+Para garantir que o fluxo do usuário (login, chat, etc.) não quebre, usamos o Playwright para testes E2E.
+
+### Instalação
+
+Como o ambiente de desenvolvimento precisa baixar os navegadores do Playwright, você deve instalar as dependências e os binários na sua máquina local:
+
+```bash
+pnpm add -D @playwright/test -w
+pnpm exec playwright install
+```
+
+### Como Rodar
+
+Para rodar os testes simulando o usuário no navegador:
+
+```bash
+npx playwright test
+```
+
+Os testes ficam localizados na pasta `tests/`.
 
 ────────────────────────────────────────
 
