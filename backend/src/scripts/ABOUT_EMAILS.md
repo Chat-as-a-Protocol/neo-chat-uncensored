@@ -43,7 +43,14 @@ O array de usuários vem mockado apontando apenas para o e-mail do
 administrador:
 
 ```javascript
-const users = [{ id: "test-id", name: "Netto", email: "nettoaeb1@gmail.com", tier: "admin" }];
+const users = [
+  {
+    id: "test-id",
+    name: "test-user",
+    email: "[EMAIL_ADDRESS]",
+    tier: "admin",
+  },
+];
 ```
 
 ### Como Ativar o Envio em Massa

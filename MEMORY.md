@@ -201,6 +201,12 @@ Correção:
 - Inclusão de rodapé de descadastramento (`Unsubscribe` via mailto) e link direto para as configurações de conta no NØX.
 Regra: Qualquer e-mail transacional ou de campanha enviado pelo sistema ou por serviços integrados (como o Growth System) deve herdar esses tokens de estilo e as opções de opt-out.
 
+### Blindagem do Service Worker (sw.js) (2026-05-13)
+
+Sintoma: O arquivo `sw.js` público listava explicitamente as rotas do sistema (`/ledger`, `/tokens`, etc.) no array `NEVER_CACHE_PATHS`, expondo a superfície de ataque.
+Causa: Uso de "blacklist" de rotas para evitar cache em SSR.
+Correção: Inversão da lógica. O `sw.js` agora usa apenas "whitelist" baseada em extensões de arquivos estáticos (`.js`, `.css`, `.png`, etc.). As rotas do sistema não são mais listadas, ocultando a estrutura do backend de curiosos.
+
 ────────────────────────────────────────
 
 ## ⧉ Frontend Security Boundary (2026-05-12)

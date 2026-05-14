@@ -70,8 +70,8 @@ async function runCampaign() {
     // const users = [
     //   {
     //     id: "test-id",
-    //     name: "Netto",
-    //     email: "nettoaeb1@gmail.com",
+    //     name: "test-user",
+    //     email: "[EMAIL_ADDRESS]",
     //     tier: "admin",
     //   },
     // ];

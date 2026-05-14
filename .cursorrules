@@ -207,6 +207,7 @@ Tiers ativos em `shared/plans.json`: `guest`, `free`, `paid_basic`, `paid_pro`.
 
 - Incrementar `CACHE_NAME` em `sw.js` após qualquer mudança em assets estáticos.
 - SW registrado apenas em `import.meta.env.PROD`.
+- Ocultação: O `sw.js` não deve expor rotas do backend. Use regras de cache baseadas em extensões para evitar revelar a estrutura do sistema.
 
 ### 7. Persona Engine
 

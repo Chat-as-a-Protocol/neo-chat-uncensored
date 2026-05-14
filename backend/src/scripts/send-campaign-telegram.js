@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { query } from "../utils/db.js";
+// import { query } from "../utils/db.js";
 import { emailService } from "../services/email.js";
 
 // ==========================================
@@ -23,12 +23,12 @@ const ACTION_URL = "https://t.me/noxaioficial";
 // FILTRO DE USUÁRIOS
 // Para testar, mude para: WHERE email = 'seu_email@aqui.com'
 // ==========================================
-const GET_USERS_QUERY = `
-  SELECT id, name, email, tier 
-  FROM users 
-  WHERE email IS NOT NULL 
-  AND email != ''
-`;
+// const GET_USERS_QUERY = `
+//   SELECT id, name, email, tier
+//   FROM users
+//   WHERE email IS NOT NULL
+//   AND email != ''
+// `;
 
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -46,33 +46,39 @@ async function runCampaign() {
   try {
     console.log("==========================================");
     console.log("🛡️ MODO DE SEGURANÇA ATIVO (APENAS TESTE)");
-    console.log("Para enviar para todos, edite este script e comente a linha do mock.");
+    console.log(
+      "Para enviar para todos, edite este script e comente a linha do mock.",
+    );
     console.log("==========================================\n");
 
     // MODO DE TESTE (Padrão e Seguro):
-    const users = [{ id: "test-id", name: "Netto", email: "nettoaeb1@gmail.com", tier: "admin" }];
-    
+    const users = [
+      { id: "test-id", name: "user", email: "[EMAIL_ADDRESS]", tier: "admin" },
+    ];
+
     // MODO PRODUÇÃO (Descomente para valer):
     // const { rows: users } = await query(GET_USERS_QUERY);
-    
+
     console.log(`Encontrados ${users.length} usuários válidos com e-mail.`);
-    
+
     let successCount = 0;
     let errorCount = 0;
 
     for (let i = 0; i < users.length; i++) {
       const user = users[i];
-      console.log(`[${i + 1}/${users.length}] Enviando para: ${user.email} (${user.tier})...`);
-      
+      console.log(
+        `[${i + 1}/${users.length}] Enviando para: ${user.email} (${user.tier})...`,
+      );
+
       try {
         await emailService.sendFeatureAnnouncement(user.email, {
           userName: user.name,
           title: CAMPAIGN_TITLE,
           content: CAMPAIGN_CONTENT,
           actionLabel: ACTION_LABEL,
-          actionUrl: ACTION_URL
+          actionUrl: ACTION_URL,
         });
-        
+
         console.log(`   ✅ Enviado com sucesso!`);
         successCount++;
       } catch (err) {
@@ -88,9 +94,8 @@ async function runCampaign() {
     console.log(`✅ Sucesso: ${successCount}`);
     console.log(`❌ Falhas: ${errorCount}`);
     console.log("==========================================");
-    
-    process.exit(0);
 
+    process.exit(0);
   } catch (err) {
     console.error("Erro fatal ao rodar a campanha:", err);
     process.exit(1);
