@@ -17,6 +17,55 @@ Domains: noxai.chat / api.noxai.chat
 > **Status:** active
 > **Protocol:** NØX / FlowPay / Venice
 
+```diagram
+1. Usuário (Browser / App)
+   - Interage via UI Astro SSR em https://noxai.chat
+   - Envia credenciais e mensagens de chat
+
+2. Frontend (Astro SSR)
+   - Roteia:
+     - /login, /signup, /chat, /upgrade
+   - Chama a API pública NØX:
+     - POST https://api.noxai.chat/api/auth/...
+     - POST https://api.noxai.chat/api/chat
+
+3. Backend NØX (Express API)
+   - Auth:
+     - Valida login/signup
+     - Cria usuário (Postgres)
+     - Gera JWT (identidade pura: userId)
+     - Concede welcome_bonus no ledger
+   - Chat:
+     - authenticateToken (JWT + Postgres)
+     - Rate limiting por usuário (Redis)
+     - checkQuota (plans.json + ledger)
+     - Monta prompt (runtime-prompt + persona)
+     - Proxy Venice: /chat/completions
+     - Conta tokens da resposta e debita ledger
+
+4. Venice API (IA)
+   - Recebe:
+     - model: VENICE_MODEL
+     - messages (prompt + conversa)
+   - Responde:
+     - streaming (SSE) ou JSON
+   - Não guarda estado de billing: só gera tokens
+
+5. Ledger (backend/src/services/ledger.js)
+   - Registra:
+     - TOKEN_PURCHASE (bônus, recargas, FlowPay)
+     - TOKEN_CONSUMPTION (chat, IA)
+     - PRO_SUBSCRIPTION (eventos de assinatura)
+   - Garante:
+     - idempotência por referência
+     - saldo auditável por usuário
+
+Fluxo resumido:
+
+Usuário → Frontend → Backend Auth → Postgres + Ledger (bônus)
+Usuário + JWT → Frontend → Backend Chat → Venice → Ledger (débito) → Usuário
+```
+
 ## ⟠ Arquitetura de Confiança
 
 O NØX opera sob três pilares de integridade técnica:
