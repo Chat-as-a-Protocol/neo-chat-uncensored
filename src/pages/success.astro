@@ -24,6 +24,7 @@ if (!token) {
         Suas credenciais P.R.Ø foram injetadas. 
         NØX agora opera sob seu comando total.
       </p>
+      <p id="usage-status" class="usage-status">Sincronizando ledger...</p>
 
       <div class="actions">
         <button onclick="window.location.href='/'" class="btn-primary">Comandar Terminal</button>
@@ -134,6 +135,13 @@ if (!token) {
       opacity: 0.3;
     }
 
+    .usage-status {
+      margin: -22px 0 32px;
+      color: rgba(255, 255, 255, 0.56);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
     @keyframes pop {
       0% { transform: scale(0.5); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
@@ -151,6 +159,62 @@ if (!token) {
       100% { transform: scale(1); opacity: 0.4; }
     }
   </style>
+
+  <script>
+    const productionApiUrl = 'https://api.noxai.chat';
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const configuredApiUrl = String(import.meta.env.PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+    const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);
+    const apiUrl = configuredApiUrl && (isLocalhost || !configuredApiIsLocal)
+      ? configuredApiUrl
+      : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
+    const tokenStorageKey = 'nox_token';
+    const usageStatus = document.getElementById('usage-status');
+
+    function getCookie(name: string) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+      return null;
+    }
+
+    function setUsageStatus(message: string) {
+      if (usageStatus) usageStatus.textContent = message;
+    }
+
+    async function syncUsageState() {
+      const token = getCookie(tokenStorageKey) || localStorage.getItem(tokenStorageKey);
+      if (!token) {
+        window.location.href = '/login';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${apiUrl}/api/usage`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          window.location.href = '/login';
+          return;
+        }
+
+        if (!response.ok) {
+          setUsageStatus('Ledger pendente. Aguarde o webhook e recarregue.');
+          return;
+        }
+
+        const data = await response.json();
+        const tier = data.entitlement || data.plan || data.tier || 'ativo';
+        const balance = Number(data.balance ?? 0);
+        setUsageStatus(`Plano ${tier} sincronizado. Saldo: ${balance} NØX.`);
+      } catch {
+        setUsageStatus('Ledger indisponível. Tente novamente em instantes.');
+      }
+    }
+
+    syncUsageState();
+  </script>
 </Layout>
 
 <style>
