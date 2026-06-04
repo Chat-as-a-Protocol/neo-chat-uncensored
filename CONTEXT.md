@@ -115,6 +115,9 @@ Ao centralizar os eventos transacionais no `neo-growth-system`, o `neo-crm-core`
 
 ## ⧖ Rotas
 
+Contrato canônico frontend/backend:
+`docs/ROUTE_CONTRACT.md`.
+
 - `/`: terminal principal (NØX Core / P.R.Ø).
 - `/login`: login e magic link.
 - `/signup`: criação de conta.

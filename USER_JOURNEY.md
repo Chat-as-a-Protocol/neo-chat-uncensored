@@ -12,6 +12,9 @@ Version: v4.2.0
 
 ## ⧉ Mapa de Rotas
 
+Contrato canônico:
+`docs/ROUTE_CONTRACT.md`.
+
 ```text
 ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ ROTA               ┃ VISIBILIDADE ┃ PROPÓSITO
