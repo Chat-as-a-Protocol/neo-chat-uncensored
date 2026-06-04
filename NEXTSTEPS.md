@@ -6,9 +6,149 @@
           NØX · EXECUTION BACKLOG
 ========================================
 Status: active
-Updated: 2026-05-06
+Updated: 2026-06-04
 ========================================
 ```
+
+## ⧉ Checkpoint 2026-05-08
+
+```text
+STATUS CURTO
+────────────
+Hotfix de chat/ledger/guest aplicado e validado.
+Alias de webhook aplicado no chat.
+Compra PIX ainda precisa de teste real via Nexus
+`ecosystem-subscriptions`.
+```
+
+### Concluído Hoje
+
+- `checkQuota` não desconta mais histórico/input/buffer do saldo do usuário.
+- Débito não-streaming passou a usar `completion_tokens`/output, não `total_tokens`.
+- Guest/free não são mais confundidos com compra real.
+- `TOKEN_GRANT` criado para crédito inicial gratuito no Ledger.
+- `TOKEN_PURCHASE` reservado para compra real via FlowPay/packages.
+- `/api/usage` de guest novo validado:
+
+```json
+{
+  "limit": 500,
+  "tier": "guest",
+  "plan": "guest",
+  "balance": 500,
+  "remaining": 500,
+  "maxOutputTokens": 184
+}
+```
+
+- Validações locais passaram:
+
+```bash
+node --check backend/src/server.js
+pnpm --dir backend test
+pnpm check
+pnpm build
+```
+
+- Paths de webhook aceitos no chat:
+
+```text
+POST /api/webhooks/flowpay  -> handler canônico
+POST /webhooks/flowpay      -> alias compatível com Nexus
+```
+
+Nexus fan-out novo deve preferir:
+
+```text
+https://api.noxai.chat/api/webhooks/flowpay
+```
+
+- Smoke test do alias em produção passou:
+
+```bash
+curl -i -X POST https://api.noxai.chat/api/webhooks/flowpay \
+  -H "Content-Type: application/json" \
+  --data '{}'
+```
+
+Resultado esperado e observado:
+
+```text
+HTTP 401
+Unauthorized: Missing Signature
+```
+
+Interpretação: a rota existe em produção. O `401` é correto para chamada manual sem assinatura HMAC.
+
+### Evidência do Log Atual
+
+Log visto no Railway após o `curl` manual:
+
+```text
+[Webhook] Received FlowPay event from Nexus
+[Webhook] Missing signature
+POST /api/webhooks/flowpay - 401
+```
+
+Interpretação: isso confirma path/handler, mas não confirma fan-out assinado real do Nexus.
+
+### Pendente Imediato
+
+1. Fazer nova compra PIX real após o alias publicado.
+2. Observar logs do backend procurando:
+
+```text
+POST /api/webhooks/flowpay
+[Webhook] Received FlowPay event from Nexus
+[Webhook] User <id> purchased <tokens> tokens
+[Email] Payment email sent for user <id>
+```
+
+3. Verificar Ledger no Postgres, sem `LIMIT` manual no Railway Data UI:
+
+```sql
+SELECT id, user_id, amount, type, reference, created_at
+FROM ledger
+WHERE reference LIKE '%nox_tokens_1k%'
+ORDER BY created_at DESC
+```
+
+4. Se o webhook real ainda retornar `401 Missing Signature`,
+   conferir no Nexus se a subscription está enviando
+   `X-Nexus-Signature`
+   e se `secretEnv` aponta para `FLOWPAY_WEBHOOK_SECRET`.
+5. Se o webhook processar e Ledger creditar, validar:
+
+```text
+/upgrade redireciona ou atualiza estado
+/success aparece
+e-mail Resend chega
+/api/usage reflete novo saldo
+```
+
+### Regra Para Retomar
+
+```text
+NÃO substituir target existente do Nexus.
+O Nexus é control plane de vários projetos.
+Adicionar NØX como nova subscription/consumer
+em config/ecosystem.json.
+```
+
+Subscription recomendada:
+
+```json
+{
+  "event": "FLOWPAY:PAYMENT_RECEIVED",
+  "target": {
+    "kind": "webhook",
+    "url": "https://api.noxai.chat/api/webhooks/flowpay"
+  },
+  "secretEnv": "FLOWPAY_WEBHOOK_SECRET"
+}
+```
+
+────────────────────────────────────────
 
 ## ⧉ Estado Atual
 
@@ -20,14 +160,31 @@ Updated: 2026-05-06
 ┃ Domínio app        ┃ https://noxai.chat
 ┃ Backend API        ┃ https://api.noxai.chat
 ┃ Pagamentos         ┃ FlowPay service + webhook Nexus
-┃ E-mail             ┃ Resend via backend
+┃ E-mail             ┃ Resend API via backend
 ┃ Planos             ┃ shared/plans.json
-┃ Preços             ┃ /precos público, /upgrade identificado
+┃ Preços             ┃ /pricing público, /upgrade identificado
 ┃ Guest Mode         ┃ Controlado, não exibido em /upgrade
 ┃ CORS               ┃ Preflight 204 só para origins permitidas
 ┃ Ledger             ┃ LEDGER-FIRST ativo — paid via getBalance()
 ┗━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+Topologia canônica:
+`docs/DEPLOY_TOPOLOGY.md`.
+
+Railway deve permanecer enxuto:
+
+```text
+FRONTEND
+backend
+Postgres
+Redis
+```
+
+`Resend Mail`, se existir apenas como starter,
+deve sair do desenho operacional.
+
+Resend é provider externo chamado pelo backend.
 
 ────────────────────────────────────────
 
@@ -43,10 +200,13 @@ Updated: 2026-05-06
 - Pacotes `1k`, `5k`, `10k`.
 - Produto `P.R.O Analyst`.
 - Resend para magic link e confirmação.
+- Resend tratado como API externa,
+  não serviço Railway obrigatório.
 - `/upgrade` mobile-first e sem card de Guest Mode.
 - Service FlowPay com erro seguro para HTML/self-call.
 - Testes unitários de ledger, billing, payments e FlowPay (35 testes, 35/35).
-- `/precos` público para descoberta comercial sem login.
+- `/pricing` público para descoberta comercial sem login.
+- `/account` exibe nome e e-mail via `/api/usage`.
 
 - **CORS Hardened**: preflight `OPTIONS` responde `204` só para origins válidas; `Vary: Origin` e `crossOriginResourcePolicy: false` no Helmet.
 
@@ -56,16 +216,54 @@ Updated: 2026-05-06
 
 - **balanceAfter**: `addEntry` retorna saldo pós-debit (CTE Postgres + soma Redis). `/api/chat` usa saldo real, sem STALE.
 
+- **Protocol Hardening v1**: JWT de identidade pura, cota dinâmica via Postgres, welcome bonus (1000 tokens) e blindagem de stream no ledger. **CONCLUÍDO (2026-05-06)**.
+- **plans.json v2**: Nomes e benefícios normalizados (`Citizen`, `Operator`). **CONCLUÍDO**.
+- **Auth Sync 2026-05-11**: cookie guest não vence token identificado; token real é promovido para cookie e `/account` renderiza nome/e-mail.
+- **PNPM/Railway 2026-05-11**: overrides ficam em `pnpm-workspace.yaml`; Docker runtime copia o arquivo antes de `pnpm install --prod --frozen-lockfile`.
+
 ────────────────────────────────────────
 
 ## ⨷ Pendente Imediato
 
 1. ~~Conferir variáveis do backend no Railway~~ — **CONCLUÍDO** (`FLOWPAY_API_KEY` e `FLOWPAY_API_URL` configuradas em 2026-05-06).
 2. Fazer smoke test pós-deploy:
-   signup, login, guest chat, `/api/usage`, magic link e `/conta`.
+   signup, login, guest chat, `/api/usage`, magic link e `/account`.
 3. ~~Validar geração de cobrança PIX~~ — **CONCLUÍDO** (QR renderizado na UI `/upgrade` em produção).
-4. **Confirmar webhook FlowPay via Nexus em produção** — pagamento real → nexus → ledger → tokens creditados.
+4. **Confirmar webhook FlowPay via Nexus em produção** —
+   pagamento real → Nexus subscription → ledger → tokens creditados.
 5. Verificar domínio Resend `send@noxai.chat`.
+6. Remover ou arquivar serviço `Resend Mail` no Railway
+   se ele for apenas starter/placeholder.
+7. **Desenvolver Hamburger Menu Mobile:**
+   - Criar menu no canto superior direito do chat.
+   - O hamburger deve aparecer *apenas* quando o chat estiver ativo (`body.chat-input-focused` ou `body.keyboard-open`).
+   - O menu deve conter as opções que normalmente somem com o teclado: Upgrade, Preços, Telegram, Conta, Privacy e Terms.
+8. **Migração Event-Driven (Neo Growth System):**
+   - Refatorar o envio de e-mails (`email.js`) delegando a
+     responsabilidade para o `neo-growth-system`
+     ou nó provider Resend formal.
+   - O NØX deve emitir evento.
+     O sistema de growth deve entregar,
+     auditar e reprocessar.
+
+9. **Extração do Chat Runtime**
+   - Tratar o chat atual do NØX como runtime interno transitório.
+   - Planejar saída para nó próprio apenas após release rápido.
+   - Contrato futuro:
+
+```text
+NØX Backend -> Chat Runtime Node
+```
+
+   - NØX mantém auth,
+     entitlement,
+     ledger
+     e billing.
+   - O nó de chat executa conversa/agentes por contrato.
+   - Seguir o blueprint documentado em `docs/EVENT_DRIVEN_MIGRATION_PLAN.md`.
+10. **Melhoria da Interface (UI) dos E-mails:**
+   - O template HTML base (`renderTemplate` em `email.js` ou futuro `neo-provider-resend`) está muito básico (fundo branco/claro) sem logo e sem identidade visual do NØX.
+   - Precisa receber o banho de estética Dark Mode/Premium com as paletas de luxo do NØX, para que qualquer disparo transmita o ar "Soberano/Hacker".
 
 ────────────────────────────────────────
 
@@ -136,6 +334,7 @@ BAIXA       Webhook idempotência por paymentId: se FlowPay emitir mesmo
 
 ## ⧉ Pós-release Comercial
 
+- Criar novas personas temáticas (ex: dev sênior, tutor, assistente premium) aproveitando a arquitetura de manifestos dinâmicos em `src/content/manifests/` e envio de `personaId` via body no `/api/chat`.
 - Criar e-mails de confirmação segmentados por plano/pacote.
 - Incluir dicas práticas de uso conforme o nível comprado.
 - Definir comandos reais antes de divulgar:
@@ -153,6 +352,7 @@ Antes de push:
 ```bash
 make check
 make build
+fnm exec --using v25.9.0 pnpm audit --prod=false
 git diff --check
 ```
 

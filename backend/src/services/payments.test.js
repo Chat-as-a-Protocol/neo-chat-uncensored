@@ -1,183 +1,248 @@
+import test, { describe } from "node:test";
 import assert from "node:assert";
-import test from "node:test";
 import {
   deriveFlowPayMetadataFromReference,
-  paymentService,
+  resolveCanonicalFlowPayReference,
   resolveFlowPayEntitlement,
+  normalizePlanPriceToCents,
+  normalizeFlowPayAmountToCents,
 } from "./payments.js";
 
-const plans = {
-  packages: {
-    "1k": {
-      id: "1k",
-      tokens: 1000,
-      price: 49,
-      tier_upgrade: "paid_basic",
-    },
-    "10k": {
-      id: "10k",
-      tokens: 10000,
-      price: 149,
-      tier_upgrade: "paid_pro",
-    },
-  },
-  products: {
-    pro_analyst: {
-      id: "pro_analyst",
-      persona_id: "analyst",
-      price: 499,
-      tier_upgrade: "paid_pro",
-    },
-  },
-};
-
-test("Payment Service - Entitlement Resolution", async (t) => {
-  await t.test("should resolve token package tier upgrade by packageId", () => {
-    const entitlement = resolveFlowPayEntitlement(
-      {
-        type: "tokens_purchase",
-        packageId: "1k",
-      },
-      plans,
-    );
-
-    assert.deepStrictEqual(entitlement, {
-      kind: "token_purchase",
-      tokens: 1000,
-      tierUpgrade: "paid_basic",
-      packageId: "1k",
-    });
-  });
-
-  await t.test("should resolve legacy token purchase metadata by token amount", () => {
-    const entitlement = paymentService.resolveEntitlement(
-      {
-        type: "tokens_purchase",
-        tokens: 10000,
-      },
-      plans,
-    );
-
-    assert.deepStrictEqual(entitlement, {
-      kind: "token_purchase",
-      tokens: 10000,
-      tierUpgrade: "paid_pro",
-      packageId: "10k",
-    });
-  });
-
-  await t.test("should normalize pro subscriptions to paid_pro", () => {
-    const entitlement = resolveFlowPayEntitlement({
-      type: "pro_subscription",
-      plan: "pro",
+describe("Payments Service - Unit Tests", () => {
+  describe("deriveFlowPayMetadataFromReference", () => {
+    test("should return empty object for invalid reference", () => {
+      const result = deriveFlowPayMetadataFromReference("", {});
+      assert.deepStrictEqual(result, {});
     });
 
-    assert.deepStrictEqual(entitlement, {
-      kind: "subscription",
-      tokens: 0,
-      tierUpgrade: "paid_pro",
-      packageId: null,
-      productId: null,
-      personaId: null,
-    });
-  });
-
-  await t.test("should resolve P.R.O product metadata from plans", () => {
-    const entitlement = resolveFlowPayEntitlement(
-      {
-        type: "product_purchase",
-        productId: "pro_analyst",
-      },
-      plans,
-    );
-
-    assert.deepStrictEqual(entitlement, {
-      kind: "subscription",
-      tokens: 0,
-      tierUpgrade: "paid_pro",
-      packageId: null,
-      productId: "pro_analyst",
-      personaId: "analyst",
-    });
-  });
-
-  await t.test("should derive token metadata from NØX FlowPay reference", () => {
-    assert.deepStrictEqual(
-      deriveFlowPayMetadataFromReference("nox_tokens_1k_abc", plans),
-      {
+    test("should derive metadata for valid token purchase reference", () => {
+      const plans = {
+        packages: {
+          "1k": { tokens: 1000, price: 10, tier: "free" },
+        },
+      };
+      const result = deriveFlowPayMetadataFromReference(
+        "nox_tokens_1k_uuid",
+        plans,
+      );
+      assert.deepStrictEqual(result, {
         type: "tokens_purchase",
         packageId: "1k",
         tokens: 1000,
-        price: 49,
-        tierUpgrade: "paid_basic",
+        price: 10,
+        tierUpgrade: "free",
+      });
+    });
+
+    test("should return empty object if package not found", () => {
+      const plans = { packages: {} };
+      const result = deriveFlowPayMetadataFromReference(
+        "nox_tokens_1k_uuid",
+        plans,
+      );
+      assert.deepStrictEqual(result, {});
+    });
+  });
+
+  describe("resolveCanonicalFlowPayReference", () => {
+    const plans = {
+      packages: {
+        "1k": { tokens: 1000, price: 49, tier: "paid_basic" },
+        "40k": { tokens: 40000, price: 499, tier: "paid_pro" },
       },
-    );
+    };
+
+    test("prioriza reference/orderId canônico antes de paymentId/id", () => {
+      const result = resolveCanonicalFlowPayReference(
+        {
+          paymentId: "gateway_internal_123",
+          id: "gateway_id_456",
+          orderId: "nox_tokens_40k_testuuid",
+        },
+        plans,
+      );
+
+      assert.strictEqual(result, "nox_tokens_40k_testuuid");
+    });
+
+    test("aceita metadata.reference antes de paymentId interno", () => {
+      const result = resolveCanonicalFlowPayReference(
+        {
+          metadata: { reference: "nox_tokens_40k_testuuid" },
+          paymentId: "gateway_internal_123",
+        },
+        plans,
+      );
+
+      assert.strictEqual(result, "nox_tokens_40k_testuuid");
+    });
+
+    test("aceita metadata.chargeId antes de paymentId interno", () => {
+      const result = resolveCanonicalFlowPayReference(
+        {
+          metadata: { chargeId: "nox_tokens_40k_testuuid" },
+          paymentId: "gateway_internal_123",
+        },
+        plans,
+      );
+
+      assert.strictEqual(result, "nox_tokens_40k_testuuid");
+    });
+
+    test("falha fechado quando referência não deriva pacote configurado", () => {
+      const result = resolveCanonicalFlowPayReference(
+        {
+          orderId: "nox_tokens_unknown_testuuid",
+          paymentId: "gateway_internal_123",
+        },
+        plans,
+      );
+
+      assert.strictEqual(result, null);
+    });
+
+    test("contrato Chat: reference 40k deriva entitlement paid_pro", () => {
+      const reference = "nox_tokens_40k_testuuid";
+      const resolved = resolveCanonicalFlowPayReference(
+        {
+          reference,
+          orderId: reference,
+        },
+        plans,
+      );
+      const metadata = deriveFlowPayMetadataFromReference(resolved, plans);
+
+      assert.strictEqual(resolved, reference);
+      assert.strictEqual(metadata.packageId, "40k");
+      assert.strictEqual(metadata.tokens, 40000);
+      assert.strictEqual(metadata.tierUpgrade, "paid_pro");
+    });
   });
 
-  await t.test("should derive product metadata from NØX FlowPay reference", () => {
-    assert.deepStrictEqual(
-      deriveFlowPayMetadataFromReference("nox_product_pro_analyst_abc", plans),
-      {
-        type: "product_purchase",
-        productId: "pro_analyst",
-        personaId: "analyst",
-        price: 499,
-        tierUpgrade: "paid_pro",
-      },
-    );
-  });
-});
+  describe("resolveFlowPayEntitlement", () => {
+    test("should return unknown for invalid trustedMetadata", () => {
+      const result = resolveFlowPayEntitlement(null, {}, {});
+      assert.strictEqual(result.kind, "unknown");
+    });
 
-test("Payment Service - Edge Cases & Resilience", async (t) => {
-  await t.test("CRASH TEST: should not crash with null metadata", () => {
-    try {
-      const entitlement = resolveFlowPayEntitlement(null, plans);
-      assert.ok(entitlement, "Should return an object even with null input");
-    } catch (e) {
-      assert.fail(`Service crashed with null metadata: ${e.message}`);
-    }
+    test("should return unknown for missing type in trustedMetadata", () => {
+      const result = resolveFlowPayEntitlement({}, {}, {});
+      assert.strictEqual(result.kind, "unknown");
+    });
+
+    test("should resolve token purchase entitlement using trustedMetadata", () => {
+      const trustedMetadata = {
+        type: "token_purchase",
+        tokens: 1000,
+        packageId: "1k",
+      };
+      const result = resolveFlowPayEntitlement(trustedMetadata, {}, {});
+      assert.strictEqual(result.kind, "token_purchase");
+      assert.strictEqual(result.tokens, 1000);
+      assert.strictEqual(result.packageId, "1k");
+    });
+
+    test("should fallback to package tokens if trustedMetadata tokens missing", () => {
+      const trustedMetadata = {
+        type: "token_purchase",
+        packageId: "1k",
+      };
+      const plans = {
+        packages: {
+          "1k": { tokens: 1000 },
+        },
+      };
+      const result = resolveFlowPayEntitlement(trustedMetadata, {}, plans);
+      assert.strictEqual(result.kind, "token_purchase");
+      assert.strictEqual(result.tokens, 1000);
+    });
+
+    test("should return unknown if tokens <= 0", () => {
+      const trustedMetadata = {
+        type: "token_purchase",
+        tokens: 0,
+      };
+      const result = resolveFlowPayEntitlement(trustedMetadata, {}, {});
+      assert.strictEqual(result.kind, "unknown");
+    });
+
+    // Novos testes solicitados pelo usuário
+    test("plano atual com tier funciona", () => {
+      const trustedMetadata = { type: "token_purchase", packageId: "1k" };
+      const plans = { packages: { "1k": { tokens: 1000, tier: "paid_basic" } } };
+      const result = resolveFlowPayEntitlement(trustedMetadata, {}, plans);
+      assert.strictEqual(result.tierUpgrade, "paid_basic");
+    });
+
+    test("plano legado com tier_upgrade funciona", () => {
+      const trustedMetadata = { type: "token_purchase", packageId: "1k" };
+      const plans = { packages: { "1k": { tokens: 1000, tier_upgrade: "paid_pro" } } };
+      const result = resolveFlowPayEntitlement(trustedMetadata, {}, plans);
+      assert.strictEqual(result.tierUpgrade, "paid_pro");
+    });
+
+    test("metadata externo tentando injetar tierUpgrade paid_pro é ignorado", () => {
+      const trustedMetadata = { type: "token_purchase", packageId: "1k" };
+      const externalMetadata = { tierUpgrade: "paid_pro" };
+      const plans = { packages: { "1k": { tokens: 1000, tier: "paid_basic" } } };
+      const result = resolveFlowPayEntitlement(trustedMetadata, externalMetadata, plans);
+      assert.strictEqual(result.tierUpgrade, "paid_basic"); // Deve manter o do plano
+    });
+
+    test("metadata externo tentando injetar packageId superior é ignorado", () => {
+      const trustedMetadata = { type: "token_purchase", packageId: "1k" };
+      const externalMetadata = { packageId: "40k" };
+      const plans = {
+        packages: {
+          "1k": { tokens: 1000, tier: "paid_basic" },
+          "40k": { tokens: 40000, tier: "paid_pro" }
+        }
+      };
+      const result = resolveFlowPayEntitlement(trustedMetadata, externalMetadata, plans);
+      assert.strictEqual(result.packageId, "1k");
+      assert.strictEqual(result.tokens, 1000);
+    });
+
+    test("metadata externo tentando injetar tokens maior é ignorado", () => {
+      const trustedMetadata = { type: "token_purchase", packageId: "1k" };
+      const externalMetadata = { tokens: 50000 };
+      const plans = { packages: { "1k": { tokens: 1000 } } };
+      const result = resolveFlowPayEntitlement(trustedMetadata, externalMetadata, plans);
+      assert.strictEqual(result.tokens, 1000);
+    });
+
+    test("ausência de pacote confiável falha de forma segura", () => {
+      const trustedMetadata = { type: "token_purchase", packageId: "unknown" };
+      const result = resolveFlowPayEntitlement(trustedMetadata, {}, { packages: {} });
+      assert.strictEqual(result.kind, "unknown");
+    });
   });
 
-  await t.test("SECURITY: should not default to paid_pro on invalid tier", () => {
-    const entitlement = resolveFlowPayEntitlement({
-      type: "pro_subscription",
-      tier_upgrade: "HACK_OR_TYPO"
-    }, plans);
-    assert.notStrictEqual(entitlement.tierUpgrade, "paid_pro", "VULNERABILITY: Defaulting to paid_pro on invalid input");
-  });
+  describe("Normalization Functions", () => {
+    test("normalizePlanPriceToCents converts Reais to Cents", () => {
+      assert.strictEqual(normalizePlanPriceToCents(49), 4900);
+      assert.strictEqual(normalizePlanPriceToCents("49.00"), 4900);
+      assert.strictEqual(normalizePlanPriceToCents("49,00"), 4900);
+      assert.strictEqual(normalizePlanPriceToCents(49.9), 4990);
+    });
 
-  await t.test("DATA INTEGRITY: should handle missing package values gracefully", () => {
-    const entitlement = resolveFlowPayEntitlement({
-      type: "tokens_purchase",
-      packageId: "NON_EXISTENT"
-    }, plans);
-    // tokens=0 por package ausente → barrado como unknown (hardening 2026-05-06)
-    assert.strictEqual(entitlement.kind, "unknown");
-    assert.strictEqual(entitlement.tokens, 0);
-    assert.strictEqual(entitlement.tierUpgrade, null);
-  });
+    test("normalizePlanPriceToCents returns null for invalid values", () => {
+      assert.strictEqual(normalizePlanPriceToCents(null), null);
+      assert.strictEqual(normalizePlanPriceToCents(0), null);
+      assert.strictEqual(normalizePlanPriceToCents(-10), null);
+      assert.strictEqual(normalizePlanPriceToCents("abc"), null);
+    });
 
-  await t.test("DATA INTEGRITY: should handle invalid token strings", () => {
-    const entitlement = resolveFlowPayEntitlement({
-      type: "tokens_purchase",
-      tokens: "invalid_string"
-    }, plans);
-    // tokens=NaN/0 em token_purchase → barrado como unknown (hardening 2026-05-06)
-    assert.strictEqual(entitlement.kind, "unknown");
-    assert.strictEqual(entitlement.tokens, 0);
-  });
+    test("normalizeFlowPayAmountToCents converts Reais to Cents", () => {
+      assert.strictEqual(normalizeFlowPayAmountToCents(49), 4900);
+      assert.strictEqual(normalizeFlowPayAmountToCents("49.00"), 4900);
+      assert.strictEqual(normalizeFlowPayAmountToCents("49,00"), 4900);
+    });
 
-  await t.test("SECURITY: metadata.type ausente retorna unknown, não subscription", () => {
-    const entitlement = resolveFlowPayEntitlement({ packageId: "1k" }, plans);
-    assert.strictEqual(entitlement.kind, "unknown",
-      "VULNERABILITY: metadata sem type não deve cair em subscription silenciosa");
-    assert.strictEqual(entitlement.tierUpgrade, null);
-    assert.strictEqual(entitlement.tokens, 0);
-  });
-
-  await t.test("SECURITY: token_purchase com tokens=0 retorna unknown", () => {
-    const entitlement = resolveFlowPayEntitlement({ type: "tokens_purchase", tokens: 0 }, plans);
-    assert.strictEqual(entitlement.kind, "unknown",
-      "VULNERABILITY: token_purchase com tokens=0 não deve ser concedido");
+    test("normalizeFlowPayAmountToCents returns null for invalid values", () => {
+      assert.strictEqual(normalizeFlowPayAmountToCents(null), null);
+      assert.strictEqual(normalizeFlowPayAmountToCents(0), null);
+      assert.strictEqual(normalizeFlowPayAmountToCents(-10), null);
+    });
   });
 });

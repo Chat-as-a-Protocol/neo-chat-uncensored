@@ -31,20 +31,11 @@ const findPackageByMetadata = (metadata, packages) => {
   ) || null;
 };
 
-const findProductByMetadata = (metadata, products) => {
-  const productId = String(metadata.productId || metadata.product_id || metadata.product || "").trim();
-  if (productId && products[productId]) return products[productId];
 
-  const personaId = String(metadata.personaId || metadata.persona_id || "").trim();
-  if (!personaId) return null;
-
-  return Object.values(products).find((product) => product.persona_id === personaId) || null;
-};
 
 export const deriveFlowPayMetadataFromReference = (reference = "", plans = {}) => {
   const safePlans = plans || {};
   const packages = safePlans.packages || {};
-  const products = safePlans.products || {};
   const value = String(reference || "");
 
   const tokenPrefix = "nox_tokens_";
@@ -60,25 +51,7 @@ export const deriveFlowPayMetadataFromReference = (reference = "", plans = {}) =
         packageId,
         tokens: selectedPackage.tokens,
         price: selectedPackage.price,
-        tierUpgrade: selectedPackage.tier_upgrade,
-      };
-    }
-  }
-
-  const productPrefix = "nox_product_";
-  if (value.startsWith(productPrefix)) {
-    const productId = Object.keys(products).find((id) =>
-      value.startsWith(`${productPrefix}${id}_`),
-    );
-    const selectedProduct = productId ? products[productId] : null;
-
-    if (selectedProduct) {
-      return {
-        type: "product_purchase",
-        productId,
-        personaId: selectedProduct.persona_id,
-        price: selectedProduct.price,
-        tierUpgrade: selectedProduct.tier_upgrade,
+        tierUpgrade: selectedPackage.tier,
       };
     }
   }
@@ -86,28 +59,83 @@ export const deriveFlowPayMetadataFromReference = (reference = "", plans = {}) =
   return {};
 };
 
-export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
-  if (!metadata || typeof metadata !== "object") {
-    console.error("[Payments] Error: resolveFlowPayEntitlement called with null/invalid metadata");
+export const resolveCanonicalFlowPayReference = (data = {}, plans = {}) => {
+  const safePlans = plans || {};
+  const packages = safePlans.packages || {};
+  const candidates = [
+    data?.reference,
+    data?.orderId,
+    data?.id_transacao,
+    data?.chargeId,
+    data?.metadata?.reference,
+    data?.metadata?.chargeId,
+    data?.paymentId,
+    data?.id,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (!value) continue;
+
+    const metadata = deriveFlowPayMetadataFromReference(value, safePlans);
+    if (metadata.packageId && packages[metadata.packageId]) return value;
+  }
+
+  return null;
+};
+
+const parseBrlMajorUnit = (value) => {
+  if (typeof value === "string") {
+    return Number(value.replace(",", "."));
+  }
+  return Number(value);
+};
+
+export const normalizePlanPriceToCents = (price) => {
+  if (price === null || price === undefined) return null;
+  const p = parseBrlMajorUnit(price);
+  if (!Number.isFinite(p) || p <= 0) return null;
+  return Math.round(p * 100);
+};
+
+export const normalizeFlowPayAmountToCents = (amountBrl) => {
+  if (amountBrl === null || amountBrl === undefined) return null;
+  const p = parseBrlMajorUnit(amountBrl);
+  if (!Number.isFinite(p) || p <= 0) return null;
+  return Math.round(p * 100);
+};
+
+export const resolveFlowPayEntitlement = (trustedMetadata = {}, _externalMetadata = {}, plans = {}) => {
+  if (!trustedMetadata || typeof trustedMetadata !== "object") {
+    console.error("[Payments] Error: resolveFlowPayEntitlement called with null/invalid trustedMetadata");
     return { kind: "unknown", tokens: 0, tierUpgrade: null, packageId: null };
   }
 
   const safePlans = plans || {};
   const packages = safePlans.packages || {};
-  const products = safePlans.products || {};
 
-  // Sem type explícito → desconhecido. Não assume subscription por default.
-  const purchaseType = String(metadata.type || "").toLowerCase();
+  // Sem type explícito → desconhecido.
+  const purchaseType = String(trustedMetadata.type || "").toLowerCase();
   if (!purchaseType) {
-    console.warn("[Payments] resolveFlowPayEntitlement: metadata.type ausente, retornando unknown.");
+    console.warn("[Payments] resolveFlowPayEntitlement: trustedMetadata.type ausente, retornando unknown.");
     return { kind: "unknown", tokens: 0, tierUpgrade: null, packageId: null };
   }
 
   if (TOKEN_PURCHASE_TYPES.has(purchaseType)) {
-    const selectedPackage = findPackageByMetadata(metadata, packages);
-    const tokens = parsePositiveInt(metadata.tokens, parsePositiveInt(selectedPackage?.tokens));
+    const selectedPackage = findPackageByMetadata(trustedMetadata, packages);
+
+    // Autoridade de tokens: Pacote > Derivado
+    const tokens = parsePositiveInt(
+      selectedPackage?.tokens,
+      parsePositiveInt(trustedMetadata.tokens)
+    );
+
+    // Autoridade de Tier: Pacote (Novo) > Pacote (Legado) > Derivado (Novo) > Derivado (Legado)
     const tierUpgrade = normalizeTierUpgrade(
-      metadata.tierUpgrade || metadata.tier_upgrade || selectedPackage?.tier_upgrade,
+      selectedPackage?.tier ||
+      selectedPackage?.tier_upgrade ||
+      trustedMetadata.tierUpgrade ||
+      trustedMetadata.tier_upgrade
     );
 
     // tokens <= 0 em token_purchase é dado inválido — barrar aqui antes do webhook
@@ -120,36 +148,17 @@ export const resolveFlowPayEntitlement = (metadata = {}, plans = {}) => {
       kind: "token_purchase",
       tokens,
       tierUpgrade,
-      packageId: selectedPackage?.id || metadata.packageId || metadata.package || null,
+      packageId: selectedPackage?.id || trustedMetadata.packageId || trustedMetadata.package || null,
     };
   }
 
-  const selectedProduct = findProductByMetadata(metadata, products);
-
-  return {
-    kind: "subscription",
-    tokens: 0,
-    tierUpgrade:
-      normalizeTierUpgrade(
-        metadata.tierUpgrade ||
-          metadata.tier_upgrade ||
-          selectedProduct?.tier_upgrade ||
-          metadata.plan,
-      ) || null, // REMOVED FAIL-OPEN: No longer defaults to paid_pro on invalid data
-    packageId: null,
-    productId:
-      selectedProduct?.id ||
-      metadata.productId ||
-      metadata.product_id ||
-      metadata.product ||
-      null,
-    personaId: selectedProduct?.persona_id || metadata.personaId || metadata.persona_id || null,
-  };
+  return { kind: "unknown", tokens: 0, tierUpgrade: null, packageId: null };
 };
 
 export const paymentService = {
   resolveEntitlement: resolveFlowPayEntitlement,
   deriveMetadataFromReference: deriveFlowPayMetadataFromReference,
+  resolveCanonicalReference: resolveCanonicalFlowPayReference,
 
   async recordFlowPayPayment({
     providerReference,

@@ -1,5 +1,5 @@
 -- ========================================
---      NΞØ · DATABASE SCHEMA (V1.0)
+--      NØX · DATABASE SCHEMA (V1.0)
 -- ========================================
 
 -- Habilitar extensão para UUIDs se necessário

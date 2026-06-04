@@ -6,7 +6,7 @@
           NØX · TECHNICAL MEMORY
 ========================================
 Status: active
-Updated: 2026-05-06
+Updated: 2026-06-04
 ========================================
 ```
 
@@ -15,7 +15,8 @@ Updated: 2026-05-06
 - Marca: `NØX` (Soberania Digital e Autonomia Implacável).
 - Repositório Canônico: Gitea (`gitea.com/noxia/changeman`).
 - Domínios: `noxai.chat` (App), `api.noxai.chat` (API).
-- Persona P.R.Ø: Protocolo de Risco Otimizado (Foco em ROI e Exploração de Sistemas).
+- Plano P.R.Ø: Risco Otimizado (Foco em ROI e Exploração de Sistemas).
+- Manifest ativo único: `src/content/manifests/nox.md`; `analyst.md` foi desativado/removido.
 - Auth: Suporte a Magic Link sem senha (DB permite `password_hash` NULL).
 - Quotas: Proteção contra race-conditions via `redis.incr` atômico.
 - SSE: Buffer de linha no backend para garantir precisão no faturamento de tokens.
@@ -152,6 +153,161 @@ Correção:
 Resultado: PIX gerado com sucesso — `chargeId`, `brCode`, `qrCode` e `status: ACTIVE` retornados. QR renderizado na UI `/upgrade`.
 Regra: A `FLOWPAY_API_KEY` no NØX deve sempre bater com `FLOWPAY_INTERNAL_API_KEY` do Cloudflare Worker `flowpay-api`.
 
+### Falha de Webhook e Desajuste de Rota (2026-05-08)
+
+Sintoma: Webhooks do FlowPay não eram processados pelo Chat após pagamento PIX real.
+Causa 1: O Chat esperava o webhook em `/api/webhooks/flowpay`, mas o Nexus está configurado no `ecosystem.json` para enviar para `/webhooks/flowpay` (sem o prefixo `/api`).
+Causa 2: Após ajuste da rota, a requisição falhou com `401 Unauthorized` devido a `Missing signature`. O chat não encontrou `x-nexus-signature` nem `x-flowpay-signature` nos headers enviados pelo Nexus.
+Causa 3: A tela `/upgrade` não faz polling, dependendo exclusivamente do webhook invisível para saber quando redirecionar.
+Regra: O fluxo canônico é `Provider -> FlowPay -> Nexus -> Chat`. O chat deve estar preparado para receber do Nexus na rota combinada no `ecosystem.json`.
+
+### Auth Sync — cookie guest não vence token real (2026-05-11)
+
+Sintoma: `/account` podia mostrar `Guest Mode` e `Usuário` mesmo após cadastro/login quando um cookie guest antigo coexistia com token real em `localStorage`.
+Causa: Os clientes priorizavam o cookie `nox_token` sem diferenciar token guest de token identificado.
+Correção:
+- `account.astro`, `AstroChatInterface.astro` e `upgrade.astro` selecionam token não-guest quando cookie guest e token real coexistem.
+- Token real é promovido de volta para cookie para manter SSR e JS sincronizados.
+- `/api/usage` retorna `name` e `email` sanitizado; `/account` renderiza ambos.
+Regra: Cookies continuam sendo fonte de verdade do SSR, mas um cookie guest não pode sobrepor sessão identificada local válida.
+
+### PNPM/Railway — overrides no workspace (2026-05-11)
+
+Sintoma: Railway falhava em `pnpm install --prod --frozen-lockfile` com `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
+Causa: `pnpm@11` compara os `overrides` do lockfile com a config ativa; o stage runtime do Docker copiava `package.json` e `pnpm-lock.yaml`, mas não `pnpm-workspace.yaml`.
+Correção:
+- `overrides` de `fast-uri` e `yaml` ficam em `pnpm-workspace.yaml`.
+- `pnpm-lock.yaml` resolve `yaml` em `2.8.3`.
+- `Dockerfile` copia `pnpm-workspace.yaml` antes do install de produção.
+Regra: Qualquer stage Docker que rode `pnpm install --frozen-lockfile` deve receber `pnpm-workspace.yaml`.
+
+### Manifest Analyst desativado (2026-05-11)
+
+Sintoma: O produto P.R.Ø existia como camada comercial, mas o runtime tinha risco de confundir persona avançada com manifesto separado.
+Causa: `src/content/manifests/analyst.md` carregava contrato próprio e divergente do núcleo NØX.
+Correção:
+- `analyst.md` foi removido.
+- `src/content/manifests/nox.md` permanece como manifesto ativo.
+- `shared/runtime-prompt.md` continua sendo contrato runtime global.
+Regra: Não assumir que P.R.Ø possui manifesto próprio; verificar `src/content/manifests/` antes de alterar personas.
+
+### Redesign Premium do E-mail e Opt-out (2026-05-12)
+
+Sintoma: O template base de e-mails (`renderTemplate`) era básico demais (fundo branco, texto preto), desalinhado com a estética de terminal de luxo do app NØX.
+Causa: Ausência de parametrização de CSS Dark Mode e falta de regras claras de opt-out (exigidas por serviços como o Resend).
+Correção:
+- Implementado layout Dark Mode absoluto com container `#0a0a0c` e bordas discretas.
+- Criação de logotipo topográfico em CSS puro para evitar bloqueio de imagens.
+- Inclusão de rodapé de descadastramento (`Unsubscribe` via mailto) e link direto para as configurações de conta no NØX.
+Regra: Qualquer e-mail transacional ou de campanha enviado pelo sistema ou por serviços integrados (como o Growth System) deve herdar esses tokens de estilo e as opções de opt-out.
+
+### Blindagem do Service Worker (sw.js) (2026-05-13)
+
+Sintoma: O arquivo `sw.js` público listava explicitamente as rotas do sistema (`/ledger`, `/tokens`, etc.) no array `NEVER_CACHE_PATHS`, expondo a superfície de ataque.
+Causa: Uso de "blacklist" de rotas para evitar cache em SSR.
+Correção: Inversão da lógica. O `sw.js` agora usa apenas "whitelist" baseada em extensões de arquivos estáticos (`.js`, `.css`, `.png`, etc.). As rotas do sistema não são mais listadas, ocultando a estrutura do backend de curiosos.
+
+### Topologia NØX Core e Nexus Subscriptions (2026-06-04)
+
+Sintoma: O workspace e os docs misturavam produção atual,
+arquitetura alvo do ecossistema e serviços auxiliares.
+
+Causa: O NØX havia evoluído para produto quase independente,
+mas documentos e exemplos ainda sugeriam múltiplos nós no caminho
+quente de deploy.
+
+Correção:
+- Workspace PNPM ativo reduzido ao NØX:
+  `neo-chat-uncensored` e `neo-chat-uncensored/backend`.
+- Topologia real documentada em `docs/DEPLOY_TOPOLOGY.md`:
+  `FRONTEND`, `backend`, `Postgres`, `Redis`.
+- Resend tratado como provider externo via API,
+  não como serviço Railway obrigatório.
+- `Resend Mail` só deve permanecer se virar nó real,
+  com contrato, health check e responsabilidade própria.
+- Chat runtime permanece interno ao backend NØX para release rápido,
+  mas é candidato a extração futura por API/evento/contrato.
+- `DEPLOYMENT.md` do root virou mapa alvo do ecossistema,
+  não checklist de deploy atual do NØX.
+
+Regra:
+o deploy real atual do NØX é definido por
+`docs/DEPLOY_TOPOLOGY.md`.
+
+### FlowPay via Nexus ecosystem-subscriptions (2026-06-04)
+
+Sintoma: Havia ambiguidade entre Nexus como dependência do NØX
+e Nexus como caller upstream de webhooks.
+
+Causa: O fluxo menciona Nexus,
+mas o NØX não chama Nexus.
+O Nexus faz fan-out server-to-server para consumidores.
+
+Correção:
+- NØX não precisa de `NEXUS_URL`.
+- `ALLOWED_ORIGINS` do Nexus não participa de webhook
+  server-to-server.
+- No Nexus,
+  NØX deve entrar como mais uma subscription em
+  `config/ecosystem.json` / `nexusEvents.subscriptions[]`.
+- Target canônico recomendado:
+  `https://api.noxai.chat/api/webhooks/flowpay`.
+- `/webhooks/flowpay` permanece alias legado/compatível.
+- O segredo de assinatura vem do `secretEnv` da subscription,
+  recomendado como `FLOWPAY_WEBHOOK_SECRET`.
+
+Subscription recomendada:
+
+```json
+{
+  "event": "FLOWPAY:PAYMENT_RECEIVED",
+  "target": {
+    "kind": "webhook",
+    "url": "https://api.noxai.chat/api/webhooks/flowpay"
+  },
+  "secretEnv": "FLOWPAY_WEBHOOK_SECRET"
+}
+```
+
+Regra:
+não substituir targets existentes no Nexus.
+Adicionar NØX como consumidor adicional.
+
+### Reset Password Error Semantics (2026-06-04)
+
+Sintoma: `/auth/reset-password?token=fake` chamava o backend
+e recebia `401 Unauthorized`,
+parecendo falha de sessão.
+
+Causa: Token de reset inválido era respondido como 401,
+mesmo o fluxo não exigindo login.
+
+Correção:
+`POST /api/auth/password-reset/complete`
+responde `400 Invalid token.`
+quando o token de reset não existe ou expirou.
+
+Regra:
+reset de senha não deve exigir Bearer token.
+Token de reset inválido é erro de payload/contrato,
+não falta de autenticação.
+
+────────────────────────────────────────
+
+## ⧉ Frontend Security Boundary (2026-05-12)
+
+O client NØX é **não-soberano por design**.
+
+- Não contém segredos.
+- Não contém chaves operacionais.
+- Não contém system prompt crítico.
+- Não decide billing, crédito, ledger ou autorização real.
+- Renderiza estado recebido do backend.
+- Pode bloquear visualmente interações, mas o backend é a fonte soberana.
+- Build de produção usa `sourcemap: false`, `minify: "terser"` e `drop_console: true`.
+
+Qualquer lógica crítica de acesso, crédito, cobrança, pagamento, token, quota ou permissão deve permanecer exclusivamente no backend/ledger.
+
 ────────────────────────────────────────
 
 ## ⨷ Regras Práticas
@@ -163,4 +319,13 @@ Regra: A `FLOWPAY_API_KEY` no NØX deve sempre bater com `FLOWPAY_INTERNAL_API_K
 - **HTTP 402**: Saldo insuficiente de crédito comprado retorna 402, não 403.
 - **balanceAfter**: `addEntry` sempre retorna saldo pós-debit. Não usar `req.ledgerBalance - tokens` como estimativa de saldo restante.
 - **kind:unknown**: `resolveFlowPayEntitlement` retorna `kind: "unknown"` para metadata incompleto ou tokens inválidos. Webhook deve rejeitar entitlement desconhecido.
+- **Auth token precedence**: cookie guest não deve vencer token identificado válido em `localStorage`.
+- **pnpm overrides**: manter overrides em `pnpm-workspace.yaml`; Docker runtime precisa copiar esse arquivo antes de `pnpm install --frozen-lockfile`.
+- **Deploy atual**: caminho quente é NØX frontend/backend;
+  irmãos ficam fora de install/check/build do release rápido.
+- **Resend**: provider externo via backend.
+  Não tratar `Resend Mail` Railway como obrigatório.
+- **Nexus fan-out**: NØX é consumer em
+  `nexusEvents.subscriptions[]`.
+  CORS não participa de webhook server-to-server.
 - **Deploy**: Realizar `git push origin main` + `railway up` para sincronizar produção.

@@ -1,96 +1,94 @@
 {
   "tiers": {
     "guest": {
-      "name": "Guest Mode",
-      "limit": 500,
-      "messageLimit": 3,
-      "maxOutputTokens": 384,
+      "name": "Guest",
+      "initialBalance": 500,
+      "maxOutputTokens": 184,
       "benefits": [
-        "3 interacoes gratuitas",
-        "Resposta compacta",
-        "Sem cadastro inicial",
-        "Degustacao controlada"
+        "Acesso sem cadastro",
+        "500 tokens iniciais",
+        "Respostas compactas",
+        "Histórico não persistido"
       ]
     },
     "free": {
-      "name": "Identified User",
-      "limit": 1000,
-      "messageLimit": null,
-      "maxOutputTokens": 1024,
+      "name": "Identified",
+      "initialBalance": 1000,
+      "maxOutputTokens": 324,
       "benefits": [
-        "Acesso identificado",
-        "Historico salvo",
-        "Limite de tokens ampliado",
-        "Sem barreira de mensagens"
+        "Cadastro confirmado",
+        "1.000 tokens de boas-vindas",
+        "Histórico salvo em conta",
+        "Acesso a Personas básicas"
       ]
     },
     "paid_basic": {
-      "name": "Identified User",
-      "limit": 5000,
-      "messageLimit": null,
-      "maxOutputTokens": 1200
+      "name": "Paid Basic",
+      "initialBalance": 0,
+      "maxOutputTokens": 1024,
+      "benefits": [
+        "Créditos acumulativos via Ledger",
+        "Limite de saída expandido para 1024 tokens"
+      ]
     },
     "paid_pro": {
-      "name": "EL CHAPO 亗",
-      "limit": 10000,
-      "messageLimit": null,
-      "maxOutputTokens": 4096
-    }
-  },
-  "products": {
-    "pro_analyst": {
-      "id": "pro_analyst",
-      "name": "P.R.Ø",
-      "persona_id": "analyst",
-      "category": "business",
-      "price": 499,
-      "tier_upgrade": "paid_pro",
+      "name": "Paid Pro",
+      "initialBalance": 0,
+      "maxOutputTokens": 4096,
       "benefits": [
-        "Acesso ao núcleo de arquitetura do NØX",
-        "Suporte dev para ajudar na leitura fria de risco, ROI e oportunidade",
-        "Diagnóstico e testes para definir os próximos movimentos claros",
-        "Para enxergar o mapa antes de mover a peça"
+        "Acesso ao arquiteto de NØX.ai",
+        "Maior limite de saída (4096 tokens)"
       ]
     }
   },
   "packages": {
     "1k": {
-      "id": "1k",
       "name": "† NEØ †",
       "tokens": 1000,
       "price": 49,
-      "access_level": "credits",
-      "tier_upgrade": "paid_basic",
+      "tier": "paid_basic",
+      "maxOutputTokens": 548,
       "benefits": [
-        "1.000 créditos para sair do modo visitante",
-        "Primeira camada real de execução com o NØX",
-        "Ideal para converter perguntas em direção real"
+        "1.000 tokens de créditos",
+        "Histórico do chat salvo",
+        "Respostas detalhadas liberadas"
       ]
     },
     "5k": {
-      "id": "5k",
       "name": "× VOID.ᴇxᴇ ×",
       "tokens": 5000,
       "price": 79,
-      "access_level": "credits",
-      "tier_upgrade": "paid_basic",
+      "tier": "paid_basic",
+      "maxOutputTokens": 824,
       "benefits": [
-        "5.000 créditos para atravessar barreiras rasas",
-        "Mais margem para clarear dúvidas, decisões e roadmap",
-        "Feito para quem quer extrair mais do NØX"
+        "5.000 tokens de créditos",
+        "Histórico do chat salvo",
+        "Ideal para projetos de médio prazo"
       ]
     },
     "10k": {
-      "id": "10k",
-      "name": "EL CHAPO 亗",
+      "name": "∅ DARKNET ∅",
       "tokens": 10000,
       "price": 149,
-      "access_level": "credits",
-      "tier_upgrade": "paid_basic",
+      "tier": "paid_basic",
+      "maxOutputTokens": 1024,
       "benefits": [
-        "10.000 créditos para operar em modo detalhado",
-        "Mais espaço para refazer, reorganizar e refinar seus projetos",
-        "Ideal para transformar ideias em sistema completo"
+        "10.000 tokens de créditos",
+        "Histórico do chat salvo",
+        "Volume máximo para projetos completos"
+      ]
+    },
+    "40k": {
+      "name": "P.R.Ø",
+      "tokens": 40000,
+      "price": 499,
+      "tier": "paid_pro",
+      "maxOutputTokens": 4096,
+      "benefits": [
+        "Acesso ao arquiteto de NØX.ai",
+        "Leitura fria de risco, ROI e oportunidade",
+        "Diagnóstico estratégico de movimentos",
+        "Para enxergar o mapa antes de mover a peça"
       ]
     }
   }

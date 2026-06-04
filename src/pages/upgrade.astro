@@ -8,8 +8,8 @@ if (!token) {
   return Astro.redirect('/login');
 }
 
-const packages = Object.values(plans.packages);
-const products = Object.values(plans.products || {});
+const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, ...pkg }));
+
 ---
 
 <Layout title="NØX - Upgrade">
@@ -47,32 +47,7 @@ const products = Object.values(plans.products || {});
         ))}
       </section>
 
-      {products.length > 0 && (
-        <section class="plans-stack products-stack" aria-label="Produtos P.R.O">
-          {products.map((product) => (
-            <article class="plan-card is-product">
-              <div class="plan-head">
-                <div>
-                  <span class="badge pro-badge">P.R.O</span>
-                  <h2>{product.name}</h2>
-                  <p>{product.category}</p>
-                </div>
-                <strong class="price">R$ {product.price}</strong>
-              </div>
 
-              <ul class="features">
-                {product.benefits.map((benefit) => (
-                  <li>{benefit}</li>
-                ))}
-              </ul>
-
-              <button onclick={`buyProduct('${product.id}')`} class="btn-token">
-                ATIVAR P.R.O
-              </button>
-            </article>
-          ))}
-        </section>
-      )}
 
       <section class="pix-result" id="pix-result" hidden aria-live="polite">
         <div class="pix-result-head">
@@ -523,6 +498,7 @@ const products = Object.values(plans.products || {});
       : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
     const API_URL = apiUrl;
     const tokenStorageKey = 'nox_token';
+    const tokenCookieMaxAge = 7 * 24 * 60 * 60;
 
     function getCookie(name) {
       const value = `; ${document.cookie}`;
@@ -531,13 +507,48 @@ const products = Object.values(plans.products || {});
       return null;
     }
 
+    function persistAuthToken(token) {
+      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+      localStorage.setItem(tokenStorageKey, token);
+      document.cookie = `${tokenStorageKey}=${token}; path=/; max-age=${tokenCookieMaxAge}; SameSite=Lax${secure}`;
+    }
+
+    function decodeSessionToken(token) {
+      try {
+        const payload = token.split('.')[1];
+        if (!payload) return null;
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+        return JSON.parse(atob(padded));
+      } catch {
+        return null;
+      }
+    }
+
+    function isGuestToken(token) {
+      const session = decodeSessionToken(token);
+      return Boolean(
+        session?.guest ||
+        String(session?.id || '').startsWith('guest_') ||
+        session?.tier === 'guest'
+      );
+    }
+
     function getAuthToken() {
       const cookieToken = getCookie(tokenStorageKey);
+      const storedToken = localStorage.getItem(tokenStorageKey);
+
+      if (cookieToken && storedToken && isGuestToken(cookieToken) && !isGuestToken(storedToken)) {
+        persistAuthToken(storedToken);
+        return storedToken;
+      }
+
       if (cookieToken) {
         localStorage.setItem(tokenStorageKey, cookieToken);
         return cookieToken;
       }
-      return localStorage.getItem(tokenStorageKey);
+
+      return storedToken;
     }
 
     async function readJsonResponse(response) {

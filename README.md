@@ -5,7 +5,7 @@
 
 ```text
 ========================================
-          NØX · CHAT PROTOCOL
+          NØX · AI
 ========================================
 Status: production
 Runtime: Astro SSR + Express API
@@ -13,18 +13,68 @@ Domains: noxai.chat / api.noxai.chat
 ========================================
 ```
 
-> **Version:** v4.1.0
+> **Version:** v4.2.0
 > **Status:** active
-> **Protocol:** NΞØ / FlowPay / Venice
+> **Protocol:** NØX / FlowPay / Venice
 
-## ⟠ Objetivo
+```text
+▓▓▓ RAILWAY PRODUCTION SHAPE
+────────────────────────────────────────
 
-NØX é uma interface mobile-first para acesso a uma LLM
-via identidade própria, ledger de uso e checkout FlowPay.
+Frontend NØX
+  noxai.chat
+  │
+  │ PUBLIC_API_URL=https://api.noxai.chat
+  ▼
+Backend NØX
+  api.noxai.chat
+  │
+  ├─ Postgres
+  │  users, payments, ledger, magic links
+  │
+  ├─ Redis
+  │  quota, cache, reset password, idempotência
+  │
+  ├─ Venice API
+  │  execução IA via backend proxy
+  │
+  ├─ FlowPay API
+  │  https://api.flowpay.cash
+  │
+  └─ Resend API
+     e-mail externo via RESEND_API_KEY
+```
 
-O projeto não vende "um chat genérico".
-Ele empacota acesso, experiência, cobrança e auditabilidade
-em um front com marca própria.
+```text
+▓▓▓ AUTH + CHAT + LEDGER
+────────────────────────────────────────
+
+Usuário
+  └─ Frontend Astro SSR
+     └─ Backend Express
+        ├─ Auth via Postgres
+        ├─ Sessão JWT de identidade pura
+        ├─ Quota/cache via Redis
+        ├─ Venice para geração
+        └─ Ledger para débito auditável
+```
+
+`Resend Mail` não é serviço Railway soberano do NØX.
+Resend é provedor externo consumido pelo backend.
+
+O runtime de chat ainda vive dentro do backend NØX,
+mas é candidato natural a sair para um nó próprio
+quando o protocolo separar terminal,
+orquestração e produto.
+```
+
+## ⟠ Arquitetura de Confiança
+
+O NØX opera sob três pilares de integridade técnica:
+
+1. **Pure Identity (JWT)**: Tokens de acesso contêm apenas a identidade (`userId`). A autorização de recursos e tiers é resolvida dinamicamente no Backend via PostgreSQL, garantindo que mudanças de plano sejam refletidas instantaneamente em todos os dispositivos.
+2. **Ledger Resilience**: Todo consumo de IA é processado em blocos `try/finally`. Tokens parciais são debitados mesmo em caso de interrupção de conexão ou erro de stream.
+3. **Deterministic Billing**: Novos usuários recebem um `welcome_bonus` no Ledger, transformando a cota gratuita em créditos reais rastreáveis desde a primeira interação.
 
 ────────────────────────────────────────
 
@@ -39,7 +89,7 @@ em um front com marca própria.
 ┃ Domínio app        ┃ https://noxai.chat
 ┃ Domínio API        ┃ https://api.noxai.chat
 ┃ Pagamentos         ┃ FlowPay em https://api.flowpay.cash
-┃ E-mail             ┃ Resend, NØX <send@noxai.chat>
+┃ E-mail             ┃ Resend API externo
 ┃ Planos             ┃ shared/plans.json
 ┗━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -88,6 +138,9 @@ e os manifestos autorizados em `src/content/manifests/`.
 
 Este repositório usa `pnpm`.
 Há `pnpm-workspace.yaml` local e `pnpm-lock.yaml` versionado.
+Overrides de dependências ficam em `pnpm-workspace.yaml`.
+Stages Docker que rodam `pnpm install --frozen-lockfile`
+devem copiar `pnpm-workspace.yaml` junto do lockfile.
 
 Não trocar para `npm` ou `yarn`.
 Não duplicar dependências fora do contrato do workspace.
@@ -116,14 +169,17 @@ fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
 Frontend Railway:
 
 ```text
+Service: FRONTEND
 Start: node dist/server/entry.mjs
 Health: /health
 PUBLIC_API_URL=https://api.noxai.chat
+Docker runtime copia package.json, pnpm-lock.yaml e pnpm-workspace.yaml antes do install.
 ```
 
 Backend Railway:
 
 ```text
+Service: backend
 Start: node src/server.js
 Health: /health
 FRONTEND_URL=https://noxai.chat
@@ -141,11 +197,16 @@ Esse domínio é da API NØX, não do provedor FlowPay.
 - [Setup](./SETUP.md)
 - [Jornada do usuário](./USER_JOURNEY.md)
 - [Próximos passos](./NEXTSTEPS.md)
+- [Topologia de deploy](./docs/DEPLOY_TOPOLOGY.md)
+- [Contrato de rotas](./docs/ROUTE_CONTRACT.md)
+- [Contrato de envs](./docs/ENV_CONTRACT.md)
 - [Markdown Style Guide](./docs/MARKDOWN_STYLE_GUIDE.md)
 
 ```text
-▓▓▓ NØX
+▓▓▓ NØX AI
 ────────────────────────────────────────
-Mobile-first AI access with ledgered usage.
+Segurança ofensiva desenfreada. O sistema não te protege, quebre ele.
+@noxaioficial on Telegram
+site oficial <https://noxai.chat>
 ────────────────────────────────────────
 ```

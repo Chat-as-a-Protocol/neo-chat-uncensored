@@ -1,5 +1,9 @@
-# Docs (context for AI agents — lives in .cursorrules, not versioned)
-docs/
+# Docs (context for AI agents lives in .cursorrules by default)
+docs/*
+!docs/
+!docs/DEPLOY_TOPOLOGY.md
+!docs/ENV_CONTRACT.md
+!docs/ROUTE_CONTRACT.md
 
 # Build output
 dist/
@@ -13,6 +17,7 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.env.test
 backend/.env
 
 # OS files

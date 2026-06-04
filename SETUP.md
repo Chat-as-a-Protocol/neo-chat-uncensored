@@ -60,6 +60,81 @@ neo-chat-uncensored/
 ┗━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+```text
+▓▓▓ RAILWAY ATUAL
+────────────────────────────────────────
+
+┏ FRONTEND
+├─ Domínio
+│  https://noxai.chat
+├─ Health
+│  GET /health
+└─ Chama
+   https://api.noxai.chat
+
+┏ backend
+├─ Domínio
+│  https://api.noxai.chat
+├─ Health
+│  GET /health
+├─ Usa
+│  Postgres
+│  Redis
+├─ Chama
+│  Venice API
+│  FlowPay API
+│  Resend API
+└─ Recebe
+   FlowPay/Nexus webhooks
+```
+
+`Resend Mail`, quando existir no Railway como starter,
+não é parte obrigatória do deploy NØX.
+
+O backend envia e-mails diretamente via Resend API.
+Só manter um serviço próprio de mail se ele possuir código
+e contrato soberano reais.
+
+Contrato visual detalhado:
+`docs/DEPLOY_TOPOLOGY.md`.
+
+────────────────────────────────────────
+
+## ◯ Fluxo Auth + Chat + Venice + Ledger
+
+Usuário
+  │
+  ├─ 1) Auth
+  │     POST /api/auth/signup|login
+  │     → valida credenciais
+  │     → (signup) cria user e bônus inicial no ledger
+  │     → emite JWT
+  ▼
+Backend NØX (Express)
+  │
+  ├─ 2) Chat
+  │     POST /api/chat (Bearer JWT)
+  │     → authenticateToken (JWT + Postgres)
+  │     → rate limit por usuário (Redis)
+  │     → checkQuota (plans.json + ledger)
+  │     → monta prompt (runtime-prompt + persona)
+  ▼
+Venice API
+  │
+  ├─ 3) Resposta IA
+  │     → stream SSE ou JSON
+  │     → backend conta tokens (usage ou texto)
+  ▼
+Ledger (ledgerService)
+  │
+  ├─ 4) Débito
+  │     → addEntry(userId, -tokens, TOKEN_CONSUMPTION)
+  │     → se créditos insuficientes: 402
+  │     → se ok: segue resposta da IA
+  ▼
+Usuário
+  → recebe resposta com cobrança já aplicada no ledger
+
 ────────────────────────────────────────
 
 ## ⨷ Comandos
@@ -81,7 +156,7 @@ fnm exec --using v25.9.0 pnpm build
 fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
 ```
 
-Proteçao de chaves:
+Proteção de chaves:
 
 ```bash
 echo ".env" >> .gitignore
@@ -136,6 +211,9 @@ Responsabilidades:
 
 ## ⍟ Variáveis
 
+Contrato canônico de nomes e responsabilidades:
+`docs/ENV_CONTRACT.md`.
+
 Backend Railway:
 
 ```env
@@ -149,10 +227,14 @@ FRONTEND_URL=https://noxai.chat
 FLOWPAY_API_URL=https://api.flowpay.cash
 FLOWPAY_API_KEY=...   # deve ser idêntica a FLOWPAY_INTERNAL_API_KEY do Cloudflare Worker flowpay-api
 FLOWPAY_WEBHOOK_SECRET=...
-RESEND_API_KEY=${{Resend Mail.RESEND_API_KEY}}
+RESEND_API_KEY=...
 RESEND_FROM_EMAIL=NØX <send@noxai.chat>
 MAGIC_LINK_EXPIRATION_MINUTES=10
 ```
+
+`RESEND_API_KEY` é secret do backend.
+Não depende de um serviço Railway chamado `Resend Mail`,
+salvo se esse serviço for formalizado como nó de mail.
 
 Frontend Railway:
 
@@ -203,6 +285,33 @@ mas são normalizados antes de aplicar regra de acesso.
 - Ledger usa idempotência por referência de pagamento.
 - FlowPay service rejeita resposta HTML e URL apontando
   para o próprio app.
+- Resend é provider externo.
+  E-mail não roda no frontend nem exige serviço Railway próprio.
+
+────────────────────────────────────────
+
+## ⧉ Testes Ponta-a-Ponta (Playwright)
+
+Para garantir que o fluxo do usuário (login, chat, etc.) não quebre, usamos o Playwright para testes E2E.
+
+### Instalação
+
+Como o ambiente de desenvolvimento precisa baixar os navegadores do Playwright, você deve instalar as dependências e os binários na sua máquina local:
+
+```bash
+pnpm add -D @playwright/test -w
+pnpm exec playwright install
+```
+
+### Como Rodar
+
+Para rodar os testes simulando o usuário no navegador:
+
+```bash
+npx playwright test
+```
+
+Os testes ficam localizados na pasta `tests/`.
 
 ────────────────────────────────────────
 

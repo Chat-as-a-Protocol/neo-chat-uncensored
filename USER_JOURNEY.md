@@ -6,11 +6,14 @@
           NØX · USER JOURNEY
 ========================================
 Status: release candidate
-Version: v4.1.0
+Version: v4.2.0
 ========================================
 ```
 
 ## ⧉ Mapa de Rotas
+
+Contrato canônico:
+`docs/ROUTE_CONTRACT.md`.
 
 ```text
 ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -20,12 +23,12 @@ Version: v4.1.0
 ┃ /login             ┃ Pública      ┃ Login e magic link
 ┃ /signup            ┃ Pública      ┃ Criação de conta identificada
 ┃ /auth/magic-link   ┃ Pública      ┃ Consumo do token de e-mail
-┃ /precos            ┃ Pública      ┃ Vitrine de preços
+┃ /pricing           ┃ Pública      ┃ Vitrine de preços
 ┃ /upgrade           ┃ Restrita     ┃ Pacotes pagos e P.R.O
-┃ /conta             ┃ Restrita     ┃ Conta, uso e saldo
+┃ /account           ┃ Restrita     ┃ Conta, uso, nome e e-mail
 ┃ /success           ┃ Restrita     ┃ Retorno pós-FlowPay
-┃ /privacy-policy    ┃ Pública      ┃ Obrigação legal
-┃ /terms-and-conditions ┃ Pública   ┃ Obrigação legal
+┃ /privacy           ┃ Pública      ┃ Obrigação legal
+┃ /terms             ┃ Pública      ┃ Obrigação legal
 ┗━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -59,6 +62,7 @@ Fluxos:
 - cadastro em `/signup`
 - magic link via Resend
 - token persistido como `nox_token`
+- cookie guest antigo não deve vencer token identificado válido
 
 Depois disso,
 o usuário pode comprar pacote de tokens ou produto P.R.O.
@@ -72,7 +76,7 @@ O runtime prompt público é responsável, defensivo e auditável.
 
 ## ⧖ Upgrade
 
-`/precos` é público e mostra valores antes do cadastro.
+`/pricing` é público e mostra valores antes do cadastro.
 
 `/upgrade` não exibe o conteúdo do Guest Mode.
 `/upgrade` é a superfície de ativação para usuário identificado.
@@ -119,7 +123,46 @@ Resultado esperado:
 - pagamento persistido em `payments`
 - crédito registrado no ledger
 - tier atualizado quando aplicável
-- e-mail de confirmação enviado via Resend
+- e-mail de confirmação enviado via Resend API
+
+Resend é provedor externo.
+
+Ele não exige serviço Railway próprio chamado `Resend Mail`
+para que o fluxo de usuário funcione.
+
+────────────────────────────────────────
+
+## ◬ Chat Runtime
+
+Hoje,
+o chat é entregue pelo backend NØX.
+
+Fluxo atual:
+
+```text
+Frontend NØX
+  └─ POST /api/chat
+     └─ Backend NØX
+        ├─ auth
+        ├─ quota
+        ├─ Venice
+        └─ ledger debit
+```
+
+Fluxo futuro provável:
+
+```text
+Frontend NØX
+  └─ Backend NØX
+     ├─ auth
+     ├─ entitlement
+     └─ Chat Runtime Node
+```
+
+Essa saída deve preservar ledger e billing no backend soberano.
+
+O novo nó de chat não deve receber autoridade financeira
+nem depender de arquivos compartilhados do NØX.
 
 ────────────────────────────────────────
 
@@ -133,7 +176,7 @@ Resultado esperado:
 └─ Redis para quota, cache, ledger fallback e compatibilidade
 └─ Postgres para usuários identificados, pagamentos e magic links
 └─ FlowPay service rejeita HTML e self-call
-└─ Resend isolado no backend
+└─ Resend API isolada no backend
 └─ Modelo Venice definido por `VENICE_MODEL` no backend
 ```
 
@@ -142,10 +185,10 @@ Resultado esperado:
 ## ◬ Próximos Passos
 
 1. Conferir variáveis backend no Railway antes do deploy.
-2. Fazer smoke test pós-deploy: signup, login, guest chat, `/api/usage`, magic link e `/conta`.
+2. Fazer smoke test pós-deploy: signup, login, guest chat, `/api/usage`, magic link e `/account`.
 3. Validar compra real ponta a ponta em produção.
 4. Confirmar webhook FlowPay via Nexus.
-5. Refinar UX do statement de ledger em `/conta`.
+5. Refinar UX do statement de ledger em `/account`.
 
 ```text
 ▓▓▓ NØX

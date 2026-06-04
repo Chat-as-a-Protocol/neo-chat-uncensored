@@ -1,4 +1,4 @@
-const CACHE_NAME = "nox-chat-v7";
+const CACHE_NAME = "nox-chat-v667";
 
 const ASSETS_TO_CACHE = [
   "/manifest.json",
@@ -10,27 +10,11 @@ const ASSETS_TO_CACHE = [
   "/pwaicon/icon-512.png",
 ];
 
-const NEVER_CACHE_PATHS = [
-  "/api",
-  "/auth",
-  "/login",
-  "/account",
-  "/upgrade",
-  "/ledger",
-  "/usage",
-  "/chat",
-  "/tokens",
-  "/checkout",
-];
 
-function shouldNeverCache(url) {
-  return NEVER_CACHE_PATHS.some((path) => url.pathname.startsWith(path));
-}
 
 function isStaticAsset(request, url) {
   if (request.method !== "GET") return false;
   if (url.origin !== self.location.origin) return false;
-  if (shouldNeverCache(url)) return false;
 
   return (
     url.pathname.endsWith(".js") ||
@@ -77,9 +61,7 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (shouldNeverCache(url)) {
-    return;
-  }
+
 
   if (!isStaticAsset(request, url)) {
     return;

@@ -1,4 +1,5 @@
 const DEFAULT_FLOWPAY_API_URL = "https://api.flowpay.cash";
+const FORBIDDEN_FLOWPAY_API_HOSTS = new Set(["api.noxai.chat"]);
 
 const normalizeBaseUrl = (value) =>
   String(value || DEFAULT_FLOWPAY_API_URL)
@@ -51,6 +52,15 @@ export const resolveFlowPayApiUrl = (env = process.env) => {
     throw new FlowPayApiError("FLOWPAY_API_URL is invalid", {
       statusCode: 503,
     });
+  }
+
+  if (FORBIDDEN_FLOWPAY_API_HOSTS.has(apiHost)) {
+    throw new FlowPayApiError(
+      "FLOWPAY_API_URL must point to FlowPay, never api.noxai.chat",
+      {
+        statusCode: 503,
+      },
+    );
   }
 
   const appHosts = appHostsFromEnv(env).map(hostFromUrl).filter(Boolean);

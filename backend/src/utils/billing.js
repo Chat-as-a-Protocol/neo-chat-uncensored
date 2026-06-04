@@ -1,6 +1,6 @@
 import { getEncoding } from "js-tiktoken";
 
-// Inicializamos o encoder cl100k_base (padrão GPT-4 / Venice)
+// Inicializamos o encoder cl100k_base
 const enc = getEncoding("cl100k_base");
 
 /**

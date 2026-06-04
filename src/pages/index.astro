@@ -7,7 +7,7 @@ import SceneBackground from '../components/SceneBackground.astro';
 // O redirecionamento só acontece se o usuário tentar acessar páginas Pro ou se o componente decidir.
 ---
 
-<Layout title="NØX Uncensored Chat">
+<Layout title="NØX AI">
   <main class="scene-shell">
     <SceneBackground animateLogo={false} />
 
@@ -19,18 +19,18 @@ import SceneBackground from '../components/SceneBackground.astro';
 
     <footer class="scene-footer">
       <div class="footer-links">
-        <a href="/upgrade">UPGRADE</a>
+        <a href="/upgrade" data-label="UPGRADE">UPGRADE</a>
         <span class="dot">·</span>
-        <a href="/pricing">PREÇOS</a>
+        <a href="/pricing" data-label="PREÇOS">PREÇOS</a>
         <span class="dot">·</span>
-        <a href="https://t.me/nox_ia" target="_blank" rel="noopener noreferrer">TELEGRAM</a>
+        <a href="https://t.me/nox_ia" target="_blank" rel="noopener noreferrer" data-label="TELEGRAM">TELEGRAM</a>
         <span class="dot">·</span>
-        <a href="/account">CONTA</a>
+        <a href="/account" data-label="CONTA">CONTA</a>
       </div>
       <div class="footer-legal">
-        <a href="/privacy">PRIVACY</a>
+        <a href="/privacy" data-label="PRIVACY">PRIVACY</a>
         <span class="dot">·</span>
-        <a href="/terms">TERMS</a>
+        <a href="/terms" data-label="TERMS">TERMS</a>
       </div>
     </footer>
   </main>
@@ -72,7 +72,64 @@ import SceneBackground from '../components/SceneBackground.astro';
   }
 
   .scene-footer a {
+    position: relative;
+    display: inline-block;
     opacity: 0.78;
+    transition: opacity 0.2s, color 0.2s;
+  }
+
+  .scene-footer a:hover,
+  .scene-footer a:focus-visible {
+    opacity: 1;
+    color: var(--accent);
+    outline: none;
+  }
+
+  /* Efeito Glitch Ambiente Apenas nos Links Principais */
+  .footer-links a::before,
+  .footer-links a::after {
+    content: attr(data-label);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .footer-links a::before {
+      left: 1px;
+      text-shadow: -1px 0 rgba(255, 255, 255, 0.4);
+      animation: ambient-glitch 30s cubic-bezier(.25, .46, .45, .94) infinite;
+      animation-delay: -27.5s;
+    }
+
+    .footer-links a::after {
+      left: -1px;
+      text-shadow: -1px 0 var(--accent);
+      animation: ambient-glitch-2 30s cubic-bezier(.25, .46, .45, .94) infinite;
+      animation-delay: -27.5s;
+    }
+  }
+
+  @keyframes ambient-glitch {
+    0%, 99%, 100% { opacity: 0; clip-path: inset(0 0 0 0); }
+    99.2% { opacity: 0.8; clip-path: inset(10% 0 80% 0); }
+    99.4% { opacity: 0.8; clip-path: inset(80% 0 10% 0); }
+    99.6% { opacity: 0.8; clip-path: inset(40% 0 40% 0); }
+    99.8% { opacity: 0.8; clip-path: inset(10% 0 60% 0); }
+    99.9% { opacity: 0.8; clip-path: inset(50% 0 30% 0); }
+  }
+
+  @keyframes ambient-glitch-2 {
+    0%, 99%, 100% { opacity: 0; clip-path: inset(0 0 0 0); }
+    99.2% { opacity: 0.8; clip-path: inset(20% 0 60% 0); }
+    99.4% { opacity: 0.8; clip-path: inset(60% 0 20% 0); }
+    99.6% { opacity: 0.8; clip-path: inset(30% 0 50% 0); }
+    99.8% { opacity: 0.8; clip-path: inset(80% 0 10% 0); }
+    99.9% { opacity: 0.8; clip-path: inset(10% 0 80% 0); }
   }
 
   .scene-footer .telegram-link {

@@ -2,6 +2,7 @@
   "name": "neo-chat-uncensored-frontend",
   "type": "module",
   "version": "1.0.0",
+  "packageManager": "pnpm@11.1.0",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -23,11 +24,8 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.8",
+    "@playwright/test": "^1.60.0",
+    "terser": "^5.16.0",
     "typescript": "~5.7.3"
-  },
-  "pnpm": {
-    "overrides": {
-      "yaml": "^2.8.3"
-    }
   }
 }

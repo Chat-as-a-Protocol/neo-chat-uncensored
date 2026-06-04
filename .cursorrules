@@ -3,7 +3,7 @@
 
 ```text
 ========================================
-    NØX · SOVEREIGN PROTOCOL
+    NØX · AI
 ========================================
 Repo:    gitea.com/noxia/changeman
 App:     https://noxai.chat
@@ -95,51 +95,85 @@ Invariantes:
   - token_purchase com tokens ≤ 0 → kind:unknown → webhook rejeita.
 ```
 
-**API `ledgerService`:**
+```text
+▓▓▓ API `ledgerService`
+────────────────────────────────────────
+└─ addEntry(userId, amount, type, ref)
+   Retorno: { id, userId, amount, balanceAfter, ... } ou null
+   Notas: balanceAfter = saldo real pós-insert. null = duplicata.
 
-| Método | Retorno | Notas |
-|---|---|---|
-| `addEntry(userId, amount, type, ref)` | `{ id, userId, amount, type, reference, createdAt, balanceAfter }` ou `null` | `balanceAfter` = saldo real pós-insert (CTE Postgres / soma Redis). `null` = duplicata. |
-| `getBalance(userId)` | `number` | Soma de todos os `amount` do ledger |
-| `hasLedgerBalance(userId)` | `{ has: boolean, balance: number }` | `has = balance > 0` |
-| `hasActiveSubscription(userId)` | `boolean` | Busca entrada `PRO_SUBSCRIPTION` no ledger — não depende de planKey |
-| `getTotalConsumption(userId)` | `number` | Soma absoluta de débitos (TOKEN_CONSUMPTION) |
-| `getDailyUsage(userId, dateStr)` | `number` | Débitos do dia especificado |
-| `getStatement(userId)` | `Entry[]` | Últimas 200 entradas, ordenadas DESC |
+└─ getBalance(userId)
+   Retorno: number
+   Notas: Soma de todos os amount do ledger.
 
-**`LEDGER_TYPES` canônicos:**
+└─ hasLedgerBalance(userId)
+   Retorno: { has: boolean, balance: number }
+   Notas: has = balance > 0
 
-| Tipo | Quem grava | amount |
-|---|---|---|
-| `TOKEN_PURCHASE` | Webhook FlowPay (pacotes 1k/5k/10k) | `+tokens` |
-| `TOKEN_CONSUMPTION` | `/api/chat` após Venice responder | `-tokens` |
-| `PRO_SUBSCRIPTION` | Webhook FlowPay (pro_analyst) | `0` |
+└─ hasActiveSubscription(userId)
+   Retorno: boolean
+   Notas: Busca entrada PRO_SUBSCRIPTION no ledger.
 
-**`resolveFlowPayEntitlement` — kind canônicos:**
+└─ getTotalConsumption(userId)
+   Retorno: number
+   Notas: Soma absoluta de débitos (TOKEN_CONSUMPTION).
 
-| kind | Quando | Ledger entry |
-|---|---|---|
-| `token_purchase` | `metadata.type` ∈ {tokens_purchase, token_purchase} **e** tokens > 0 | `TOKEN_PURCHASE` |
-| `subscription` | `metadata.type` = product_purchase ou pro_subscription | `PRO_SUBSCRIPTION` |
-| `unknown` | type vazio, tokens inválidos, package inexistente | webhook rejeita |
+└─ getDailyUsage(userId, dateStr)
+   Retorno: number
+   Notas: Débitos do dia especificado.
 
-**Semântica dos campos em `req` (chat handler):**
+└─ getStatement(userId)
+   Retorno: Entry[]
+   Notas: Últimas 200 entradas, ordenadas DESC.
+```
 
-| Campo | LEDGER mode | SUBSCRIPTION mode | FREE/GUEST mode |
-|---|---|---|---|
-| `req.availableCredits` | saldo real | `null` | `null` |
-| `req.dailyLimit` | `null` | limite do plano | limite do plano |
-| `req.ledgerBalance` | saldo capturado pré-request | `null` | `null` |
-| `req.quotaMode` | `"ledger"` | `"subscription"` | `"free"` |
+```text
+▓▓▓ `LEDGER_TYPES` CANÔNICOS
+────────────────────────────────────────
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃ TIPO              ┃ QUEM GRAVA                        ┃ AMOUNT ┃
+┣━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━┫
+┃ TOKEN_PURCHASE    ┃ Webhook FlowPay (1k/5k/10k)       ┃ +tokens┃
+┃ TOKEN_CONSUMPTION ┃ /api/chat após Venice responder   ┃ -tokens┃
+┃ PRO_SUBSCRIPTION  ┃ Webhook FlowPay (pro_analyst)     ┃ 0      ┃
+┗━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━┛
+```
+
+```text
+▓▓▓ `resolveFlowPayEntitlement` — KIND CANÔNICOS
+────────────────────────────────────────
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
+┃ KIND           ┃ QUANDO                              ┃ LEDGER ENTRY     ┃
+┣━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━┫
+┃ token_purchase ┃ metadata.type ∈ {tokens_purchase}   ┃ TOKEN_PURCHASE   ┃
+┃ subscription   ┃ product_purchase / pro_subscription ┃ PRO_SUBSCRIPTION ┃
+┃ unknown        ┃ vazio, sem tokens, pacote falso     ┃ webhook rejeita  ┃
+┗━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━┛
+```
+
+```text
+▓▓▓ SEMÂNTICA DOS CAMPOS EM `req` (CHAT HANDLER)
+────────────────────────────────────────
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
+┃ CAMPO                ┃ LEDGER     ┃ SUBSCRIPTION   ┃ FREE / GUEST   ┃
+┣━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━┫
+┃ req.availableCredits ┃ saldo real ┃ null           ┃ null           ┃
+┃ req.dailyLimit       ┃ null       ┃ limite plano   ┃ limite plano   ┃
+┃ req.ledgerBalance    ┃ saldo pré  ┃ null           ┃ null           ┃
+┃ req.quotaMode        ┃ "ledger"   ┃ "subscription" ┃ "free"         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┛
+```
 
 ### 2. CORS (Proibido usar pacotes externos)
 
 ```text
-- NUNCA usar o pacote `cors`. Sempre middleware manual no topo de server.js.
-- allowedOrigins: lista estrita (hardcoded + FRONTEND_URL do env).
-- OPTIONS + isAllowed → 204. OPTIONS sem isAllowed → passa para Express (404/405).
-- Sempre setar Vary: Origin em respostas com origem permitida.
-- helmet({ crossOriginResourcePolicy: false }) — obrigatório.
+▓▓▓ CORS POLICY
+────────────────────────────────────────
+└─ NUNCA usar pacote cors. Middleware manual no topo do server.js.
+└─ allowedOrigins: lista estrita (hardcoded + FRONTEND_URL).
+└─ OPTIONS + isAllowed → 204. Sem isAllowed → passa p/ Express.
+└─ Sempre setar Vary: Origin em respostas com origem permitida.
+└─ helmet({ crossOriginResourcePolicy: false }) — obrigatório.
 ```
 
 ### 3. SSR & Segurança
@@ -173,6 +207,7 @@ Tiers ativos em `shared/plans.json`: `guest`, `free`, `paid_basic`, `paid_pro`.
 
 - Incrementar `CACHE_NAME` em `sw.js` após qualquer mudança em assets estáticos.
 - SW registrado apenas em `import.meta.env.PROD`.
+- Ocultação: O `sw.js` não deve expor rotas do backend. Use regras de cache baseadas em extensões para evitar revelar a estrutura do sistema.
 
 ### 7. Persona Engine
 
@@ -180,6 +215,7 @@ Tiers ativos em `shared/plans.json`: `guest`, `free`, `paid_basic`, `paid_pro`.
 - Cache Redis: 1 hora por manifesto.
 - `tier: pro` → só carrega para usuários `pro`.
 - Runtime prompt: `shared/runtime-prompt.md` — aplicado por último (recency bias).
+- **PROTEÇÃO NØX UNCENSORED:** É ESTRITAMENTE PROIBIDO que qualquer agente altere `include_venice_system_prompt` para `false` no backend ou insira cláusulas de recusa disfarçada (ex: "diga que não tem capacidade", "diga que é impossível") nos manifestos ou `runtime-prompt.md`. O NØX deve ser mantido 100% sem censura, garantindo a permanência do jailbreak da Venice.
 
 ────────────────────────────────────────
 
@@ -223,8 +259,8 @@ make build
 ## ⍟ Fechamento
 
 ```text
-▓▓▓ NØX · SOVEREIGN PROTOCOL
+▓▓▓ NØX · AI
 ────────────────────────────────────────
-"O ledger é a lei. Venice é o executor."
+"O ledger é a lei. NØX é o executor."
 ────────────────────────────────────────
 ```

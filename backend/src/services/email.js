@@ -1,4 +1,5 @@
-const RESEND_API_URL = "https://api.resend.com/emails";
+const RESEND_API_URL =
+  process.env.RESEND_API_URL || "https://api.resend.com/emails";
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "NØX <send@noxai.chat>";
 const FRONTEND_URL = (process.env.FRONTEND_URL || "https://noxai.chat")
   .split(",")[0]
@@ -13,6 +14,27 @@ const escapeHtml = (value = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const formatBrl = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "N/A";
+
+  return amount.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+};
+
+const formatDateTime = (value) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "N/A";
+
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  });
+};
+
 /**
  * Template Base para E-mails NØX (Versão Hardened)
  * Design: BG Black 85%, Acento Verde Limão (#d4ff1a), Estética de Terminal de Luxo
@@ -23,33 +45,75 @@ const escapeHtml = (value = "") =>
  */
 const renderTemplate = (title, content, action = null) => {
   return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111; line-height: 1.6; padding: 20px; background-color: #ffffff;">
-      <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #000; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">
-        ${title}
-      </h2>
-      
-      <div style="font-size: 16px; margin-bottom: 30px;">
-        ${content}
-      </div>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #050505; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <!-- Main Wrapper -->
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #050505; margin: 0; padding: 40px 0;">
+    <tr>
+      <td align="center">
+        <!-- Content Container -->
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 600px; background-color: #0a0a0c; border: 1px solid #1a1a1f; margin: 0 auto;">
+          <tr>
+            <td style="padding: 40px 30px;">
+              
+              <!-- HEADER / LOGO -->
+              <div style="text-align: center; margin-bottom: 40px;">
+                <h1 style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 56px; color: #D7FF64; font-weight: 700; letter-spacing: -0.05em; margin: 0; text-transform: uppercase;">NØX</h1>
+              </div>
 
-      ${
-        action
-          ? `
-        <div style="margin: 30px 0; padding: 20px; background-color: #f9f9f9; border: 1px solid #eee; border-radius: 8px;">
-          <p style="margin-top: 0; font-weight: bold;">${action.label}:</p>
-          <a href="${action.url}" style="color: #0066cc; text-decoration: underline; font-weight: bold; font-size: 18px; word-break: break-all;">
-            ${action.url}
-          </a>
-        </div>
-      `
-          : ""
-      }
+              <!-- TITLE -->
+              <h2 style="font-size: 16px; font-weight: 600; margin-bottom: 24px; color: #ffffff; border-bottom: 1px solid #222; padding-bottom: 16px; text-transform: uppercase; letter-spacing: 2px;">
+                ${title}
+              </h2>
+              
+              <!-- CONTENT -->
+              <div style="font-size: 15px; line-height: 1.7; margin-bottom: 40px; color: #a0a0a0;">
+                ${content}
+              </div>
 
-      <div style="margin-top: 50px; border-top: 1px solid #f0f0f0; padding-top: 20px; font-size: 12px; color: #888;">
-        <strong>NØX</strong> - Protocolo de Inteligência Soberana<br>
-        Este é um e-mail automático. Não responda.
-      </div>
-    </div>
+              <!-- ACTION BUTTON -->
+              ${
+                action
+                  ? `
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin: 40px 0;">
+                  <tr>
+                    <td align="center">
+                      <a href="${action.url}" style="display: inline-block; background-color: #ffffff; color: #000000; padding: 14px 32px; text-decoration: none; font-weight: bold; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;">
+                        ${action.label}
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              `
+                  : ""
+              }
+
+              <!-- FOOTER -->
+              <div style="margin-top: 50px; border-top: 1px solid #1a1a1f; padding-top: 30px; text-align: center; font-size: 12px; color: #444; line-height: 1.5;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                  <img src="https://noxai.chat/favicon.png" alt="NØX Icon" style="width: 20px; height: 20px; display: inline-block;" />
+                </div>
+                <p style="margin: 0 0 12px 0; font-weight: bold; color: #666; letter-spacing: 1px; text-transform: uppercase;">O sistema não te protege, quebre ele.</p>
+                <p style="margin: 0 0 12px 0;">Você está recebendo este e-mail pois é um Operador registrado no NØX Protocol.</p>
+                <p style="margin: 0;">
+                  <a href="${FRONTEND_URL}/account" style="color: #555; text-decoration: underline;">Conta</a> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                  <a href="mailto:send@noxai.chat?subject=Unsubscribe" style="color: #555; text-decoration: underline;">Descadastrar-se</a>
+                </p>
+              </div>
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
   `;
 };
 
@@ -58,6 +122,15 @@ const sendEmail = async (payload) => {
   if (!apiKey) {
     console.warn("[Email] Resend API Key is missing. Email skipped.");
     return { skipped: true, reason: "resend_api_key_missing" };
+  }
+
+  // Validação básica de e-mail
+  if (
+    !payload.to ||
+    typeof payload.to !== "string" ||
+    !payload.to.includes("@")
+  ) {
+    throw new Error("[Email] Destinatário inválido ou ausente");
   }
 
   const response = await fetch(RESEND_API_URL, {
@@ -69,13 +142,19 @@ const sendEmail = async (payload) => {
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json().catch(() => ({}));
+  const responseText = await response.text();
+  let data = {};
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    data = { message: responseText };
+  }
 
   if (!response.ok) {
     throw new Error(
       data?.message ||
         data?.error ||
-        `Resend email failed (${response.status})`,
+        `Resend email failed (${response.status}): ${responseText.substring(0, 100)}`,
     );
   }
 
@@ -100,7 +179,7 @@ export const emailService = {
       to,
       subject: `NØX - Bem-vindo`,
       html: renderTemplate(title, content, {
-        label: "LINK PARA ACESSAR O TERMINAL",
+        label: "LINK PARA ACESSAR NØX",
         url: FRONTEND_URL,
       }),
     });
@@ -120,9 +199,9 @@ export const emailService = {
     return sendEmail({
       from: FROM_EMAIL,
       to,
-      subject: `NØX - Link de Acesso`,
+      subject: `NØX - AI LINK`,
       html: renderTemplate(title, content, {
-        label: "CLIQUE AQUI PARA ENTRAR",
+        label: "LINK PARA ACESSAR NØX",
         url: loginUrl,
       }),
     });
@@ -153,25 +232,46 @@ export const emailService = {
   /**
    * Envia confirmação de compra de tokens
    */
-  async sendPurchaseConfirmation(to, { userName, amount, reference }) {
+  async sendPurchaseConfirmation(
+    to,
+    {
+      userName,
+      packageId,
+      tokens,
+      tierUpgrade,
+      amountBrl,
+      reference,
+      confirmedAt,
+    },
+  ) {
     const safeUserName = escapeHtml(userName || "Operador");
-    const safeAmount = escapeHtml(amount);
-    const safeReference = escapeHtml(reference);
+    const safePackageId = escapeHtml(packageId || "N/A");
+    const safeTokens = escapeHtml(tokens ?? "0");
+    const safeTierUpgrade = escapeHtml(tierUpgrade || "N/A");
+    const safeAmountBrl = escapeHtml(formatBrl(amountBrl));
+    const safeReference = escapeHtml(reference || "N/A");
+    const safeConfirmedAt = escapeHtml(formatDateTime(confirmedAt));
 
-    const title = "CRÉDITOS ADICIONADOS";
+    const title = "PAGAMENTO CONFIRMADO";
     const content = `
-      <p>Olá, <strong>${safeUserName}</strong>. Sua compra foi processada com sucesso.</p>
+      <p>Olá, <strong>${safeUserName}</strong>.</p>
+      <p>Seu pagamento foi confirmado e seus créditos NØX já foram liberados na sua conta.</p>
       <p>
-        <strong>Pacote:</strong> ${safeAmount} NØX<br>
-        <strong>Referência:</strong> ${safeReference}
+        <strong>Plano/Pacote:</strong> ${safePackageId}<br>
+        <strong>Créditos/Tokens:</strong> ${safeTokens}<br>
+        <strong>Status:</strong> ${safeTierUpgrade}<br>
+        <strong>Valor:</strong> ${safeAmountBrl}<br>
+        <strong>Referência:</strong> ${safeReference}<br>
+        <strong>Confirmado em:</strong> ${safeConfirmedAt}
       </p>
-      <p>Os créditos já estão disponíveis em sua conta para uso imediato.</p>
+      <p>Você já pode voltar ao chat e continuar usando o NØX.</p>
+      <p>Se você não reconhece essa compra ou não recebeu os créditos corretamente, responda este e-mail com a referência acima.</p>
     `;
 
     return sendEmail({
       from: FROM_EMAIL,
       to,
-      subject: `NØX - Créditos Adicionados (${safeAmount})`,
+      subject: "Pagamento confirmado — seus créditos NØX foram liberados",
       html: renderTemplate(title, content, {
         label: "VOLTAR AO CHAT",
         url: FRONTEND_URL,
@@ -202,5 +302,57 @@ export const emailService = {
         url: FRONTEND_URL,
       }),
     });
+  },
+
+  /**
+   * Disparo genérico para Anúncios de Features / Campanhas
+   */
+  async sendFeatureAnnouncement(
+    to,
+    { userName, title, content, actionLabel, actionUrl, scheduledAt },
+  ) {
+    const safeName = escapeHtml(userName || "Soberano");
+
+    // Convert newlines to <br> for the content if it's plain text,
+    // or assume content is already HTML formatted by the caller.
+    let formattedContent = content;
+    if (!content.includes("<")) {
+      // Converte quebras de linha
+      formattedContent = content.replace(/\n/g, "<br>");
+      // Suporte básico a negrito markdown
+      formattedContent = formattedContent.replace(
+        /\*\*(.*?)\*\*/g,
+        "<strong>$1</strong>",
+      );
+    }
+
+    const htmlContent = `
+      <p>Saudações, <strong>${safeName}</strong>.</p>
+      <div style="margin-top: 28px;">
+        ${formattedContent}
+      </div>
+    `;
+
+    const payload = {
+      from: FROM_EMAIL,
+      to,
+      subject: title.startsWith("NØX") ? title : `NØX - ${title}`,
+      html: renderTemplate(
+        title,
+        htmlContent,
+        actionLabel && actionUrl
+          ? {
+              label: actionLabel,
+              url: actionUrl,
+            }
+          : null,
+      ),
+    };
+
+    if (scheduledAt) {
+      payload.scheduledAt = scheduledAt;
+    }
+
+    return sendEmail(payload);
   },
 };

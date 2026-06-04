@@ -17,7 +17,7 @@ endif
 
 # --- HELP ---
 help:
-	@echo "NΞØ Protocol · neo-chat-uncensored"
+	@echo "NØX · neo-chat-uncensored"
 	@echo "────────────────────────────────────────"
 	@echo "Usage: make [target]"
 	@echo ""
@@ -139,7 +139,7 @@ build:
 	$(PNPM) run build
 
 push:
-	@echo "[START] Starting Secure Push Protocol..."
+	@echo "[START] Starting Secure Push NØX..."
 	@$(MAKE) check
 	@$(MAKE) build
 	@echo "[OK] Full quality gate passed. Ready to commit."
@@ -155,7 +155,7 @@ save:
 	@git add .
 	@if [ -z "$(MSG)" ]; then \
 		echo "[WARN] Aviso: Nenhuma mensagem (MSG) fornecida. Usando padrão."; \
-		git commit -m "chore: NΞØ Protocol automated synchronization"; \
+		git commit -m "chore: NØX AI automated synchronization"; \
 	else \
 		git commit -m "$(MSG)"; \
 	fi

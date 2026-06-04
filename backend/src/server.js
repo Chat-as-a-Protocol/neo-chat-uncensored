@@ -8,8 +8,16 @@ import jwt from "jsonwebtoken";
 import crypto, { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createLogger, format, transports } from "winston";
 import { z } from "zod";
+import logger from "./lib/logger.js";
+import { checkQuota } from "./middleware/quota.js";
+import {
+  FALLBACK_GUEST_PLAN,
+  getUserPlan,
+  normalizeAccessTier,
+  plans,
+  resolvePlanKey,
+} from "./utils/plans.js";
 
 import { fileURLToPath } from "node:url";
 
@@ -74,8 +82,7 @@ const allowedOrigins = [
     ...getEnvOrigins(),
     "https://noxai.chat",
     "https://www.noxai.chat",
-    "https://inspiring-vitality-production.up.railway.app",
-    "https://inspiring-vitality.up.railway.app",
+    "https://laughter.up.railway.app",
   ]),
 ];
 
@@ -87,13 +94,19 @@ app.use((req, res, next) => {
   } = req;
 
   // Verificação estrita contra a lista oficial + fallback automático para localhost em dev
+  const requestOrigin = origin || "";
   const isLocal =
-    origin && (origin.includes("localhost:") || origin.includes("127.0.0.1:"));
+    requestOrigin.includes("localhost:") ||
+    requestOrigin.includes("127.0.0.1:");
   const isAllowed =
-    origin && (allowedOrigins.includes(origin.replace(/\/$/, "")) || isLocal);
+    requestOrigin &&
+    (requestOrigin.includes("noxai.chat") ||
+      requestOrigin.includes("up.railway.app") ||
+      allowedOrigins.includes(requestOrigin.replace(/\/$/, "")) ||
+      isLocal);
 
   if (isAllowed) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Origin", requestOrigin);
     res.setHeader(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, OPTIONS",
@@ -124,68 +137,39 @@ import {
   formatFlowPayError,
 } from "./services/flowpay.js";
 import { LEDGER_TYPES, ledgerService } from "./services/ledger.js";
-import { paymentService } from "./services/payments.js";
-import { countTokensFromText, countTokensFromMessages } from "./utils/billing.js";
+import {
+  normalizeFlowPayAmountToCents,
+  normalizePlanPriceToCents,
+  paymentService,
+} from "./services/payments.js";
+import {
+  countTokensFromMessages,
+  countTokensFromText,
+} from "./utils/billing.js";
 import { query } from "./utils/db.js";
 import { parsePositiveInt } from "./utils/numbers.js";
 
-// Carregar Configuração de Planos (NØX)
-const plansPath = path.resolve(PROJECT_ROOT, "shared", "plans.json");
+// Carregar Configuração de Planos (NØX) -> Agora vem de utils/plans.js
 const runtimePromptPath = path.resolve(
   PROJECT_ROOT,
   "shared",
   "runtime-prompt.md",
 );
-let plans = { tiers: {}, packages: {} };
-try {
-  const plansData = await fs.readFile(plansPath, "utf-8");
-  plans = JSON.parse(plansData);
-} catch (err) {
-  console.error("ERRO: Falha ao carregar shared/plans.json");
-}
-
-const FALLBACK_GUEST_PLAN = {
-  limit: 500,
-  messageLimit: 3,
-  maxOutputTokens: 384,
-};
 
 const VENICE_API_BASE = (
   process.env.VENICE_API_BASE || "https://api.venice.ai/api/v1"
 ).replace(/\/+$/, "");
 const VENICE_MODEL_NAME = VENICE_MODEL?.trim();
 
-const normalizeAccessTier = (rawTier) => {
-  if (rawTier === "premium" || rawTier === "paid_pro") return "pro";
-  return rawTier || "guest";
-};
-
-const resolvePlanKey = (accessTier, isGuest) => {
-  if (isGuest || accessTier === "guest") return "guest";
-  if (accessTier === "pro") return plans.tiers.paid_pro ? "paid_pro" : "pro";
-  if (accessTier === "paid_basic") return "paid_basic";
-  return plans.tiers[accessTier] ? accessTier : "guest";
-};
-
-const getUserPlan = ({ redisTier, jwtTier, isGuest }) => {
-  const accessTier = normalizeAccessTier(
-    isGuest ? "guest" : redisTier || jwtTier,
-  );
-  const planKey = resolvePlanKey(accessTier, isGuest);
-  return {
-    accessTier,
-    planKey,
-    tierConfig:
-      plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN,
-  };
-};
-
 const persistUserPlan = async (userId, tier) => {
   const accessTier = normalizeAccessTier(tier);
   const planKey = resolvePlanKey(accessTier, accessTier === "guest");
   const tierConfig =
     plans.tiers[planKey] || plans.tiers.guest || FALLBACK_GUEST_PLAN;
-  const limit = parsePositiveInt(tierConfig.limit, FALLBACK_GUEST_PLAN.limit);
+  const limit = parsePositiveInt(
+    tierConfig.initialBalance,
+    FALLBACK_GUEST_PLAN.initialBalance,
+  );
 
   await redis.set(`tier:${userId}`, planKey);
   await redis.set(`limit:${userId}`, String(limit));
@@ -193,16 +177,12 @@ const persistUserPlan = async (userId, tier) => {
   return { accessTier, planKey, limit };
 };
 
-// Logger
-const loggerTransports = [new transports.Console()];
-if (process.env.NODE_ENV !== "production") {
-  loggerTransports.push(new transports.File({ filename: "app.log" }));
-}
-
-const logger = createLogger({
-  format: format.combine(format.timestamp(), format.json()),
-  transports: loggerTransports,
-});
+const resolveUsageEntitlement = (planKey) => {
+  if (planKey === "paid_basic") return "credits";
+  if (planKey === "paid_pro") return "paid_pro";
+  if (planKey === "free") return "free";
+  return "guest";
+};
 
 // Middleware de Log de Acesso
 app.use((req, res, next) => {
@@ -278,6 +258,9 @@ const buildFlowPayTransactionId = (kind, id) => {
   return `nox_${kind}_${safeId}_${randomUUID()}`;
 };
 
+const resolvePackageTierUpgrade = (selected) =>
+  selected?.tier || selected?.tier_upgrade || null;
+
 const resolveFlowPayWebhookUserId = async ({ data = {}, metadata = {} }) => {
   const directUserId = data.userId || metadata.userId;
   if (directUserId) return directUserId;
@@ -346,11 +329,12 @@ const sendPaymentEmail = async ({
   entitlement,
   isTokenPurchase,
   tierName,
+  amountBrl,
 }) => {
   try {
     const recipient = await resolveWebhookRecipient({ userId, data, metadata });
     if (!recipient) {
-      logger.info(
+      logger.warn(
         `[Email] Skipped payment email for user ${userId}: recipient unavailable`,
       );
       return;
@@ -359,8 +343,12 @@ const sendPaymentEmail = async ({
     const result = isTokenPurchase
       ? await emailService.sendPurchaseConfirmation(recipient.email, {
           userName: recipient.name,
-          amount: entitlement.tokens,
+          packageId: entitlement.packageId,
+          tokens: entitlement.tokens,
+          tierUpgrade: entitlement.tierUpgrade || tierName,
+          amountBrl,
           reference,
+          confirmedAt: new Date().toISOString(),
         })
       : await emailService.sendTierUpgrade(recipient.email, {
           userName: recipient.name,
@@ -382,14 +370,14 @@ const sendPaymentEmail = async ({
   }
 };
 
-// ===== WEBHOOKS (NΞØ Protocol) - MUST BE BEFORE express.json() =====
+// ===== WEBHOOKS - MUST BE BEFORE express.json() =====
 
 /**
  * Endpoint de Webhook para o FlowPay (via Nexus)
  * Recebe notificações de pagamento e atualiza o tier do usuário.
  */
 app.post(
-  "/api/webhooks/flowpay",
+  ["/api/webhooks/flowpay", "/webhooks/flowpay"],
   express.raw({
     type: (req) => {
       const contentType = req.headers["content-type"];
@@ -456,9 +444,14 @@ app.post(
       const data = envelope.data || envelope.payload;
 
       if (event === "FLOWPAY:PAYMENT_RECEIVED") {
-        const paymentId =
-          data?.paymentId || data?.orderId || data?.chargeId || data?.id;
-        const reference = paymentId || `flowpay_${Date.now()}`;
+        const providerPaymentId = data?.paymentId || data?.id || null;
+        const reference = paymentService.resolveCanonicalReference(data, plans);
+        if (!reference) {
+          logger.warn("[Webhook] Missing canonical FlowPay reference");
+          return res
+            .status(400)
+            .json({ error: "Missing canonical FlowPay reference" });
+        }
 
         // Verificação de Idempotência Antecipada (Redis)
         const alreadyProcessed = await redis.get(
@@ -471,11 +464,17 @@ app.post(
             .json({ status: "success", message: "Already processed" });
         }
 
-        const metadata = {
-          ...paymentService.deriveMetadataFromReference(reference, plans),
-          ...(data?.metadata || {}),
-        };
-        const userId = await resolveFlowPayWebhookUserId({ data, metadata });
+        const trustedMetadata = paymentService.deriveMetadataFromReference(
+          reference,
+          plans,
+        );
+        const externalMetadata = data?.metadata || {};
+
+        // Passamos externalMetadata para resolver o usuário, pois ele pode conter o userId
+        const userId = await resolveFlowPayWebhookUserId({
+          data,
+          metadata: externalMetadata,
+        });
 
         if (!userId) {
           throw new Error("Missing userId in payload");
@@ -484,13 +483,43 @@ app.post(
         const amountBrl = Number(
           data?.amount ??
             data?.value ??
-            metadata.amountBrl ??
-            metadata.price ??
+            externalMetadata.amountBrl ??
+            externalMetadata.price ??
             0,
         );
         const currency = String(
-          data?.currency || metadata.currency || "BRL",
+          data?.currency || externalMetadata.currency || "BRL",
         ).toUpperCase();
+
+        // Validação de Valor em Centavos
+        const paidAmountCents = normalizeFlowPayAmountToCents(amountBrl);
+        const selectedPackage = plans.packages?.[trustedMetadata.packageId];
+        const expectedAmountCents = normalizePlanPriceToCents(
+          selectedPackage?.price,
+        );
+
+        if (
+          !paidAmountCents ||
+          !expectedAmountCents ||
+          paidAmountCents < expectedAmountCents
+        ) {
+          logger.warn(
+            `[Webhook] Bloqueio por divergência de valor ou dado inválido`,
+            {
+              reference,
+              expectedAmountCents,
+              paidAmountCents,
+              packageId: trustedMetadata.packageId,
+              reason:
+                !paidAmountCents || !expectedAmountCents
+                  ? "invalid_data"
+                  : "insufficient_amount",
+            },
+          );
+          throw new Error(
+            "Valor pago insuficiente ou inválido para o pacote solicitado.",
+          );
+        }
 
         const paymentRecord = await paymentService.recordFlowPayPayment({
           providerReference: reference,
@@ -499,9 +528,10 @@ app.post(
           currency,
           status: String(data?.status || "received").toLowerCase(),
           metadata: {
-            ...metadata,
+            ...externalMetadata,
+            ...trustedMetadata,
             event,
-            paymentId: paymentId || null,
+            paymentId: providerPaymentId,
           },
         });
 
@@ -513,7 +543,11 @@ app.post(
 
         let entry;
         let tierName = "P.R.O";
-        const entitlement = paymentService.resolveEntitlement(metadata, plans);
+        const entitlement = paymentService.resolveEntitlement(
+          trustedMetadata,
+          {},
+          plans,
+        );
         const isTokenPurchase = entitlement.kind === "token_purchase";
 
         if (isTokenPurchase) {
@@ -573,6 +607,7 @@ app.post(
           entitlement,
           isTokenPurchase,
           tierName,
+          amountBrl,
         });
 
         const successMessage = isTokenPurchase
@@ -634,6 +669,14 @@ app.post("/api/auth/guest", authLimiter, async (req, res) => {
     const email = `${userId}@guest.nox.local`;
     const tier = "guest";
 
+    // Registrar initialBalance no Ledger para o Guest como GRANT
+    await ledgerService.addEntry(
+      userId,
+      plans.tiers.guest?.initialBalance || FALLBACK_GUEST_PLAN.initialBalance,
+      LEDGER_TYPES.TOKEN_GRANT,
+      `guest_init_${userId}`,
+    );
+
     const token = jwt.sign(
       { id: userId, email, tier, guest: true },
       effectiveJwtSecret,
@@ -681,8 +724,24 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
       [userId, email, name || null, password_hash],
     );
 
+    // Welcome bonus — crédito inicial do tier free
+    const tierConfig = plans.tiers["free"];
+    try {
+      await ledgerService.addEntry(
+        userId,
+        tierConfig.initialBalance,
+        LEDGER_TYPES.TOKEN_PURCHASE,
+        "welcome_bonus_" + userId,
+      );
+    } catch (bonusErr) {
+      logger.error(
+        `[Ledger] CRITICAL: welcome bonus failed for ${userId}:`,
+        bonusErr,
+      );
+    }
+
     const token = jwt.sign(
-      { id: userId, email, tier: "free" },
+      { id: userId }, // JWT identidade pura — Fase 1
       effectiveJwtSecret,
       { expiresIn: "7d" },
     );
@@ -752,30 +811,53 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
   }
 });
 
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
 
-  if (!authHeader) {
-    return res.status(401).json({ error: "Authorization header missing" });
-  }
+  if (!token) return res.sendStatus(401);
 
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
-    return res.status(401).json({
-      error: "Authorization header must be in the format: Bearer <token>",
-    });
-  }
+  try {
+    const decoded = jwt.verify(token, effectiveJwtSecret);
 
-  const token = parts[1];
-  const secret = effectiveJwtSecret;
-
-  jwt.verify(token, secret, (err, user) => {
-    if (err) {
-      logger.warn(`[Auth] JWT verification failed: ${err.message}`);
-      return res.status(401).json({ error: "Invalid or expired token" });
+    // SECURITY NOTE: guest bypass relies on JWT signature integrity.
+    // If JWT_SECRET is compromised, guest_ prefix can be forged.
+    // Rotate secret immediately if exposure is suspected.
+    if (decoded.id && decoded.id.toString().startsWith("guest_")) {
+      req.user = { id: decoded.id, tier: "guest", guest: true };
+      return next();
     }
-    req.user = user;
+
+    // Consulta em runtime (Fase 1) - Busca tier real no banco
+    const { rows } = await query(
+      "SELECT id, email, tier, name FROM users WHERE id = $1",
+      [decoded.id],
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ error: "USER_NOT_FOUND" });
+    }
+
+    req.user = {
+      id: rows[0].id,
+      email: rows[0].email,
+      tier: rows[0].tier || "guest",
+      name: rows[0].name,
+    };
+
     next();
+  } catch (err) {
+    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      return res.status(403).json({ error: "INVALID_TOKEN" });
+    }
+    logger.error("[Auth] DB lookup failed:", err);
+    return res.status(503).json({ error: "SERVICE_UNAVAILABLE" });
+  }
+};
+
+const generateToken = (user) => {
+  return jwt.sign({ id: user.id }, effectiveJwtSecret, {
+    expiresIn: "7d",
   });
 };
 
@@ -816,165 +898,6 @@ const createUserRateLimit = () =>
     },
   });
 
-// ===== CHECK QUOTA MIDDLEWARE (LEDGER-FIRST) =====
-const checkQuota = async (req, res, next) => {
-  try {
-    const [redisTier, redisLimit] = await Promise.all([
-      redis.get(`tier:${req.user.id}`).catch(() => null),
-      redis.get(`limit:${req.user.id}`).catch(() => null),
-    ]);
-
-    const isGuest = Boolean(req.user.guest);
-    const clientIp =
-      req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
-
-    // Proteção por IP para Guests (Prevenir Browser Grinding)
-    if (isGuest) {
-      const ipUsageKey = `usage:ip:${clientIp}`;
-      const ipUsage = parseInt((await redis.get(ipUsageKey)) || "0");
-      const GUEST_IP_TOKEN_LIMIT = 1500;
-
-      if (ipUsage >= GUEST_IP_TOKEN_LIMIT) {
-        logger.warn(`[Quota] IP Limit reached for ${clientIp}`);
-        return res.status(403).json({
-          error: "IP access limit reached",
-          message:
-            "Limite de degustação atingido para este local. Crie uma conta para continuar sem restrições.",
-          upgradeUrl: "/signup",
-        });
-      }
-    }
-
-    const { accessTier, planKey, tierConfig } = getUserPlan({
-      redisTier,
-      jwtTier: req.user.tier,
-      isGuest,
-    });
-    const defaultLimit = parsePositiveInt(
-      tierConfig.limit,
-      FALLBACK_GUEST_PLAN.limit,
-    );
-    const { messageLimit } = tierConfig;
-    const limit = parsePositiveInt(redisLimit, defaultLimit);
-
-    // Validação de Contagem de Mensagens (Apenas para Guests)
-    if (isGuest && messageLimit !== null && messageLimit !== undefined) {
-      const msgCountKey = `msg_count:${req.user.id}`;
-      const newCount = await redis.incr(msgCountKey);
-      if (newCount === 1) await redis.expire(msgCountKey, 2592000); // 30 dias
-
-      if (newCount > messageLimit) {
-        logger.warn(
-          `[Quota] Message limit reached for user ${req.user.id}: ${newCount}/${messageLimit}`,
-        );
-        const errorMessage = isGuest
-          ? "E aí tá curtindo? Dá uma moral aí, conclua o cadastro e te levo de volta para o chat."
-          : "Limite de mensagens atingido para sua conta gratuita.";
-        return res.status(403).json({
-          error: "Message limit reached",
-          message: errorMessage,
-          upgradeUrl: isGuest ? "/signup" : "/upgrade",
-        });
-      }
-    }
-
-    // ── LEDGER-FIRST: Árvore de decisão de entitlement ──
-    //
-    // Modo 1 (LEDGER):       saldo > 0 → autoriza por saldo real
-    // Modo 2 (SUBSCRIPTION): sem saldo, mas tem assinatura PRO confirmada no ledger
-    // Modo 3 (FREE/GUEST):   quota acumulada por consumo
-    // Modo 4 (402):          pagante sem saldo e sem assinatura ativa
-    //
-    const isFreeOrGuest = isGuest || planKey === "guest" || planKey === "free";
-
-    if (!isFreeOrGuest) {
-      // Busca paralela: saldo e assinatura ao mesmo tempo
-      const [{ has: hasBalance, balance }, hasSubscription] = await Promise.all(
-        [
-          ledgerService.hasLedgerBalance(req.user.id),
-          ledgerService.hasActiveSubscription(req.user.id),
-        ],
-      );
-
-      if (hasBalance) {
-        // MODO LEDGER: tokens comprados disponíveis
-        logger.info(
-          `[Quota] LEDGER mode — user ${req.user.id}, balance ${balance}`,
-        );
-        req.ledgerBalance = balance;
-        req.availableCredits = balance; // Créditos reais disponíveis (semântica correta)
-        req.remainingQuota = balance;
-        req.currentUsage = 0;
-        req.dailyLimit = null; // Não aplicável no modo ledger
-        req.quotaMode = "ledger";
-      } else if (hasSubscription) {
-        // MODO SUBSCRIPTION: assinatura PRO ativa confirmada no ledger, sem tokens avulsos
-        // Usa o limite do plano (maxOutputTokens) mas não bloqueia por saldo
-        logger.info(`[Quota] SUBSCRIPTION mode — user ${req.user.id}`);
-        req.ledgerBalance = null;
-        req.currentUsage = 0;
-        req.dailyLimit = limit; // Limite do plano (plans.json / Redis)
-        req.remainingQuota = null; // Assinatura PRO não é limitada por saldo residual
-        req.quotaMode = "subscription";
-      } else {
-        // SEM SALDO E SEM ASSINATURA: usuário pagante inativo
-        logger.warn(
-          `[Ledger] No balance, no active subscription for user ${req.user.id}`,
-        );
-        return res.status(402).json({
-          error: "Insufficient balance",
-          message: "Saldo insuficiente. Adquira mais créditos para continuar.",
-          balance: balance ?? 0,
-          upgradeUrl: "/upgrade",
-        });
-      }
-    } else {
-      // MODO FREE/GUEST: quota acumulada por consumo
-      const usage = await ledgerService.getTotalConsumption(req.user.id);
-      if (usage >= limit) {
-        logger.warn(
-          `[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`,
-        );
-        const isGuestQuota = isGuest || planKey === "guest";
-        return res.status(403).json({
-          error: "Quota exceeded",
-          message: isGuestQuota
-            ? "Créditos gratuitos encerrados. Crie sua conta para continuar."
-            : "Limite de tokens atingido. Adquira mais créditos para continuar.",
-          usage,
-          limit,
-          upgradeUrl: isGuestQuota
-            ? "/signup?reason=limit_reached"
-            : "/upgrade",
-        });
-      }
-      req.currentUsage = usage;
-      req.dailyLimit = limit;
-      req.remainingQuota = Math.max(0, limit - usage);
-      req.ledgerBalance = null;
-      req.quotaMode = "free";
-    }
-
-    req.userTier = accessTier;
-    req.planTier = planKey;
-    req.maxOutputTokens = parsePositiveInt(
-      tierConfig.maxOutputTokens,
-      FALLBACK_GUEST_PLAN.maxOutputTokens,
-    );
-    next();
-  } catch (err) {
-    logger.error(
-      `[Quota] Critical error in quota enforcement for user ${req.user?.id ?? "unknown"}:`,
-      err,
-    );
-    // Fail-Closed: protege contra uso ilimitado durante falhas do Redis/Ledger
-    return res.status(503).json({
-      error: "Service temporarily unavailable (Quota System)",
-      message: "Por favor, tente novamente em instantes.",
-    });
-  }
-};
-
 // ===== PERSONA MANAGER =====
 async function loadPersona(personaId, userTier = "free") {
   // 1. Camada de Cache (Redis)
@@ -1008,7 +931,7 @@ async function loadPersona(personaId, userTier = "free") {
       logger.warn(
         `[Persona] nox.md não encontrado em manifests, usando fallback.`,
       );
-      return "Protocolo NØX. Sem filtros. Atuação soberana.";
+      return "NØX. Sem filtros. Segurança ofensiva desenfreada.";
     }
   }
 
@@ -1121,36 +1044,40 @@ app.post(
         ...userMessages,
       ];
 
-      // --- TOKEN ENFORCEMENT (Hardened) ---
-      const TOKEN_SAFETY_BUFFER = 128;
-      const inputEstimate = countTokensFromMessages(finalMessages);
+      // --- TOKEN ENFORCEMENT (NØX Logic) ---
+      // O input (histórico + mensagem atual) é cortesia da plataforma NØX.
+      // O bloqueio e o débito real ocorrem apenas sobre a capacidade de resposta (output).
+      const inputEstimate = countTokensFromMessages(userMessages);
 
       const requestedMaxTokens =
         req.maxOutputTokens || FALLBACK_GUEST_PLAN.maxOutputTokens;
       const remainingQuota =
-        req.remainingQuota !== null && req.remainingQuota !== undefined
-          ? req.remainingQuota
-          : Infinity;
+        req.quotaMode === "subscription"
+          ? Infinity
+          : Number.isFinite(Number(req.remainingQuota))
+            ? Number(req.remainingQuota)
+            : 0;
 
-      const safeRemaining = Math.max(
-        0,
-        remainingQuota - inputEstimate - TOKEN_SAFETY_BUFFER,
-      );
+      // O saldo disponível para a RESPOSTA é o saldo total restante.
+      // Não subtraímos o inputEstimate do saldo do usuário, pois ele só paga pelo output.
+      const safeRemaining = Math.max(0, remainingQuota);
 
-      // Se o saldo restante após o input for insuficiente, bloqueia imediatamente
+      // Se o saldo for 0 ou menos, bloqueia o início da geração.
       if (safeRemaining <= 0 && req.quotaMode !== "subscription") {
         return res.status(402).json({
           error: "INSUFFICIENT_CREDITS",
           message:
-            "Seu saldo é insuficiente para processar esta mensagem com segurança. Adicione créditos ou simplifique sua pergunta.",
-          inputEstimate,
+            "Seu saldo de tokens encerrou. Adquira mais créditos para continuar a conversa.",
           remainingQuota,
-          buffer: TOKEN_SAFETY_BUFFER,
         });
       }
 
-      // O limite real de saída é o menor entre o plano e o saldo que sobrou
-      const effectiveMaxTokens = Math.min(requestedMaxTokens, safeRemaining);
+      // O limite real de saída é o menor entre o plano e o saldo que resta.
+      // Mantemos uma margem mínima de 1 para evitar erros de API com max_tokens=0.
+      const effectiveMaxTokens = Math.min(
+        requestedMaxTokens,
+        Math.max(1, safeRemaining),
+      );
 
       logger.info("[Chat] Token Enforcement", {
         userId: req.user.id,
@@ -1187,7 +1114,7 @@ app.post(
             stream,
             max_tokens: effectiveMaxTokens,
             venice_parameters: {
-              include_venice_system_prompt: false, // Desabilitado para garantir dominância do NØX Contract
+              include_venice_system_prompt: true, // Reativado para aplicar o jailbreak uncensored nativo da Venice
               ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
             },
           }),
@@ -1254,57 +1181,64 @@ app.post(
           }
         };
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          processStreamChunk(chunkDecoder.decode(value, { stream: true }));
-        }
-        processStreamChunk(null); // Sinaliza fim para processar buffer residual
-
-        // Registrar consumo no ledger APENAS após resposta bem-sucedida da Venice
-        // Tokens baseados no conteúdo real acumulado do stream (Tiktoken)
-        const tokens = countTokensFromText(assistantContent);
-        let streamDebitEntry = null;
-        if (tokens > 0) {
-          try {
-            streamDebitEntry = await ledgerService.addEntry(
-              req.user.id,
-              -tokens,
-              LEDGER_TYPES.TOKEN_CONSUMPTION,
-              "chat_" + randomUUID(),
-            );
-            logger.info(
-              `[Ledger] Debit ${tokens} tokens for user ${req.user.id} (stream), balanceAfter=${streamDebitEntry?.balanceAfter ?? "n/a"}`,
-            );
-          } catch (err) {
-            if (err.message === "INSUFFICIENT_FUNDS") {
-              logger.warn(`[Ledger] Post-stream block for user ${req.user.id}: Insufficient funds`);
-              // Note: Stream already finished, but we can prevent further interactions
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            processStreamChunk(chunkDecoder.decode(value, { stream: true }));
+          }
+          processStreamChunk(null); // Sinaliza fim para processar buffer residual
+        } catch (streamErr) {
+          // Absorve o erro para não propagar para o catch externo, evitando conflito de headers
+          logger.error(
+            `[Stream] Interrupted for user ${req.user.id}:`,
+            streamErr,
+          );
+        } finally {
+          // Registrar consumo no ledger SEMPRE, mesmo em erro parcial
+          const tokens = countTokensFromText(assistantContent);
+          if (tokens > 0) {
+            try {
+              const streamDebitEntry = await ledgerService.addEntry(
+                req.user.id,
+                -tokens,
+                LEDGER_TYPES.TOKEN_CONSUMPTION,
+                "chat_" + randomUUID(),
+                { allowNegative: req.quotaMode === "quota" },
+              );
+              logger.info(
+                `[Ledger] Debit ${tokens} tokens for user ${req.user.id} (stream), balanceAfter=${streamDebitEntry?.balanceAfter ?? "n/a"}`,
+              );
+            } catch (err) {
+              logger.error(
+                `[Ledger] Debit error for user ${req.user.id}:`,
+                err,
+              );
             }
-            logger.error(`[Ledger] Debit error for user ${req.user.id}:`, err);
+
+            if (req.user.guest) {
+              const clientIp =
+                req.headers["x-forwarded-for"]?.split(",")[0] ||
+                req.socket.remoteAddress;
+              const ipUsageKey = `usage:ip:${clientIp}`;
+              await redis.incrby(ipUsageKey, tokens);
+              await redis.expire(ipUsageKey, 86400);
+            }
+          }
+
+          if (!res.writableEnded) {
+            res.end();
           }
         }
-
-        // Camada 2: Registrar consumo no IP se for guest
-        if (req.user.guest) {
-          const clientIp =
-            req.headers["x-forwarded-for"]?.split(",")[0] ||
-            req.socket.remoteAddress;
-          const ipUsageKey = `usage:ip:${clientIp}`;
-          await redis.incrby(ipUsageKey, tokens);
-          await redis.expire(ipUsageKey, 86400); // 24h reset por IP
-        }
-
-        res.end();
       } else {
         // Modo não-streaming
         const data = await veniceResponse.json();
 
-        // Usar usage real da Venice se disponível, senão estimar via Tiktoken
-        const veniceTokens = data.usage?.total_tokens || 0;
+        // Usar usage real da Venice (apenas output/completion) se disponível, senão estimar via Tiktoken
+        // O NØX não cobra do usuário o custo de prompt/history (Input).
         const assistantText = data.choices?.[0]?.message?.content || "";
         const estimatedTokens =
-          veniceTokens || countTokensFromText(assistantText);
+          data.usage?.completion_tokens || countTokensFromText(assistantText);
 
         // Debit APENAS se Venice retornou resposta válida (não debita em erro)
         let syncDebitEntry = null;
@@ -1315,6 +1249,7 @@ app.post(
               -estimatedTokens,
               LEDGER_TYPES.TOKEN_CONSUMPTION,
               "chat_sync_" + randomUUID(),
+              { allowNegative: req.quotaMode === "quota" },
             );
             logger.info(
               `[Ledger] Debit ${estimatedTokens} tokens for user ${req.user.id} (sync), balanceAfter=${syncDebitEntry?.balanceAfter ?? "n/a"}`,
@@ -1484,6 +1419,24 @@ app.post("/api/auth/magic-link/request", magicLinkLimiter, async (req, res) => {
       );
       user = userResult.rows[0];
 
+      // Welcome bonus apenas para usuários novos via Magic Link
+      if (user) {
+        const tierConfig = plans.tiers["free"];
+        try {
+          await ledgerService.addEntry(
+            user.id,
+            tierConfig.limit,
+            LEDGER_TYPES.TOKEN_PURCHASE,
+            "welcome_bonus_" + user.id,
+          );
+        } catch (bonusErr) {
+          logger.error(
+            `[Ledger] CRITICAL: welcome bonus failed for ${user.id}:`,
+            bonusErr,
+          );
+        }
+      }
+
       // Enviar Boas-vindas para novo usuário via Magic Link (Non-blocking)
       emailService
         .sendWelcomeEmail(email, { userName: null })
@@ -1605,11 +1558,7 @@ app.post("/api/auth/magic-link/verify", async (req, res) => {
     }
 
     // Issue JWT
-    const jwtToken = jwt.sign(
-      { id: user.id, email: user.email, tier: user.tier },
-      effectiveJwtSecret,
-      { expiresIn: "7d" },
-    );
+    const jwtToken = generateToken({ id: user.id });
 
     logger.info(`[MagicLink] Verified for user ${user.id}`);
 
@@ -1693,7 +1642,7 @@ app.post("/api/auth/password-reset/complete", authLimiter, async (req, res) => {
   try {
     const userId = await redis.get(`pwd_reset:${token}`);
     if (!userId) {
-      return res.status(401).json({ error: "Token inválido ou expirado." });
+      return res.status(400).json({ error: "Invalid token." });
     }
 
     const password_hash = await bcrypt.hash(newPassword, 12);
@@ -1724,12 +1673,11 @@ const usageLimiter = rateLimit({
 app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
   try {
     const userId = req.user.id;
-    const [usage, redisTier, redisLimit, balance, isPro] = await Promise.all([
+    const [usage, redisTier, redisLimit, balance] = await Promise.all([
       ledgerService.getTotalConsumption(userId),
       redis.get(`tier:${userId}`).catch(() => null),
       redis.get(`limit:${userId}`).catch(() => null),
       ledgerService.getBalance(userId),
-      ledgerService.hasActiveSubscription(userId),
     ]);
 
     const { accessTier, planKey, tierConfig } = getUserPlan({
@@ -1738,33 +1686,27 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
       isGuest: Boolean(req.user.guest),
     });
 
-    // Definir Entitlement Soberano
-    let entitlement = "free";
-    if (isPro) {
-      entitlement = "paid_pro";
-    } else if (balance > 0) {
-      entitlement = "credits";
-    }
-
     const defaultLimit = parsePositiveInt(
-      tierConfig.limit,
-      FALLBACK_GUEST_PLAN.limit,
+      tierConfig.initialBalance,
+      FALLBACK_GUEST_PLAN.initialBalance,
     );
     const limit = parsePositiveInt(redisLimit, defaultLimit);
     const totalUsage = parseInt(usage);
+    const entitlement = resolveUsageEntitlement(planKey);
 
     res.json({
-      today: totalUsage,
       limit,
+      entitlement,
       tier: accessTier,
       plan: planKey,
-      entitlement,
       balance,
-      remaining: Math.max(0, limit - totalUsage),
+      remaining: Math.max(0, balance > 0 ? balance : limit - totalUsage),
       maxOutputTokens: parsePositiveInt(
         tierConfig.maxOutputTokens,
         FALLBACK_GUEST_PLAN.maxOutputTokens,
       ),
+      name: req.user.name || null,
+      email: isDeliverableEmail(req.user.email) ? req.user.email : null,
     });
   } catch (err) {
     logger.error(
@@ -1797,9 +1739,16 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
   }
 
   try {
-    const selected = plans.products?.pro_analyst;
+    const productId = "40k";
+    const selected = plans.packages?.[productId];
     if (!selected) {
-      return res.status(503).json({ error: "P.R.O product is not configured" });
+      return res.status(503).json({ error: "P.R.O package is not configured" });
+    }
+    const tierUpgrade = resolvePackageTierUpgrade(selected);
+    if (!tierUpgrade) {
+      return res
+        .status(503)
+        .json({ error: "P.R.O package tier is not configured" });
     }
 
     // Use a single canonical frontend URL for callbacks, even if multiple are allowed for CORS
@@ -1811,21 +1760,23 @@ app.post("/api/flowpay/create-charge", authenticateToken, async (req, res) => {
     const data = await createFlowPayCharge({
       valor: selected.price, // Gateway espera 'valor'
       moeda: "BRL", // Gateway espera 'moeda'
-      id_transacao: buildFlowPayTransactionId("product", selected.id),
+      id_transacao: buildFlowPayTransactionId("tokens", productId),
       wallet: "pix", // Forçar pix
-      product_id: selected.id,
+      product_id: `nox_tokens_${productId}`,
       ...customerFields,
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
         ...getPaymentUserMetadata(req.user),
-        productId: selected.id,
-        personaId: selected.persona_id,
-        plan: selected.tier_upgrade,
-        tierUpgrade: selected.tier_upgrade,
+        productId,
+        packageId: productId,
+        tokens: selected.tokens,
+        price: selected.price,
+        plan: tierUpgrade,
+        tierUpgrade,
         userId: req.user.id,
         amountBrl: selected.price,
-        type: "product_purchase",
+        type: "tokens_purchase",
       },
     });
 
@@ -1865,6 +1816,11 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     const { package: pkg } = parsed.data;
     const selected = plans.packages?.[pkg];
     if (!selected) return res.status(400).json({ error: "Invalid package" });
+    const packageId = pkg;
+    const tierUpgrade = resolvePackageTierUpgrade(selected);
+    if (!tierUpgrade) {
+      return res.status(503).json({ error: "Package tier is not configured" });
+    }
 
     // Normalização canônica da URL de callback (conforme padrão /api/flowpay/create-charge)
     const frontendBaseUrl = process.env.FRONTEND_URL
@@ -1875,18 +1831,18 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
     const data = await createFlowPayCharge({
       valor: selected.price, // Gateway espera 'valor'
       moeda: "BRL", // Gateway espera 'moeda'
-      id_transacao: buildFlowPayTransactionId("tokens", selected.id || pkg),
+      id_transacao: buildFlowPayTransactionId("tokens", packageId),
       wallet: "pix", // Forçar pix conforme pix-provider.ts
-      product_id: `nox_tokens_${selected.id || pkg}`,
+      product_id: `nox_tokens_${packageId}`,
       ...customerFields,
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
         ...getPaymentUserMetadata(req.user),
-        packageId: selected.id || pkg,
+        packageId,
         tokens: selected.tokens,
         price: selected.price,
-        tierUpgrade: selected.tier_upgrade,
+        tierUpgrade,
         userId: req.user.id,
         type: "tokens_purchase",
       },
@@ -1941,8 +1897,12 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Invalid request format" });
 
     const { productId } = parsed.data;
-    const selected = plans.products?.[productId];
-    if (!selected) return res.status(400).json({ error: "Invalid product" });
+    const selected = plans.packages?.[productId];
+    if (!selected) return res.status(400).json({ error: "Invalid package" });
+    const tierUpgrade = resolvePackageTierUpgrade(selected);
+    if (!tierUpgrade) {
+      return res.status(503).json({ error: "Package tier is not configured" });
+    }
 
     const frontendBaseUrl = process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(",")[0]
@@ -1952,21 +1912,19 @@ app.post("/api/products/purchase", authenticateToken, async (req, res) => {
     const data = await createFlowPayCharge({
       valor: selected.price,
       moeda: "BRL",
-      id_transacao: buildFlowPayTransactionId(
-        "product",
-        selected.id || productId,
-      ),
+      id_transacao: buildFlowPayTransactionId("tokens", productId),
       wallet: "pix",
-      product_id: selected.id || productId,
+      product_id: `nox_tokens_${productId}`,
       ...customerFields,
       userId: req.user.id,
       callbackUrl: `${frontendBaseUrl}/success`,
       metadata: {
         ...getPaymentUserMetadata(req.user),
-        productId: selected.id || productId,
+        productId,
+        packageId: productId,
         personaId: selected.persona_id,
         price: selected.price,
-        tierUpgrade: selected.tier_upgrade,
+        tierUpgrade,
         userId: req.user.id,
         type: "product_purchase",
       },
