@@ -171,6 +171,9 @@ Responsabilidades:
 
 ## ⍟ Variáveis
 
+Contrato canônico de nomes e responsabilidades:
+`docs/ENV_CONTRACT.md`.
+
 Backend Railway:
 
 ```env

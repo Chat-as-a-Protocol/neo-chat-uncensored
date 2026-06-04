@@ -103,6 +103,9 @@ Webhook duplicado     -> ON CONFLICT(reference)
 
 ## ⨷ Fronteiras
 
+Contrato canônico de envs:
+`docs/ENV_CONTRACT.md`.
+
 ```text
 noxai.chat                  -> app NØX
 api.noxai.chat              -> backend NØX
