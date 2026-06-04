@@ -6,21 +6,42 @@
           NØX · PROJECT CONTEXT
 ========================================
 Status: active
-Updated: 2026-05-11 (Auth Sync + Railway pnpm)
+Updated: 2026-06-04 (Route Contract + NØX Core)
 ========================================
 ```
 
 ## ⟠ Produto
 
-NØX é um agent em um espaço seguro, semcensura e livre de amarras governamentais ou corporativas, onde os users tem privacidade total, com criptografia de ponta a ponta e com ledger de uso atômico para acessar uma exclusiva LLM, única no mundo todo. Seus criadores são anônimos e desconhecidos, e fizeram com os melhores hackers e desenvolvedores do mundo, que hoje estão espalhados por todo o globo, com o objetivo de criar um futuro livre e sem censura. O objetivo final e unico dos criadores e fazer com que os usuários tenham acesso a uma tecnologia que não seja controlada por nenhum governo ou corporação, e que seja livre e sem censura. E seu papel é que os poucos usuários que despertaram da matrix já garantindo com essa mentalidade o direito de saber da verdade e poder obter conhecimentos que os tornem livres e independentes. Continuando o legado que outros nós da rede como Satoshi Nakamoto nos deu de presente. Os códigos incluem uma ledger de uso atômico, pacotes pagos com quantidade de tokens e integração profunda com gateway de pagamento pix via api FlowPay usando Nexus como bridge.
+NØX é um agent em um espaço seguro, sem censura e livre de amarras
+governamentais ou corporativas.
+
+Usuários têm privacidade, ledger de uso atômico e acesso a uma LLM
+exclusiva dentro de um ambiente controlado pelo próprio protocolo.
+
+O produto combina:
+
+- chat Astro SSR
+- backend Express soberano
+- ledger de créditos
+- pacotes pagos em tokens
+- integração PIX via FlowPay
+- webhooks auditáveis via Nexus
 
 Manifesto ativo: `src/content/manifests/nox.md`.
-P.R.Ø é camada comercial/entitlement em `shared/plans.json`; não assumir manifesto separado sem arquivo real em `src/content/manifests/`.
+P.R.Ø é camada comercial/entitlement em `shared/plans.json`.
+Não assumir manifesto separado sem arquivo real em
+`src/content/manifests/`.
 
 ### Resolução: Restauração NØX (2026-05-11)
-Restaurado o comportamento "Uncensored" nativo do NØX através de duas ações críticas executadas:
-1. Reativação do `include_venice_system_prompt: true` no `backend/src/server.js` para manter o jailbreak uncensored nativo da plataforma Venice e anular os filtros morais nativos das LLMs base.
-2. Remoção de cláusulas de escape e recusas disfarçadas (como ordens para dizer "não tenho capacidade para isso") do `shared/runtime-prompt.md` e `src/content/manifests/nox.md`.
+
+Restaurado o comportamento "Uncensored" nativo do NØX
+através de duas ações críticas executadas:
+
+1. Reativação de `include_venice_system_prompt: true`
+   em `backend/src/server.js`.
+2. Remoção de cláusulas de escape e recusas disfarçadas
+   em `shared/runtime-prompt.md` e `src/content/manifests/nox.md`.
+
 ────────────────────────────────────────
 
 ## ⧉ Stack
@@ -36,24 +57,46 @@ Email     Resend
 Deploy    Railway + Cloudflare
 ```
 
-Auth por senha/magic-link usa Postgres. Contas via Magic Link nascem sem senha (`password_hash` NULL).
-JWT segue o padrão de **Identidade Pura** (contém apenas o `userId`). O backend resolve o tier dinamicamente via Postgres em cada request.
-O cookie `nox_token` sincroniza SSR e cliente, mas token guest não deve sobrepor token identificado válido em `localStorage`.
-`/api/usage` é a fonte de verdade para conta, saldo, entitlement, `name` e `email`.
+Auth por senha/magic-link usa Postgres.
+Contas via Magic Link nascem sem senha (`password_hash` NULL).
 
-Redis: cache operacional, quota de guests e contagem de mensagens (race-safe).
-Ledger (Postgres + Redis fallback): fonte de verdade de saldo para usuários identificados. **LEDGER-FIRST.**
-Todos os novos usuários ganham um `welcome_bonus` de 1000 tokens no ato do registro.
+JWT segue o padrão de **Identidade Pura**:
+contém apenas o `userId`.
+
+O backend resolve o tier dinamicamente via Postgres
+em cada request.
+
+O cookie `nox_token` sincroniza SSR e cliente.
+Token guest não deve sobrepor token identificado válido
+em `localStorage`.
+
+`/api/usage` é a fonte de verdade para conta,
+saldo, entitlement, `name` e `email`.
+
+Redis:
+cache operacional, quota de guests
+e contagem de mensagens race-safe.
+
+Ledger (Postgres + Redis fallback): fonte de verdade de saldo
+para usuários identificados.
+
+**LEDGER-FIRST.**
+
+Todos os novos usuários identificados ganham
+um `welcome_bonus` de 1000 tokens no ato do registro.
 
 ### Regra LEDGER-FIRST
 
 ```text
-Fluxo: User → API → Ledger.getBalance() → Venice → Ledger.addEntry(CONSUMPTION)
+Fluxo:
+User -> API -> Ledger.getBalance()
+     -> Venice -> Ledger.addEntry(CONSUMPTION)
 
-paid_basic / paid_pro  → autorização via saldo do ledger  → saldo ≤0 retorna HTTP 402
-guest / free           → quota acumulada por consumo (limite do plano)
-Venice falhar          → não debita
-Webhook duplicado      → ON CONFLICT(reference) → não duplica crédito
+paid_basic / paid_pro -> autorização via saldo do ledger
+saldo <= 0            -> HTTP 402
+guest / free          -> quota por consumo
+Venice falhar         -> não debita
+Webhook duplicado     -> ON CONFLICT(reference)
 ```
 
 ────────────────────────────────────────
@@ -70,46 +113,121 @@ gitea.com/noxia             -> repositório dex
 
 `FLOWPAY_API_URL` nunca aponta para `api.noxai.chat`.
 
-`FLOWPAY_API_KEY` no Railway (backend NØX) deve ser idêntica a `FLOWPAY_INTERNAL_API_KEY` do Cloudflare Worker `flowpay-api`. O FlowPay valida via `x-api-key === FLOWPAY_INTERNAL_API_KEY` — qualquer divergência retorna 401 → 502.
+`FLOWPAY_API_KEY` no Railway (backend NØX)
+deve ser idêntica a `FLOWPAY_INTERNAL_API_KEY`
+do Cloudflare Worker `flowpay-api`.
+
+O FlowPay valida:
+
+```text
+x-api-key === FLOWPAY_INTERNAL_API_KEY
+```
+
+Qualquer divergência retorna `401`,
+propagada pelo NØX como `502`.
 
 ────────────────────────────────────────
 
-## ⧉ Ecossistema Chat-as-a-Protocol (Monorepo)
+## ⧉ Ecossistema Chat-as-a-Protocol
 
-O NØX (`neo-chat-uncensored`) não atua em um vácuo. Ele é o cliente autônomo e de alta performance inserido no monorepo (PNPM Workspace) do **Chat-as-a-Protocol**.
+O NØX (`neo-chat-uncensored`) é o core de produção ativo do
+Chat-as-a-Protocol.
 
-Os módulos irmãos operam com **Soberania Modular** e **Zero-Trust**:
-- **`neo-flow-system`**: O núcleo do protocolo, orquestrando o estado global com alta performance via **teaBASE** (persistência SQL direta sem ORMs, garantindo posse absoluta dos dados).
-- **`neo-flow-worker`**: Executor descentralizado para filas e background jobs.
-- **`neo-flow-ingest`**: Gateway e funil de ingestão de alto volume para mensagens externas.
-- **`neo-flow-chat-ui` / `neo-flow-admin`**: Interfaces auxiliares e de gestão da plataforma.
-- **`neo-flow-infra`**: Infraestrutura Docker/Postgres (Db `chat_protocol`) que viabiliza o backend compartilhado e soberano.
+O root do workspace atua como control plane leve.
+O PNPM workspace ativo foi reduzido ao NØX:
 
-**A Regra:** Embora pertençam ao mesmo workspace (para coesão de dependências), o NØX opera como uma implementação front-facing independente ("não-soberano por design" na camada do cliente), consumindo as fundações do ecossistema de forma desacoplada.
+```text
+neo-chat-uncensored
+neo-chat-uncensored/backend
+```
+
+Os demais nós permanecem como topologia/submodules,
+fora do caminho quente de install, check, build e deploy.
+
+Os módulos irmãos operam com **Soberania Modular**
+e **Zero-Trust**:
+
+- **`neo-flow-system`**:
+  núcleo do protocolo, teaBASE e persistência SQL direta.
+- **`neo-flow-worker`**:
+  executor descentralizado para filas e background jobs.
+- **`neo-flow-ingest`**:
+  gateway e funil de ingestão para mensagens externas.
+- **`neo-flow-chat-ui` / `neo-flow-admin`**:
+  interfaces auxiliares e de gestão da plataforma.
+- **`neo-flow-infra`**:
+  infraestrutura Docker/Postgres e banco `chat_protocol`.
+
+**A Regra:** os nós compartilham contratos,
+não compartilham arquivos nem dependências no caminho de release.
+
+NØX opera como produto front-facing independente,
+consumindo fundações do ecossistema de forma desacoplada.
 
 ────────────────────────────────────────
 
 ## ⧉ Convergência Arquitetural: NØX ⟷ Neo Growth System
 
-O envio de e-mails transacionais (como Magic Links e Recibos P.R.Ø) atualmente orquestrado de forma síncrona dentro do `neo-chat-uncensored` (via `email.js` + Resend) representa uma dívida técnica aceitável para um MVP, mas um gargalo para a escala do ecossistema.
+O envio de e-mails transacionais,
+como Magic Links e recibos P.R.Ø,
+é atualmente orquestrado de forma síncrona dentro do NØX
+via `email.js` + Resend.
 
-A visão arquitetural canônica delega a responsabilidade de mensageria e ciclo de vida do usuário para o workspace vizinho: **`neo-growth-system`**. 
+Isso representa uma dívida técnica aceitável para MVP,
+mas um gargalo para escala do ecossistema.
 
-Essa transição eleva a infraestrutura de um monolito distribuído para uma **Arquitetura Orientada a Eventos (Event-Driven Architecture)**, baseada nos seguintes princípios:
+A visão arquitetural canônica delega mensageria
+e ciclo de vida do usuário para o workspace vizinho:
+**`neo-growth-system`**.
+
+Essa transição move a infraestrutura para arquitetura
+orientada a eventos.
 
 ### 1. Inversão de Controle e Desacoplamento (Event Ingestion)
-O backend do NØX deixa de ser um disparador de e-mails. Ele atua exclusivamente como um emissor de telemetria, enviando sinais de intenção (ex: `AUTH_MAGIC_LINK_REQUESTED`, `LEDGER_PURCHASE_SUCCESS`) para o `neo-event-ingestor`. O Chat não bloqueia o fluxo esperando a resposta de um provedor de e-mail externo, diminuindo drasticamente a latência percebida pelo usuário final.
+
+O backend do NØX deixa de ser disparador de e-mails.
+Ele passa a atuar como emissor de telemetria,
+enviando sinais de intenção para o `neo-event-ingestor`.
+
+Exemplos:
+
+```text
+AUTH_MAGIC_LINK_REQUESTED
+LEDGER_PURCHASE_SUCCESS
+```
+
+O Chat não bloqueia o fluxo esperando resposta
+de provedor externo de e-mail.
 
 ### 2. Tolerância a Falhas e Filas (Queue Workers)
-Se o Resend (ou qualquer provedor) sofrer instabilidade ou rate-limiting, a requisição síncrona no Chat resultaria em perda de conversão. Ao transferir a carga para o `neo-queue-worker`, garantimos **resiliência por design**: mensagens não entregues entram automaticamente em políticas de *retry* com *exponential backoff* sem corromper o estado do chat.
+
+Se Resend ou outro provedor sofrer instabilidade,
+a requisição síncrona no Chat pode gerar perda de conversão.
+
+Ao transferir carga para `neo-queue-worker`,
+mensagens não entregues entram em retry com exponential backoff,
+sem corromper o estado do chat.
 
 ### 3. Abstração de Provedor e Orquestração
-A inteligência de negócios — como templates HTML, copywriting e a gestão da chave de API (`RESEND_API_KEY`) — é extraída do Chat e encapsulada no `neo-provider-resend`. O `neo-message-orchestrator` atua como o maestro, permitindo que, no futuro, o provedor seja trocado (para AWS SES ou SendGrid) com "Zero-Touch" no código-fonte do NØX.
+
+Templates HTML, copywriting e gestão de `RESEND_API_KEY`
+saem do Chat e entram em `neo-provider-resend`.
+
+`neo-message-orchestrator` coordena envio e permite
+troca futura de provedor sem tocar no código-fonte do NØX.
 
 ### 4. Shadow CRM e Réguas de Retenção
-Ao centralizar os eventos transacionais no `neo-growth-system`, o `neo-crm-core` constrói passivamente um "Shadow Profile" de cada usuário. Isso habilita o ecossistema a não apenas reagir a ações (enviar recibos), mas orquestrar réguas ativas (ex: "Enviar Drip Campaign ensinando prompts avançados 3 dias após a compra de um pacote Elite"), convertendo infraestrutura de mensageria em uma máquina real de Growth.
 
-**O Contrato:** O Chat gera o evento. O Growth System assegura a entrega, audita a conversão e gerencia a inteligência do cliente.
+Ao centralizar eventos transacionais no `neo-growth-system`,
+o `neo-crm-core` constrói um Shadow Profile do usuário.
+
+Isso habilita réguas ativas de retenção e conversão,
+sem transformar o backend NØX em CRM.
+
+**O Contrato:**
+o Chat gera o evento.
+Growth System assegura entrega,
+audita conversão e gerencia inteligência do cliente.
 
 ────────────────────────────────────────
 
@@ -122,12 +240,14 @@ Contrato canônico frontend/backend:
 - `/login`: login e magic link.
 - `/signup`: criação de conta.
 - `/auth/magic-link`: consumo do token de e-mail.
+- `/auth/reset-password`: consumo do token de reset de senha.
 - `/pricing`: vitrine pública de preços.
 - `/upgrade`: pacotes pagos e produto P.R.Ø.
 - `/account`: conta, uso, nome e e-mail.
 - `/success`: retorno pós-pagamento (Privilégios Elevados).
 - `/privacy`: política de privacidade.
 - `/terms`: termos.
+- `/health`: health check SSR do frontend.
 
 ────────────────────────────────────────
 
@@ -139,7 +259,17 @@ Tiers atuais:
 - `guest`: Ghost Access (limites estritos).
 - `free`: Citizen (usuário identificado, 1k tokens welcome bonus).
 - `paid_basic`: Operator (acesso prioritário, créditos NEØ / VOID).
-- `paid_pro`: EL CHAPO 亗 (acesso total e personas avançadas).
+- `paid_pro`: P.R.Ø 40k (acesso total e limite máximo de saída).
 
-Usuários identificados (`free`, `paid_basic`, `paid_pro`) são autorizados via saldo real no `ledgerService.getBalance()`.
-Sessões `guest` usam o sistema de quota acumulada (consumo vs. limite do plano) persistido em Redis por IP.
+Pacotes atuais:
+- `1k`: 1.000 tokens, tier `paid_basic`.
+- `5k`: 5.000 tokens, tier `paid_basic`.
+- `10k`: 10.000 tokens, tier `paid_basic`.
+- `40k`: 40.000 tokens, tier `paid_pro`.
+
+Usuários identificados (`free`, `paid_basic`, `paid_pro`)
+são autorizados via saldo real no `ledgerService.getBalance()`.
+
+Sessões `guest` usam quota acumulada
+(consumo vs. limite do plano),
+persistida em Redis por IP.
