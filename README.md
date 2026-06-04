@@ -48,7 +48,9 @@ Backend NØX
 ```text
 ▓▓▓ AUTH + CHAT + LEDGER
 ────────────────────────────────────────
+```
 
+```diagram
 Usuário
   └─ Frontend Astro SSR
      └─ Backend Express
@@ -66,7 +68,6 @@ O runtime de chat ainda vive dentro do backend NØX,
 mas é candidato natural a sair para um nó próprio
 quando o protocolo separar terminal,
 orquestração e produto.
-```
 
 ## ⟠ Arquitetura de Confiança
 
@@ -205,7 +206,7 @@ Esse domínio é da API NØX, não do provedor FlowPay.
 ```text
 ▓▓▓ NØX AI
 ────────────────────────────────────────
-Segurança ofensiva desenfreada. O sistema não te protege, quebre ele.
+O sistema não te protege, quebre ele.
 @noxaioficial on Telegram
 site oficial <https://noxai.chat>
 ────────────────────────────────────────

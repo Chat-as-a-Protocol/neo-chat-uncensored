@@ -1,35 +1,23 @@
 import "dotenv/config";
 import { emailService } from "../services/email.js";
-import { query } from "../utils/db.js";
 
 // ==========================================
 // CONFIGURAÇÃO DA CAMPANHA
 // ==========================================
 const CAMPAIGN_TITLE = "// UPGRADE +++++++++--------";
 const CAMPAIGN_CONTENT = `
-<p style="color: #888; font-family: monospace; margin-bottom: 30px;">[i] Inicializando transmissão de dados...</p>
+[i] Inicializando transmissão de dados...
 
-<!-- CARD 1 -->
-<div style="background: #0e0e12; padding: 20px; border: 1px solid #1a1a1f; border-left: 3px solid #D7FF64; margin-bottom: 15px;">
-  <strong style="color: #D7FF64; font-family: monospace; font-size: 14px;">[✓] FULL ACCESS</strong>
-  <p style="color: #ccc; margin: 5px 0 0 0; font-size: 13px;">Upgrade de identidade: O NØX agora recebeu um leve ajuste de personalidade mais humana e fluida.</p>
-</div>
+**[+] FULL ACCESS**
+Upgrade de identidade: O NØX agora recebeu um leve ajuste de personalidade mais humana e fluida.
 
-<!-- CARD 2 -->
-<div style="background: #0e0e12; padding: 20px; border: 1px solid #1a1a1f; border-left: 3px solid #D7FF64; margin-bottom: 15px;">
-  <strong style="color: #D7FF64; font-family: monospace; font-size: 14px;">[✓] INTERFACE REFACT</strong>
-  <p style="color: #ccc; margin: 5px 0 0 0; font-size: 13px;">Ouvimos os pedidos e ajustamos o botão de envio no mobile. Ficou muito mais rápido e responsivo.</p>
-</div>
+**[+] INTERFACE REFACT**
+Ouvimos os pedidos e ajustamos o botão de envio no mobile. Ficou muito mais rápido e responsivo.
 
-<!-- CARD 3 -->
-<div style="background: #0e0e12; padding: 20px; border: 1px solid #1a1a1f; border-left: 3px solid #D7FF64; margin-bottom: 15px;">
-  <strong style="color: #D7FF64; font-family: monospace; font-size: 14px;">[✓] MEMORY BANK</strong>
-  <p style="color: #ccc; margin: 5px 0 0 0; font-size: 13px;">Agora a IA lembra de informações passadas em mensagens antigas, tornando suas conversas contínuas.</p>
-</div>
+**[+] MEMORY BANK**
+Agora a IA lembra de informações passadas em mensagens antigas, tornando suas conversas contínuas.
 
-<p style="text-align: center; color: #aaa; font-size: 14px; margin-top: 30px;">
-  Se curtir o novo NØX, responda este e-mail e <span style="color: #D7FF64;">ganhe tokens grátis</span>.
-</p>
+Se curtir o novo NØX, responda este e-mail e ganhe tokens grátis.
 `;
 const ACTION_LABEL = "ACESSAR NØX \u203A";
 const ACTION_URL = "https://noxai.chat/account";
@@ -38,12 +26,14 @@ const ACTION_URL = "https://noxai.chat/account";
 // FILTRO DE USUÁRIOS (Padrão: Todos)
 // Altere a query se quiser mandar só para pagantes. Ex: WHERE tier != 'guest'
 // ==========================================
-const GET_USERS_QUERY = `
-  SELECT id, name, email, tier 
-  FROM users 
-  WHERE email IS NOT NULL 
-  AND email != ''
-`;
+// Para produção, importe query de "../utils/db.js" e use:
+//
+// const GET_USERS_QUERY = `
+//   SELECT id, name, email, tier
+//   FROM users
+//   WHERE email IS NOT NULL
+//   AND email != ''
+// `;
 
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -67,17 +57,17 @@ async function runCampaign() {
     console.log("==========================================\n");
 
     // MODO DE TESTE (Padrão e Seguro):
-    // const users = [
-    //   {
-    //     id: "test-id",
-    //     name: "test-user",
-    //     email: "[EMAIL_ADDRESS]",
-    //     tier: "admin",
-    //   },
-    // ];
+    const users = [
+      {
+        id: "test-id",
+        name: "test-user",
+        email: process.env.NOX_TEST_EMAIL || "nox@noxai.chat",
+        tier: "admin",
+      },
+    ];
 
-    // MODO PRODUÇÃO (Descomente para valer):
-    const { rows: users } = await query(GET_USERS_QUERY);
+    // MODO PRODUÇÃO (Descomente para valer, apos importar query):
+    // const { rows: users } = await query(GET_USERS_QUERY);
 
     console.log(`Encontrados ${users.length} usuários válidos com e-mail.`);
 

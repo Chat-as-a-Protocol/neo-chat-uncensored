@@ -16,6 +16,13 @@ Version: v1.0.0
 Descrever o funcionamento, a segurança e a execução dos scripts de disparo
 manual de e-mails em massa localizados no diretório `backend/src/scripts/`.
 
+Para briefing, aprovação de copy e operação pela equipe de marketing,
+use também:
+
+```text
+docs/MARKETING_EMAILS.md
+```
+
 ────────────────────────────────────────
 
 ## ⨷ Scripts Disponíveis
@@ -30,6 +37,10 @@ Atualmente, existem dois scripts operacionais:
    - Foco: Convite e engajamento para a comunidade oficial do Telegram.
    - Assunto: "COMUNIDADE NØX NO TELEGRAM".
 
+Os dois scripts usam `emailService.sendFeatureAnnouncement`.
+O conteúdo da campanha deve ser texto simples com markdown mínimo,
+não HTML cru.
+
 ────────────────────────────────────────
 
 ## ⍟ Segurança e Trava de Disparo
@@ -40,14 +51,14 @@ scripts vêm configurados com uma trava de segurança ativada por padrão.
 ### Comportamento Padrão (Modo Seguro)
 
 O array de usuários vem mockado apontando apenas para o e-mail do
-administrador:
+administrador ou para `NOX_TEST_EMAIL`:
 
 ```javascript
 const users = [
   {
     id: "test-id",
     name: "test-user",
-    email: "[EMAIL_ADDRESS]",
+    email: process.env.NOX_TEST_EMAIL || "nox@noxai.chat",
     tier: "admin",
   },
 ];
