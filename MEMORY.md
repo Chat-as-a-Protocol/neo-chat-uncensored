@@ -6,7 +6,7 @@
           NØX · TECHNICAL MEMORY
 ========================================
 Status: active
-Updated: 2026-05-11
+Updated: 2026-06-04
 ========================================
 ```
 
@@ -207,6 +207,91 @@ Sintoma: O arquivo `sw.js` público listava explicitamente as rotas do sistema (
 Causa: Uso de "blacklist" de rotas para evitar cache em SSR.
 Correção: Inversão da lógica. O `sw.js` agora usa apenas "whitelist" baseada em extensões de arquivos estáticos (`.js`, `.css`, `.png`, etc.). As rotas do sistema não são mais listadas, ocultando a estrutura do backend de curiosos.
 
+### Topologia NØX Core e Nexus Subscriptions (2026-06-04)
+
+Sintoma: O workspace e os docs misturavam produção atual,
+arquitetura alvo do ecossistema e serviços auxiliares.
+
+Causa: O NØX havia evoluído para produto quase independente,
+mas documentos e exemplos ainda sugeriam múltiplos nós no caminho
+quente de deploy.
+
+Correção:
+- Workspace PNPM ativo reduzido ao NØX:
+  `neo-chat-uncensored` e `neo-chat-uncensored/backend`.
+- Topologia real documentada em `docs/DEPLOY_TOPOLOGY.md`:
+  `FRONTEND`, `backend`, `Postgres`, `Redis`.
+- Resend tratado como provider externo via API,
+  não como serviço Railway obrigatório.
+- `Resend Mail` só deve permanecer se virar nó real,
+  com contrato, health check e responsabilidade própria.
+- Chat runtime permanece interno ao backend NØX para release rápido,
+  mas é candidato a extração futura por API/evento/contrato.
+- `DEPLOYMENT.md` do root virou mapa alvo do ecossistema,
+  não checklist de deploy atual do NØX.
+
+Regra:
+o deploy real atual do NØX é definido por
+`docs/DEPLOY_TOPOLOGY.md`.
+
+### FlowPay via Nexus ecosystem-subscriptions (2026-06-04)
+
+Sintoma: Havia ambiguidade entre Nexus como dependência do NØX
+e Nexus como caller upstream de webhooks.
+
+Causa: O fluxo menciona Nexus,
+mas o NØX não chama Nexus.
+O Nexus faz fan-out server-to-server para consumidores.
+
+Correção:
+- NØX não precisa de `NEXUS_URL`.
+- `ALLOWED_ORIGINS` do Nexus não participa de webhook
+  server-to-server.
+- No Nexus,
+  NØX deve entrar como mais uma subscription em
+  `config/ecosystem.json` / `nexusEvents.subscriptions[]`.
+- Target canônico recomendado:
+  `https://api.noxai.chat/api/webhooks/flowpay`.
+- `/webhooks/flowpay` permanece alias legado/compatível.
+- O segredo de assinatura vem do `secretEnv` da subscription,
+  recomendado como `FLOWPAY_WEBHOOK_SECRET`.
+
+Subscription recomendada:
+
+```json
+{
+  "event": "FLOWPAY:PAYMENT_RECEIVED",
+  "target": {
+    "kind": "webhook",
+    "url": "https://api.noxai.chat/api/webhooks/flowpay"
+  },
+  "secretEnv": "FLOWPAY_WEBHOOK_SECRET"
+}
+```
+
+Regra:
+não substituir targets existentes no Nexus.
+Adicionar NØX como consumidor adicional.
+
+### Reset Password Error Semantics (2026-06-04)
+
+Sintoma: `/auth/reset-password?token=fake` chamava o backend
+e recebia `401 Unauthorized`,
+parecendo falha de sessão.
+
+Causa: Token de reset inválido era respondido como 401,
+mesmo o fluxo não exigindo login.
+
+Correção:
+`POST /api/auth/password-reset/complete`
+responde `400 Invalid token.`
+quando o token de reset não existe ou expirou.
+
+Regra:
+reset de senha não deve exigir Bearer token.
+Token de reset inválido é erro de payload/contrato,
+não falta de autenticação.
+
 ────────────────────────────────────────
 
 ## ⧉ Frontend Security Boundary (2026-05-12)
@@ -236,4 +321,11 @@ Qualquer lógica crítica de acesso, crédito, cobrança, pagamento, token, quot
 - **kind:unknown**: `resolveFlowPayEntitlement` retorna `kind: "unknown"` para metadata incompleto ou tokens inválidos. Webhook deve rejeitar entitlement desconhecido.
 - **Auth token precedence**: cookie guest não deve vencer token identificado válido em `localStorage`.
 - **pnpm overrides**: manter overrides em `pnpm-workspace.yaml`; Docker runtime precisa copiar esse arquivo antes de `pnpm install --frozen-lockfile`.
+- **Deploy atual**: caminho quente é NØX frontend/backend;
+  irmãos ficam fora de install/check/build do release rápido.
+- **Resend**: provider externo via backend.
+  Não tratar `Resend Mail` Railway como obrigatório.
+- **Nexus fan-out**: NØX é consumer em
+  `nexusEvents.subscriptions[]`.
+  CORS não participa de webhook server-to-server.
 - **Deploy**: Realizar `git push origin main` + `railway up` para sincronizar produção.

@@ -17,53 +17,55 @@ Domains: noxai.chat / api.noxai.chat
 > **Status:** active
 > **Protocol:** NØX / FlowPay / Venice
 
-```diagram
-1. Usuário (Browser / App)
-   - Interage via UI Astro SSR em https://noxai.chat
-   - Envia credenciais e mensagens de chat
+```text
+▓▓▓ RAILWAY PRODUCTION SHAPE
+────────────────────────────────────────
 
-2. Frontend (Astro SSR)
-   - Roteia:
-     - /login, /signup, /chat, /upgrade
-   - Chama a API pública NØX:
-     - POST https://api.noxai.chat/api/auth/...
-     - POST https://api.noxai.chat/api/chat
+Frontend NØX
+  noxai.chat
+  │
+  │ PUBLIC_API_URL=https://api.noxai.chat
+  ▼
+Backend NØX
+  api.noxai.chat
+  │
+  ├─ Postgres
+  │  users, payments, ledger, magic links
+  │
+  ├─ Redis
+  │  quota, cache, reset password, idempotência
+  │
+  ├─ Venice API
+  │  execução IA via backend proxy
+  │
+  ├─ FlowPay API
+  │  https://api.flowpay.cash
+  │
+  └─ Resend API
+     e-mail externo via RESEND_API_KEY
+```
 
-3. Backend NØX (Express API)
-   - Auth:
-     - Valida login/signup
-     - Cria usuário (Postgres)
-     - Gera JWT (identidade pura: userId)
-     - Concede welcome_bonus no ledger
-   - Chat:
-     - authenticateToken (JWT + Postgres)
-     - Rate limiting por usuário (Redis)
-     - checkQuota (plans.json + ledger)
-     - Monta prompt (runtime-prompt + persona)
-     - Proxy Venice: /chat/completions
-     - Conta tokens da resposta e debita ledger
+```text
+▓▓▓ AUTH + CHAT + LEDGER
+────────────────────────────────────────
 
-4. Venice API (IA)
-   - Recebe:
-     - model: VENICE_MODEL
-     - messages (prompt + conversa)
-   - Responde:
-     - streaming (SSE) ou JSON
-   - Não guarda estado de billing: só gera tokens
+Usuário
+  └─ Frontend Astro SSR
+     └─ Backend Express
+        ├─ Auth via Postgres
+        ├─ Sessão JWT de identidade pura
+        ├─ Quota/cache via Redis
+        ├─ Venice para geração
+        └─ Ledger para débito auditável
+```
 
-5. Ledger (backend/src/services/ledger.js)
-   - Registra:
-     - TOKEN_PURCHASE (bônus, recargas, FlowPay)
-     - TOKEN_CONSUMPTION (chat, IA)
-     - PRO_SUBSCRIPTION (eventos de assinatura)
-   - Garante:
-     - idempotência por referência
-     - saldo auditável por usuário
+`Resend Mail` não é serviço Railway soberano do NØX.
+Resend é provedor externo consumido pelo backend.
 
-Fluxo resumido:
-
-Usuário → Frontend → Backend Auth → Postgres + Ledger (bônus)
-Usuário + JWT → Frontend → Backend Chat → Venice → Ledger (débito) → Usuário
+O runtime de chat ainda vive dentro do backend NØX,
+mas é candidato natural a sair para um nó próprio
+quando o protocolo separar terminal,
+orquestração e produto.
 ```
 
 ## ⟠ Arquitetura de Confiança
@@ -87,7 +89,7 @@ O NØX opera sob três pilares de integridade técnica:
 ┃ Domínio app        ┃ https://noxai.chat
 ┃ Domínio API        ┃ https://api.noxai.chat
 ┃ Pagamentos         ┃ FlowPay em https://api.flowpay.cash
-┃ E-mail             ┃ Resend, NØX <send@noxai.chat>
+┃ E-mail             ┃ Resend API externo
 ┃ Planos             ┃ shared/plans.json
 ┗━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -167,6 +169,7 @@ fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
 Frontend Railway:
 
 ```text
+Service: FRONTEND
 Start: node dist/server/entry.mjs
 Health: /health
 PUBLIC_API_URL=https://api.noxai.chat
@@ -176,6 +179,7 @@ Docker runtime copia package.json, pnpm-lock.yaml e pnpm-workspace.yaml antes do
 Backend Railway:
 
 ```text
+Service: backend
 Start: node src/server.js
 Health: /health
 FRONTEND_URL=https://noxai.chat
@@ -193,6 +197,9 @@ Esse domínio é da API NØX, não do provedor FlowPay.
 - [Setup](./SETUP.md)
 - [Jornada do usuário](./USER_JOURNEY.md)
 - [Próximos passos](./NEXTSTEPS.md)
+- [Topologia de deploy](./docs/DEPLOY_TOPOLOGY.md)
+- [Contrato de rotas](./docs/ROUTE_CONTRACT.md)
+- [Contrato de envs](./docs/ENV_CONTRACT.md)
 - [Markdown Style Guide](./docs/MARKDOWN_STYLE_GUIDE.md)
 
 ```text

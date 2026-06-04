@@ -20,6 +20,9 @@ quota ou consumo de IA.
 Frontend route -> Backend endpoint -> responsabilidade
 ```
 
+Topologia de deploy:
+`docs/DEPLOY_TOPOLOGY.md`.
+
 ────────────────────────────────────────
 
 ## ⧉ Contrato
@@ -137,16 +140,17 @@ Frontend route -> Backend endpoint -> responsabilidade
 
 ┏ POST /api/webhooks/flowpay
 ├─ Consumidor
-│  Nexus / FlowPay.
+│  Nexus ecosystem-subscriptions / FlowPay fan-out.
 └─ Responsabilidade
    Processar webhook assinado, aplicar idempotência, atualizar
    pagamento, ledger e tier.
 
 ┏ POST /webhooks/flowpay
 ├─ Consumidor
-│  Nexus / FlowPay.
+│  Nexus legado / compatibilidade.
 └─ Responsabilidade
-   Alias operacional do webhook FlowPay.
+   Alias operacional do webhook FlowPay. Novas subscriptions
+   devem preferir /api/webhooks/flowpay.
 ```
 
 ────────────────────────────────────────
@@ -166,8 +170,9 @@ Frontend route -> Backend endpoint -> responsabilidade
 ┃ Quota                  ┃ Backend via checkQuota, Redis e ledger
 ┃ Cobrança               ┃ Backend cria FlowPay charge
 ┃                        ┃ Frontend nunca fala direto com FlowPay
-┃ Confirmação pagamento  ┃ Webhook assinado FlowPay/Nexus
-┃ E-mail                 ┃ Backend via Resend
+┃ Confirmação pagamento  ┃ Webhook assinado Nexus
+┃                        ┃ ecosystem-subscriptions
+┃ E-mail                 ┃ Backend via Resend API externo
 ┃ IA                     ┃ Backend proxy para Venice
 ┃                        ┃ Frontend não chama Venice
 ┗━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -193,7 +198,7 @@ Smoke manual mínimo após deploy:
 /upgrade -> POST /api/tokens/purchase
 /auth/magic-link -> POST /api/auth/magic-link/verify
 /account -> GET /api/usage
-FlowPay/Nexus -> POST /api/webhooks/flowpay
+FlowPay -> Nexus -> POST /api/webhooks/flowpay
 ```
 
 ────────────────────────────────────────

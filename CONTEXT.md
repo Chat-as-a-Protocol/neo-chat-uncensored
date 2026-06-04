@@ -6,7 +6,7 @@
           NØX · PROJECT CONTEXT
 ========================================
 Status: active
-Updated: 2026-06-04 (Route Contract + NØX Core)
+Updated: 2026-06-04 (Deploy Topology + NØX Core)
 ========================================
 ```
 
@@ -106,6 +106,9 @@ Webhook duplicado     -> ON CONFLICT(reference)
 Contrato canônico de envs:
 `docs/ENV_CONTRACT.md`.
 
+Topologia canônica de deploy:
+`docs/DEPLOY_TOPOLOGY.md`.
+
 ```text
 noxai.chat                  -> app NØX
 api.noxai.chat              -> backend NØX
@@ -166,6 +169,27 @@ não compartilham arquivos nem dependências no caminho de release.
 
 NØX opera como produto front-facing independente,
 consumindo fundações do ecossistema de forma desacoplada.
+
+### Railway atual
+
+```text
+FRONTEND
+  noxai.chat
+  │
+  ▼
+backend
+  api.noxai.chat
+  ├─ Postgres
+  ├─ Redis
+  ├─ Venice API
+  ├─ FlowPay API
+  └─ Resend API
+```
+
+O serviço `Resend Mail`, se existir apenas como starter,
+não é autoridade de produção.
+
+Resend é provider externo consumido pelo backend.
 
 ────────────────────────────────────────
 
@@ -231,6 +255,37 @@ sem transformar o backend NØX em CRM.
 o Chat gera o evento.
 Growth System assegura entrega,
 audita conversão e gerencia inteligência do cliente.
+
+────────────────────────────────────────
+
+## ⧗ Extração do Chat Runtime
+
+O runtime de conversa ainda vive dentro do backend NØX.
+
+Isso é aceitável para release rápido,
+porque reduz superfície operacional.
+
+Mas o chat é candidato natural a sair do NØX
+quando o protocolo separar:
+
+- produto
+- terminal
+- orquestração de agentes
+- billing/ledger
+
+Contrato futuro esperado:
+
+```text
+NØX App/Backend -> Chat Runtime Node
+```
+
+A integração deve ocorrer por API,
+evento,
+fila
+ou contrato explícito.
+
+Não compartilhar arquivos.
+Não importar código interno entre nós.
 
 ────────────────────────────────────────
 

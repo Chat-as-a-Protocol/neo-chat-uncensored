@@ -1642,7 +1642,7 @@ app.post("/api/auth/password-reset/complete", authLimiter, async (req, res) => {
   try {
     const userId = await redis.get(`pwd_reset:${token}`);
     if (!userId) {
-      return res.status(401).json({ error: "Token inválido ou expirado." });
+      return res.status(400).json({ error: "Invalid token." });
     }
 
     const password_hash = await bcrypt.hash(newPassword, 12);

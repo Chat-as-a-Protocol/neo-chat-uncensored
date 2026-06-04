@@ -123,7 +123,46 @@ Resultado esperado:
 - pagamento persistido em `payments`
 - crédito registrado no ledger
 - tier atualizado quando aplicável
-- e-mail de confirmação enviado via Resend
+- e-mail de confirmação enviado via Resend API
+
+Resend é provedor externo.
+
+Ele não exige serviço Railway próprio chamado `Resend Mail`
+para que o fluxo de usuário funcione.
+
+────────────────────────────────────────
+
+## ◬ Chat Runtime
+
+Hoje,
+o chat é entregue pelo backend NØX.
+
+Fluxo atual:
+
+```text
+Frontend NØX
+  └─ POST /api/chat
+     └─ Backend NØX
+        ├─ auth
+        ├─ quota
+        ├─ Venice
+        └─ ledger debit
+```
+
+Fluxo futuro provável:
+
+```text
+Frontend NØX
+  └─ Backend NØX
+     ├─ auth
+     ├─ entitlement
+     └─ Chat Runtime Node
+```
+
+Essa saída deve preservar ledger e billing no backend soberano.
+
+O novo nó de chat não deve receber autoridade financeira
+nem depender de arquivos compartilhados do NØX.
 
 ────────────────────────────────────────
 
@@ -137,7 +176,7 @@ Resultado esperado:
 └─ Redis para quota, cache, ledger fallback e compatibilidade
 └─ Postgres para usuários identificados, pagamentos e magic links
 └─ FlowPay service rejeita HTML e self-call
-└─ Resend isolado no backend
+└─ Resend API isolada no backend
 └─ Modelo Venice definido por `VENICE_MODEL` no backend
 ```
 

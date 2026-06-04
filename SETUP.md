@@ -60,6 +60,46 @@ neo-chat-uncensored/
 ┗━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+```text
+▓▓▓ RAILWAY ATUAL
+────────────────────────────────────────
+
+┏ FRONTEND
+├─ Domínio
+│  https://noxai.chat
+├─ Health
+│  GET /health
+└─ Chama
+   https://api.noxai.chat
+
+┏ backend
+├─ Domínio
+│  https://api.noxai.chat
+├─ Health
+│  GET /health
+├─ Usa
+│  Postgres
+│  Redis
+├─ Chama
+│  Venice API
+│  FlowPay API
+│  Resend API
+└─ Recebe
+   FlowPay/Nexus webhooks
+```
+
+`Resend Mail`, quando existir no Railway como starter,
+não é parte obrigatória do deploy NØX.
+
+O backend envia e-mails diretamente via Resend API.
+Só manter um serviço próprio de mail se ele possuir código
+e contrato soberano reais.
+
+Contrato visual detalhado:
+`docs/DEPLOY_TOPOLOGY.md`.
+
+────────────────────────────────────────
+
 ## ◯ Fluxo Auth + Chat + Venice + Ledger
 
 Usuário
@@ -111,9 +151,9 @@ make build
 Comandos diretos úteis:
 
 ```bash
-fnm exec --using v22.22.2 pnpm check
-fnm exec --using v22.22.2 pnpm build
-fnm exec --using v22.22.2 pnpm --filter chat-api-backend test
+fnm exec --using v25.9.0 pnpm check
+fnm exec --using v25.9.0 pnpm build
+fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
 ```
 
 Proteção de chaves:
@@ -187,10 +227,14 @@ FRONTEND_URL=https://noxai.chat
 FLOWPAY_API_URL=https://api.flowpay.cash
 FLOWPAY_API_KEY=...   # deve ser idêntica a FLOWPAY_INTERNAL_API_KEY do Cloudflare Worker flowpay-api
 FLOWPAY_WEBHOOK_SECRET=...
-RESEND_API_KEY=${{Resend Mail.RESEND_API_KEY}}
+RESEND_API_KEY=...
 RESEND_FROM_EMAIL=NØX <send@noxai.chat>
 MAGIC_LINK_EXPIRATION_MINUTES=10
 ```
+
+`RESEND_API_KEY` é secret do backend.
+Não depende de um serviço Railway chamado `Resend Mail`,
+salvo se esse serviço for formalizado como nó de mail.
 
 Frontend Railway:
 
@@ -241,6 +285,8 @@ mas são normalizados antes de aplicar regra de acesso.
 - Ledger usa idempotência por referência de pagamento.
 - FlowPay service rejeita resposta HTML e URL apontando
   para o próprio app.
+- Resend é provider externo.
+  E-mail não roda no frontend nem exige serviço Railway próprio.
 
 ────────────────────────────────────────
 

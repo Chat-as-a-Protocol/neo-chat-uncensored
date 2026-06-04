@@ -19,6 +19,9 @@ Não expor secrets em logs, commits ou exemplos.
 Variáveis públicas podem ter valor canônico documentado.
 Variáveis privadas devem aparecer apenas pelo nome.
 
+Topologia operacional:
+`docs/DEPLOY_TOPOLOGY.md`.
+
 ────────────────────────────────────────
 
 ## ⧉ Frontend
@@ -110,13 +113,18 @@ Variáveis privadas devem aparecer apenas pelo nome.
 │  Validar assinatura HMAC dos webhooks FlowPay/Nexus.
 └─ Regra
    Obrigatório para produção segura.
+   Nexus é caller upstream.
+   NØX não chama Nexus no fluxo atual de pagamento.
+   Não existe NEXUS_URL obrigatório no backend NØX.
+   No Nexus, este secret é escolhido por subscription via secretEnv.
+   ALLOWED_ORIGINS do Nexus não participa de fan-out server-to-server.
 
 ┏ RESEND_API_KEY
 ├─ Responsabilidade
 │  Enviar magic links, reset de senha e e-mails transacionais.
 └─ Regra
-   Secret. Enquanto Resend estiver síncrono no NØX,
-   o backend precisa desta variável.
+   Secret. Backend chama Resend API diretamente.
+   Não depende de serviço Railway próprio chamado Resend Mail.
 ```
 
 ────────────────────────────────────────
@@ -135,7 +143,7 @@ Variáveis privadas devem aparecer apenas pelo nome.
    NØX <send@noxai.chat>
 
 ┏ RESEND_API_URL
-└─ Override do endpoint Resend.
+└─ Override do endpoint Resend API.
 
 ┏ MAGIC_LINK_EXPIRATION_MINUTES
 └─ TTL de magic link. Padrão runtime: 10.

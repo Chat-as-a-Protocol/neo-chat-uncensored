@@ -1,8 +1,46 @@
 # diagrama de fluxo de pagamento
 
+Contrato operacional atual:
+
+```text
+FlowPay -> Nexus -> backend NØX webhook
+```
+
+O backend aceita dois paths:
+
+```text
+POST /api/webhooks/flowpay
+POST /webhooks/flowpay
+```
+
+`/api/webhooks/flowpay` é o handler canônico.
+`/webhooks/flowpay` é alias compatível com Nexus.
+
+No Nexus,
+o NØX deve entrar como subscription adicional em
+`config/ecosystem.json`:
+
+```json
+{
+  "event": "FLOWPAY:PAYMENT_RECEIVED",
+  "target": {
+    "kind": "webhook",
+    "url": "https://api.noxai.chat/api/webhooks/flowpay"
+  },
+  "secretEnv": "FLOWPAY_WEBHOOK_SECRET"
+}
+```
+
+`ALLOWED_ORIGINS` não participa do fan-out server-to-server.
+
 ```mermaid
 flowchart TD
-  A["FP envia POST '/api/webhooks/flowpay'"] --> B["Express recebe 'raw' body"]
+  A0["FlowPay POST /api/webhooks/flowpay no Nexus"] --> A1["Nexus dispatcher ecosystem-subscriptions"]
+  A1 --> A2{"Path de entrada"}
+  A2 -->|"canônico novo"| A["POST '/api/webhooks/flowpay'"]
+  A2 -->|"alias legado/compatível"| A3["POST '/webhooks/flowpay'"]
+  A --> B["Express recebe 'raw' body"]
+  A3 --> B
   B --> C["Valida assinatura HMAC-SHA256"]
   C -->|inválida| Z["Resposta 401 'Unauthorized'"]
   C -->|válida| D["Parse do JSON\n'event' e 'data'"]
