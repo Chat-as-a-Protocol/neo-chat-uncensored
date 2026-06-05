@@ -3,5 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /*?*
 
-# Quando você adicionar o @astrojs/sitemap, descomente a linha abaixo
-# Sitemap: https://noxai.chat/sitemap-index.xml
+Sitemap: https://noxai.chat/sitemap-index.xml
