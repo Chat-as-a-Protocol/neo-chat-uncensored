@@ -2,22 +2,22 @@
   "tiers": {
     "guest": {
       "name": "Guest",
-      "initialBalance": 500,
-      "maxOutputTokens": 184,
+      "initialBalance": 700,
+      "maxOutputTokens": 256,
       "benefits": [
         "Acesso sem cadastro",
-        "500 tokens iniciais",
+        "700 tokens iniciais",
         "Respostas compactas",
         "Histórico não persistido"
       ]
     },
     "free": {
       "name": "Identified",
-      "initialBalance": 1000,
-      "maxOutputTokens": 324,
+      "initialBalance": 2000,
+      "maxOutputTokens": 512,
       "benefits": [
         "Cadastro confirmado",
-        "1.000 tokens de boas-vindas",
+        "2.000 tokens de boas-vindas",
         "Histórico salvo em conta",
         "Acesso a Personas básicas"
       ]
@@ -25,10 +25,10 @@
     "paid_basic": {
       "name": "Paid Basic",
       "initialBalance": 0,
-      "maxOutputTokens": 1024,
+      "maxOutputTokens": 1536,
       "benefits": [
         "Créditos acumulativos via Ledger",
-        "Limite de saída expandido para 1024 tokens"
+        "Limite de saída expandido para 1536 tokens"
       ]
     },
     "paid_pro": {
@@ -37,7 +37,7 @@
       "maxOutputTokens": 4096,
       "benefits": [
         "Acesso ao arquiteto de NØX.ai",
-        "Maior limite de saída (4096 tokens)"
+        "Maior limite de saída quando solicitado"
       ]
     }
   },
@@ -47,11 +47,11 @@
       "tokens": 1000,
       "price": 49,
       "tier": "paid_basic",
-      "maxOutputTokens": 548,
+      "maxOutputTokens": 768,
       "benefits": [
         "1.000 tokens de créditos",
         "Histórico do chat salvo",
-        "Respostas detalhadas liberadas"
+        "Respostas detalhadas sob demanda"
       ]
     },
     "5k": {
@@ -59,7 +59,7 @@
       "tokens": 5000,
       "price": 79,
       "tier": "paid_basic",
-      "maxOutputTokens": 824,
+      "maxOutputTokens": 1200,
       "benefits": [
         "5.000 tokens de créditos",
         "Histórico do chat salvo",
@@ -71,7 +71,7 @@
       "tokens": 10000,
       "price": 149,
       "tier": "paid_basic",
-      "maxOutputTokens": 1024,
+      "maxOutputTokens": 1536,
       "benefits": [
         "10.000 tokens de créditos",
         "Histórico do chat salvo",

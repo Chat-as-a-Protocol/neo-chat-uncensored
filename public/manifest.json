@@ -1,7 +1,7 @@
 {
   "name": "NØX Chat",
   "short_name": "NØX",
-  "description": "Chat AI uncensored - Privado e sem filtros",
+  "description": "Chat AI uncensored - Private and unfiltered",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#181923",

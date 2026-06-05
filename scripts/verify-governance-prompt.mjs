@@ -1,11 +1,11 @@
-// Verificador de governança do NØX (passo 7).
-// Espelha a composição do finalSystemPrompt em backend/src/server.js e prova:
-//   1. presença dos blocos de governança;
-//   2. ordem (Constitution por último — autoridade/recency);
-//   3. descontaminação (termos da dívida antiga ausentes);
-//   4. ausência de "chat.ts" nos arquivos promovidos para shared/;
-//   5. fail-closed: loadRequiredGovernanceFile lança em arquivo vazio/ausente.
-// Sem rede, sem auth, sem quota.
+// NØX Governance Checker (step 7).
+// Mirrors the composition of the finalSystemPrompt in backend/src/server.js and proves:
+// 1. presence of governance blocks;
+// 2. order (Constitution last — authority/recency);
+// 3. decontamination (old debt terms absent);
+// 4. absence of "chat.ts" in files promoted to shared/;
+// 5. fail-closed: loadRequiredGovernanceFile throws empty/missing file.
+// No network, no auth, no quota.
 
 import fs from "node:fs/promises";
 import path from "node:path";
