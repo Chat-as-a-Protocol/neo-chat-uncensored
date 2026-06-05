@@ -825,7 +825,7 @@
     }
   }
 
-  async function updateQuota() {
+  async function updateQuota(allowAuthRetry = true) {
     try {
       const token = getStoredToken();
       if (!token) {
@@ -836,6 +836,16 @@
       const response = await fetch(`${apiUrl}/api/usage`, {
         headers: { Authorization: `Bearer ${activeToken}` }
       });
+      // Token expirado/inválido: descarta o token podre e refaz a sessão
+      // de convidado uma única vez, evitando 403 recorrente no console.
+      if (response.status === 401 || response.status === 403) {
+        clearAuthToken();
+        if (allowAuthRetry) {
+          await ensureSession();
+          return updateQuota(false);
+        }
+        return;
+      }
       if (!response.ok) return;
 
       const data: UsagePayload = await response.json();
