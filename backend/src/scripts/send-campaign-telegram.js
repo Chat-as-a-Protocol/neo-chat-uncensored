@@ -7,14 +7,17 @@ import { emailService } from "../services/email.js";
 // ==========================================
 const CAMPAIGN_TITLE = "COMUNIDADE NØX NO TELEGRAM";
 const CAMPAIGN_CONTENT = `
-  <p>O acesso ao terminal é só o começo da jornada.</p>
-  <p>Acabamos de oficializar o nosso canal no Telegram. É lá que o submundo do NØX se encontra e se organiza.</p>
-  <ul>
-    <li><strong>Acesso Antecipado:</strong> Novas features e upgrades nos modelos LLM são revelados primeiro por lá.</li>
-    <li><strong>Engenharia de Prompt Avançada:</strong> Vamos compartilhar dicas práticas de como extrair respostas absurdamente potentes e sem filtros do terminal.</li>
-    <li><strong>Contato Direto:</strong> Converse com a comunidade e dite os próximos passos do desenvolvimento.</li>
-  </ul>
-  <p>O NØX evolui com quem o utiliza. Junte-se à resistência.</p>
+O acesso ao terminal é só o começo da jornada.
+
+Acabamos de oficializar o nosso canal no Telegram. É lá que o submundo do NØX se encontra e se organiza.
+
+**Acesso Antecipado:** novas features e upgrades nos modelos LLM são revelados primeiro por lá.
+
+**Engenharia de Prompt Avançada:** vamos compartilhar dicas práticas de como extrair respostas absurdamente potentes e sem filtros do terminal.
+
+**Contato Direto:** converse com a comunidade e dite os próximos passos do desenvolvimento.
+
+O NØX evolui com quem o utiliza. Junte-se à resistência.
 `;
 const ACTION_LABEL = "ENTRAR NO CANAL DO TELEGRAM";
 const ACTION_URL = "https://t.me/noxaioficial";
@@ -53,7 +56,12 @@ async function runCampaign() {
 
     // MODO DE TESTE (Padrão e Seguro):
     const users = [
-      { id: "test-id", name: "user", email: "[EMAIL_ADDRESS]", tier: "admin" },
+      {
+        id: "test-id",
+        name: "user",
+        email: process.env.NOX_TEST_EMAIL || "nox@noxai.chat",
+        tier: "admin",
+      },
     ];
 
     // MODO PRODUÇÃO (Descomente para valer):

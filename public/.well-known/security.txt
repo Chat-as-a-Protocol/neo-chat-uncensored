@@ -1,0 +1,5 @@
+Contact: mailto:nox@noxai.chat
+Expires: 2027-06-04T23:59:00Z
+Preferred-Languages: en, pt-BR
+Canonical: https://noxai.chat/.well-known/security.txt
+Policy: https://noxai.chat/privacy
