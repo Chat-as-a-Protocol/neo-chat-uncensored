@@ -1,9 +1,8 @@
-const CACHE_NAME = "nox-chat-v668";
+const CACHE_NAME = "nox-chat-v669";
 
 const ASSETS_TO_CACHE = [
   "/manifest.json",
-  "/favicon.svg",
-  "/favicon.png",
+  "/favicon.ico",
   "/bg_escuro.webp",
   "/nox_vert.webp",
   "/pwaicon/icon-192.png",
