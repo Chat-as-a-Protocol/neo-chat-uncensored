@@ -1,4 +1,4 @@
-const CACHE_NAME = "nox-chat-v667";
+const CACHE_NAME = "nox-chat-v668";
 
 const ASSETS_TO_CACHE = [
   "/manifest.json",

@@ -26,14 +26,14 @@
   "screenshots": [
     {
       "src": "/screenshots/nox-desktop-wide.png",
-      "sizes": "1280x720",
+      "sizes": "1280x783",
       "type": "image/png",
       "form_factor": "wide",
       "label": "NØX desktop interface"
     },
     {
       "src": "/screenshots/nox-mobile-narrow.png",
-      "sizes": "390x844",
+      "sizes": "540x1080",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "NØX mobile chat interface"
