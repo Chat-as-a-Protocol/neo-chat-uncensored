@@ -234,10 +234,11 @@ Resend é provider externo chamado pelo backend.
 5. Verificar domínio Resend `send@noxai.chat`.
 6. Remover ou arquivar serviço `Resend Mail` no Railway
    se ele for apenas starter/placeholder.
-7. **Desenvolver Hamburger Menu Mobile:**
-   - Criar menu no canto superior direito do chat.
-   - O hamburger deve aparecer *apenas* quando o chat estiver ativo (`body.chat-input-focused` ou `body.keyboard-open`).
-   - O menu deve conter as opções que normalmente somem com o teclado: Upgrade, Preços, Telegram, Conta, Privacy e Terms.
+7. ~~Desenvolver Hamburger Menu Mobile~~ — **CONCLUÍDO** (2026-06-05).
+   - Menu (☰↔✕) no header do chat, abre com efeito; contém Assinar PRO (CTA), Preços, Conta, Telegram e legal Privacy·Terms.
+   - **Decisão do operador (diverge da spec original):** o menu fica **sempre visível** (header sticky), não só com o chat ativo — mantém o CTA de planos acessível mesmo com o teclado aberto, priorizando conversão.
+   - `scene-footer` enxugado para apenas `Privacy · Terms` (navegação migrou para o menu).
+   - Complemento de conversão: modal `#quota-modal` + e-mail `sendBalanceDepleted` ao esgotar saldo (ver `AGENTS.md`).
 8. **Migração Event-Driven (Neo Growth System):**
    - Refatorar o envio de e-mails (`email.js`) delegando a
      responsabilidade para o `neo-growth-system`

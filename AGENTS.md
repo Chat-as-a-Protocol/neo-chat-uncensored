@@ -35,8 +35,12 @@ segurança > estabilidade > legibilidade > performance > estética
 - Runtime prompt: `shared/runtime-prompt.md`.
 - Repo: `https://gitea.com/noxia/changeman.git`.
 - Webhook: `POST /api/webhooks/flowpay` (Hardened).
-- PWA: `v4` (Cache resiliente).
+- PWA: `v4` (Cache resiliente). `CACHE_NAME` atual em `sw.js`: `nox-chat-v669`.
 - FlowPay: PIX em produção validado (2026-05-06). `FLOWPAY_API_KEY` no Railway configurada e funcionando.
+- SEO: `@astrojs/sitemap` ativo; `site: https://noxai.chat` no `astro.config.mjs`; gera `/sitemap-index.xml` (rotas privadas filtradas). `robots.txt` aponta o `Sitemap:`.
+- Favicon: `/favicon.ico` (os antigos `favicon.png`/`favicon.svg` foram removidos; nada mais os referencia).
+- Conversão (saldo esgotado): além do `402`/`403` de quota, dispara modal no chat (`#quota-modal` → `/upgrade`) e e-mail `emailService.sendBalanceDepleted` (CTA p/ planos). Anti-spam por dedup Redis `email:depleted:<userId>` (TTL 7d), resetado quando `ledger.addEntry` recebe crédito (`amount > 0`). Apenas usuários registrados com e-mail.
+- Navegação: links de plano/conta vivem no menu do header (sticky, sempre visível); `scene-footer` só com `Privacy · Terms`. Mensagens do assistant têm botão de copiar.
 
 ────────────────────────────────────────
 
