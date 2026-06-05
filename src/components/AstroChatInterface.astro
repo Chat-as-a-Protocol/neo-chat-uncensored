@@ -59,6 +59,21 @@
     </div>
   </div>
 
+  <div id="quota-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b9d631" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <h3>Seu saldo acabou</h3>
+      </div>
+      <p>Seus créditos $NØX zeraram. Recarregue e continue a conversa de onde parou — sem perder o ritmo.</p>
+      <div class="modal-actions">
+        <button id="quota-upgrade" class="modal-btn-cta" type="button">Ver planos</button>
+        <button id="quota-dismiss" class="modal-btn-cancel" type="button">Agora não</button>
+      </div>
+      <div class="noise-overlay"></div>
+    </div>
+  </div>
+
   <div
     id="messages-container"
     class="messages-container"
@@ -387,6 +402,30 @@
     return Number.isFinite(today) && Number.isFinite(limit) && limit > 0 && remaining <= 0;
   }
 
+  // === Modal de saldo esgotado (usuário identificado/pago) ===
+  const quotaModalEl = document.getElementById('quota-modal');
+  const quotaUpgradeBtn = document.getElementById('quota-upgrade');
+  const quotaDismissBtn = document.getElementById('quota-dismiss');
+  let quotaModalShown = false;
+
+  function showQuotaModal() {
+    if (!quotaModalEl) return;
+    quotaModalEl.style.display = 'flex';
+    quotaModalShown = true;
+  }
+
+  function hideQuotaModal() {
+    if (quotaModalEl) quotaModalEl.style.display = 'none';
+  }
+
+  quotaUpgradeBtn?.addEventListener('click', () => {
+    window.location.href = '/upgrade';
+  });
+  quotaDismissBtn?.addEventListener('click', () => hideQuotaModal());
+  quotaModalEl?.addEventListener('click', (e) => {
+    if (e.target === quotaModalEl) hideQuotaModal();
+  });
+
   let streamingBubble: HTMLElement | null = null;
   let typingIndicatorEl: HTMLElement | null = null;
   let isSending = false;
@@ -706,7 +745,7 @@
       if (error.status === 403 && isGuestSession()) {
         showMarketingBarrier('quota');
       } else {
-        appendQuotaMessage(error, failedMessage);
+        showQuotaModal();
       }
       return true;
     }
@@ -751,16 +790,7 @@
       if (isGuestSession()) {
         showMarketingBarrier('quota');
       } else {
-        appendQuotaMessage(
-          new ChatApiError(403, {
-            error: 'Daily quota exceeded',
-            message: 'Limite diário atingido. Faça upgrade para continuar.',
-            usage: latestUsage?.today,
-            limit: latestUsage?.limit,
-            upgradeUrl: '/upgrade',
-          }, ''),
-          userMessage,
-        );
+        showQuotaModal();
       }
       return;
     }
@@ -974,10 +1004,14 @@
           setComposerLocked(true);
           if (isGuestAccess) {
             showMarketingBarrier('quota');
+          } else if (!quotaModalShown) {
+            showQuotaModal();
           }
         } else {
           indicator.classList.remove('is-exhausted');
           setComposerLocked(false);
+          quotaModalShown = false;
+          hideQuotaModal();
         }
 
         // Hack de Soberania: Ocultar seletor se não for Pro
@@ -2113,6 +2147,24 @@
   .modal-btn-confirm:hover {
     background: #ff5252;
     transform: scale(1.02);
+  }
+
+  .modal-btn-cta {
+    background: var(--accent);
+    color: #0a0a0a;
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font-weight: 800;
+    font-family: 'Space Grotesk', sans-serif;
+    cursor: pointer;
+    box-shadow: 0 0 18px rgba(185, 214, 49, 0.35);
+    transition: all 0.2s ease;
+  }
+
+  .modal-btn-cta:hover {
+    transform: scale(1.02);
+    filter: brightness(1.08);
   }
 
   .modal-btn-cancel {
