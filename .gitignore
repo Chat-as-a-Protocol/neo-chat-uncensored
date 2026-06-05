@@ -4,6 +4,7 @@ docs/*
 !docs/DEPLOY_TOPOLOGY.md
 !docs/ENV_CONTRACT.md
 !docs/ROUTE_CONTRACT.md
+!docs/INCIDENT_PLAYBOOK.md
 
 # Build output
 dist/

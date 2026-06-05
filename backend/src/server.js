@@ -155,6 +155,31 @@ const runtimePromptPath = path.resolve(
   "shared",
   "runtime-prompt.md",
 );
+const constitutionPath = path.resolve(PROJECT_ROOT, "shared", "runtime-constitution.md");
+const productContractPath = path.resolve(PROJECT_ROOT, "shared", "runtime-product-contract.md");
+const incidentRulesPath = path.resolve(PROJECT_ROOT, "shared", "runtime-incident-rules.md");
+
+// ===== GOVERNANCE LOADER (boot · obrigatório · fail-closed em qualquer ambiente) =====
+// NØX não opera sem governança carregada. Documento ausente/vazio = boot falha.
+// Mensagem curta, sem vazar conteúdo de arquivo nem secrets.
+async function loadRequiredGovernanceFile(label, filePath) {
+  try {
+    const content = (await fs.readFile(filePath, "utf-8")).trim();
+    if (!content) throw new Error("file is empty");
+    return content;
+  } catch (err) {
+    throw new Error(
+      `[Governance] Failed to load required file "${label}" at ${filePath}: ${err.message}`,
+    );
+  }
+}
+
+const governance = {
+  runtimePrompt: await loadRequiredGovernanceFile("runtime-prompt", runtimePromptPath),
+  productContract: await loadRequiredGovernanceFile("product-contract", productContractPath),
+  incidentRules: await loadRequiredGovernanceFile("incident-rules", incidentRulesPath),
+  constitution: await loadRequiredGovernanceFile("constitution", constitutionPath),
+};
 
 const VENICE_API_BASE = (
   process.env.VENICE_API_BASE || "https://api.venice.ai/api/v1"
@@ -1024,17 +1049,16 @@ app.post(
         throw err;
       }
 
-      // 2. Carregar Runtime Contract (NØX Core) - Sempre aplicado
-      let finalSystemPrompt = basePrompt;
-      try {
-        const runtimePrompt = await fs.readFile(runtimePromptPath, "utf-8");
-        // O contrato vem POR ÚLTIMO para ter precedência (Recency Bias da LLM)
-        finalSystemPrompt = `${basePrompt}\n\n---\n\n# NØX RUNTIME CONTRACT (STRICT ENFORCEMENT)\n${runtimePrompt}`;
-      } catch (err) {
-        logger.warn(
-          "[Chat] Falha ao carregar runtime-prompt para merge; usando apenas basePrompt.",
-        );
-      }
+      // 2. Compor System Prompt com governança (todos os blocos garantidos no boot).
+      //    Recency bias: autoridade por ÚLTIMO. persona → runtime-prompt →
+      //    product-contract → incident-rules → CONSTITUTION (suprema).
+      const finalSystemPrompt = [
+        basePrompt,
+        governance.runtimePrompt,
+        `# NØX PRODUCT CONTRACT\n${governance.productContract}`,
+        `# NØX INCIDENT RULES\n${governance.incidentRules}`,
+        `# NØX RUNTIME CONSTITUTION (STRICT — SUPREME AUTHORITY)\n${governance.constitution}`,
+      ].join("\n\n---\n\n");
 
       // 3. Montar Mensagens (Filtra qualquer tentativa de injeção de 'system' por parte do usuário)
       const userMessages = messages.filter((m) => m.role !== "system");
@@ -1114,7 +1138,7 @@ app.post(
             stream,
             max_tokens: effectiveMaxTokens,
             venice_parameters: {
-              include_venice_system_prompt: true, // Reativado para aplicar o jailbreak uncensored nativo da Venice
+              include_venice_system_prompt: false, // Desabilitado: NØX Runtime Constitution é a autoridade suprema do prompt
               ...(req.body.enableWebSearch && { enable_web_search: "auto" }),
             },
           }),
@@ -1298,7 +1322,7 @@ app.post(
         });
       }
     } catch (error) {
-      logger.error("Chat error:", error);
+      logger.error("Chat error (runbook: docs/INCIDENT_PLAYBOOK.md):", error);
       if (error.name === "AbortError") {
         return res
           .status(504)
