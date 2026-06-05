@@ -15,6 +15,7 @@ if (!token) {
       <a href="/" class="back-link">← Terminal</a>
 
       <div class="account-heading">
+        <span class="eyebrow">Perfil</span>
         <h1 id="account-title">Conta</h1>
       </div>
 
@@ -24,22 +25,22 @@ if (!token) {
           <dd id="account-name">--</dd>
         </div>
         <div>
-          <dt>E-mail</dt>
-          <dd id="account-email">--</dd>
-        </div>
-        <div>
           <dt>Plano</dt>
           <dd id="account-plan">--</dd>
         </div>
+        <div class="full">
+          <dt>E-mail</dt>
+          <dd id="account-email" class="dd-email">--</dd>
+        </div>
         <div>
-          <dt>Uso hoje</dt>
+          <dt>Tokens usados</dt>
           <dd id="account-usage">--/--</dd>
         </div>
         <div>
           <dt>Disponível</dt>
           <dd id="account-remaining">--</dd>
         </div>
-        <div>
+        <div class="full">
           <dt>Saldo $NØX</dt>
           <dd id="account-balance">--</dd>
         </div>
@@ -161,8 +162,8 @@ if (!token) {
   function formatPlan(entitlement: string) {
     if (entitlement === 'paid_pro' || entitlement === 'pro' || entitlement === 'premium') return 'P.R.Ø (ELITE)';
     if (entitlement === 'credits' || entitlement === 'paid_basic' || entitlement === 'basic') return 'Créditos Ativos';
-    if (entitlement === 'free') return 'Identificado';
-    return 'Guest Mode';
+    if (entitlement === 'free') return 'Free';
+    return 'Visitante';
   }
 
   async function loadAccount() {
@@ -350,6 +351,16 @@ if (!token) {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     background: rgba(0, 0, 0, 0.18);
+  }
+
+  .account-stats .full {
+    grid-column: 1 / -1;
+  }
+
+  .dd-email {
+    font-size: 0.98rem;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
   }
 
   dt {
