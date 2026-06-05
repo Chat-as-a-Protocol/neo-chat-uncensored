@@ -3,6 +3,37 @@ import logger from "../lib/logger.js";
 import { getUserPlan, FALLBACK_GUEST_PLAN } from "../utils/plans.js";
 import { parsePositiveInt } from "../utils/numbers.js";
 import { ledgerService } from "../services/ledger.js";
+import { emailService } from "../services/email.js";
+
+// Janela de supressão do e-mail de saldo esgotado (evita spam por request).
+// Resetado quando o usuário recarrega (ver ledgerService.addEntry).
+const DEPLETION_EMAIL_TTL = 7 * 24 * 60 * 60; // 7 dias
+
+// Dispara, no máximo uma vez por janela, o e-mail avisando que o saldo
+// acabou. Apenas para usuários registrados com e-mail entregável.
+async function notifyDepletionByEmail(user) {
+  if (!user || user.guest) return;
+  const to = typeof user.email === "string" ? user.email.trim() : "";
+  if (!to || !to.includes("@")) return;
+
+  const key = `email:depleted:${user.id}`;
+  try {
+    if (await redis.get(key)) return;
+    await redis.setex(key, DEPLETION_EMAIL_TTL, "1");
+    // Fire-and-forget: nunca bloquear ou derrubar a resposta de quota.
+    emailService
+      .sendBalanceDepleted(to, { userName: user.name })
+      .catch((err) =>
+        logger.error(
+          `[Quota] Falha ao enviar e-mail de saldo esgotado p/ user ${user.id}: ${err?.message ?? err}`,
+        ),
+      );
+  } catch (err) {
+    logger.error(
+      `[Quota] Erro no dedup do e-mail de saldo esgotado (user ${user.id}): ${err?.message ?? err}`,
+    );
+  }
+}
 
 export const checkQuota = async (req, res, next) => {
   try {
@@ -95,6 +126,7 @@ export const checkQuota = async (req, res, next) => {
           `[Quota] Limit exceeded for user ${req.user.id}: ${usage}/${limit}`,
         );
         const isGuestQuota = isGuest || planKey === "guest";
+        await notifyDepletionByEmail(req.user);
         return res.status(403).json({
           error: "Quota exceeded",
           message: isGuestQuota
@@ -116,6 +148,7 @@ export const checkQuota = async (req, res, next) => {
       logger.warn(
         `[Ledger] No balance, no active subscription for user ${req.user.id}`,
       );
+      await notifyDepletionByEmail(req.user);
       return res.status(402).json({
         error: "Insufficient balance",
         message: "Saldo insuficiente. Adquira mais créditos para continuar.",

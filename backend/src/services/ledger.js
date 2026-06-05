@@ -55,6 +55,11 @@ export const ledgerService = {
   async addEntry(userId, amount, type, reference, options = {}) {
     const allowNegativeEnv = process.env.ALLOW_NEGATIVE_BALANCE === "true";
 
+    // Recarga/crédito: reabilita o aviso de saldo esgotado para o futuro.
+    if (amount > 0) {
+      redis.del(`email:depleted:${userId}`).catch(() => {});
+    }
+
     // Prevent negative balance if not explicitly allowed
     if (amount < 0 && !allowNegativeEnv && !options.allowNegative) {
       const currentBalance = await this.getBalance(userId);

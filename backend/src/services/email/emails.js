@@ -152,6 +152,31 @@ export const emailService = {
   },
 
   /**
+   * Notifica que os créditos/saldo do usuário acabaram.
+   * Foco em conversão: CTA direto para a página de planos.
+   */
+  async sendBalanceDepleted(to, { userName } = {}) {
+    const safeName = escapeHtml(userName || "Operador");
+
+    const title = "SEU SALDO ACABOU";
+    const content = `
+      <p>Olá, <strong>${safeName}</strong>.</p>
+      <p>Seus créditos $NØX chegaram a zero — por isso o terminal pausou as respostas.</p>
+      <p>Recarregue e continue a conversa de onde parou, sem perder o ritmo. Escolha um plano e volte pra ação.</p>
+    `;
+
+    return sendEmail({
+      from: FROM_EMAIL,
+      to,
+      subject: "Seus créditos NØX acabaram — recarregue e continue",
+      html: renderTemplate(title, content, {
+        label: "VER PLANOS",
+        url: `${FRONTEND_URL}/upgrade`,
+      }),
+    });
+  },
+
+  /**
    * Disparo genérico para Anúncios de Features / Campanhas
    */
   async sendFeatureAnnouncement(
