@@ -7,6 +7,7 @@ import {
   formatDateTime,
 } from "./formatters.js";
 import { renderTemplate } from "./template.js";
+import { unsubscribeUrl } from "../../utils/unsubscribe.js";
 
 export const emailService = {
   /**
@@ -181,7 +182,7 @@ export const emailService = {
    */
   async sendFeatureAnnouncement(
     to,
-    { userName, title, content, actionLabel, actionUrl, scheduledAt },
+    { userId, userName, title, content, actionLabel, actionUrl, scheduledAt },
   ) {
     const safeName = escapeHtml(userName || "Soberano");
     const safeTitle = escapeHtml(title || "Comunicado");
@@ -193,6 +194,9 @@ export const emailService = {
         ${formattedContent}
       </div>
     `;
+
+    // E-mail de marketing: precisa de unsubscribe (List-Unsubscribe / RFC 8058).
+    const unsubUrl = userId ? unsubscribeUrl(userId) : null;
 
     const payload = {
       to,
@@ -206,8 +210,16 @@ export const emailService = {
               url: actionUrl,
             }
           : null,
+        unsubUrl,
       ),
     };
+
+    if (unsubUrl) {
+      payload.headers = {
+        "List-Unsubscribe": `<${unsubUrl}>, <mailto:send@noxai.chat?subject=Unsubscribe>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      };
+    }
 
     if (scheduledAt) {
       payload.scheduledAt = scheduledAt;

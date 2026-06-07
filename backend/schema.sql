@@ -16,6 +16,11 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Opt-out de e-mails de marketing (List-Unsubscribe / RFC 8058).
+-- ALTER idempotente: aplica em bancos já existentes ao re-rodar o schema.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS marketing_opt_out BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS marketing_opt_out_at TIMESTAMP WITH TIME ZONE;
+
 -- Tabela de Ledger (Transações / Saldo)
 -- O saldo real é a soma de todos os 'amount' para um user_id
 CREATE TABLE IF NOT EXISTS ledger (

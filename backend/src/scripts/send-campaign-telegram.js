@@ -31,6 +31,7 @@ const ACTION_URL = "https://t.me/noxaioficial";
 //   FROM users
 //   WHERE email IS NOT NULL
 //   AND email != ''
+//   AND marketing_opt_out = FALSE
 // `;
 
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -80,6 +81,7 @@ async function runCampaign() {
 
       try {
         await emailService.sendFeatureAnnouncement(user.email, {
+          userId: user.id,
           userName: user.name,
           title: CAMPAIGN_TITLE,
           content: CAMPAIGN_CONTENT,

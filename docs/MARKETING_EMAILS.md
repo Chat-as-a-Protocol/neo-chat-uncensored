@@ -107,6 +107,30 @@ nox@noxai.chat
 Produção só deve ser ativada por Tech Ops,
 descomentando a query real de usuários no script.
 
+## Unsubscribe (List-Unsubscribe / RFC 8058)
+
+Toda campanha de marketing (`sendFeatureAnnouncement`) agora é **self-managed e conforme**:
+
+- Cada e-mail leva os headers `List-Unsubscribe` (URL + mailto) e
+  `List-Unsubscribe-Post: List-Unsubscribe=One-Click` — o "Cancelar inscrição"
+  nativo do Gmail/Yahoo funciona em um clique.
+- O link aponta para `GET/POST https://api.noxai.chat/api/unsubscribe?u=<id>&t=<token>`
+  (token HMAC por usuário, sem expiração). GET mostra página de confirmação;
+  POST é o one-click silencioso.
+- O opt-out grava `users.marketing_opt_out = TRUE` no Postgres.
+- O rodapé do e-mail usa o mesmo link (não mais o `mailto` genérico).
+
+**Pré-requisito antes da primeira campanha em produção:** aplicar a migração do
+schema (adiciona `marketing_opt_out`):
+
+```bash
+psql "$DATABASE_URL" -f backend/schema.sql   # idempotente (ALTER ... IF NOT EXISTS)
+```
+
+A query de produção dos scripts **deve** filtrar `AND marketing_opt_out = FALSE`
+(já incluída no `GET_USERS_QUERY` comentado). E-mails transacionais
+(boas-vindas, magic link, reset, compra) são isentos e não levam unsubscribe.
+
 ## Checklist Antes de Enviar
 
 1. Copy revisada por marketing.
@@ -116,7 +140,8 @@ descomentando a query real de usuários no script.
 5. Visual aprovado no cliente de e-mail.
 6. Público-alvo confirmado.
 7. Janela de cancelamento definida se usar agendamento Resend.
-8. Produção liberada explicitamente.
+8. Migração do schema aplicada (`marketing_opt_out` existe no Postgres).
+9. Produção liberada explicitamente.
 
 ## Checklist Pós-Envio
 
@@ -137,8 +162,7 @@ Ainda não há:
 - painel visual para marketing
 - segmentação self-service
 
-Esses pontos pertencem à evolução futura para uma camada de eventos,
-CRM ou `neo-growth-system`.
+Esses pontos pertencem à evolução futura para uma camada de eventos.
 
 ## Regra de Ouro
 

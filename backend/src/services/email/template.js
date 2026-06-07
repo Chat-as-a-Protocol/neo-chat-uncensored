@@ -22,8 +22,12 @@ const normalizeEmailAction = (action) => {
  * Template Base para E-mails NØX (Versão Hardened)
  * Design: BG Black 85%, Acento Verde Limão (#d4ff1a), Estética de Chat de Luxo
  */
-export const renderTemplate = (title, content, action = null) => {
+export const renderTemplate = (title, content, action = null, unsubscribeUrl = null) => {
   const safeAction = normalizeEmailAction(action);
+  const safeUnsubscribe =
+    unsubscribeUrl && /^https?:\/\//i.test(unsubscribeUrl)
+      ? escapeHtml(unsubscribeUrl)
+      : null;
 
   return `
 <!DOCTYPE html>
@@ -31,8 +35,10 @@ export const renderTemplate = (title, content, action = null) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark only">
+<meta name="supported-color-schemes" content="dark only">
 </head>
-<body style="margin: 0; padding: 0; background-color: #050505; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+<body style="margin: 0; padding: 0; background-color: #050505; color: #e0e0e0; color-scheme: dark only; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
   <!-- Main Wrapper -->
   <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #050505; margin: 0; padding: 40px 0;">
     <tr>
@@ -44,7 +50,7 @@ export const renderTemplate = (title, content, action = null) => {
               
               <!-- HEADER / LOGO -->
               <div style="text-align: center; margin-bottom: 40px;">
-                <h1 style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 56px; color: #D7FF64; font-weight: 700; letter-spacing: -0.05em; margin: 0; text-transform: uppercase;">NØX</h1>
+                <h1 style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 56px; color: #b9d631; font-weight: 700; letter-spacing: -0.05em; margin: 0; text-transform: uppercase;">NØX</h1>
               </div>
 
               <!-- TITLE -->
@@ -64,7 +70,7 @@ export const renderTemplate = (title, content, action = null) => {
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin: 40px 0;">
                   <tr>
                     <td align="center">
-                      <a href="${safeAction.url}" style="display: inline-block; background-color: #ffffff; color: #000000; padding: 14px 32px; text-decoration: none; font-weight: bold; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;">
+                      <a href="${safeAction.url}" style="display: inline-block; background-color: #b9d631; color: #050505; padding: 14px 32px; text-decoration: none; font-weight: bold; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;">
                         ${safeAction.label}
                       </a>
                     </td>
@@ -77,13 +83,13 @@ export const renderTemplate = (title, content, action = null) => {
               <!-- FOOTER -->
               <div style="margin-top: 50px; border-top: 1px solid #1a1a1f; padding-top: 30px; text-align: center; font-size: 12px; color: #444; line-height: 1.5;">
                 <div style="text-align: center; margin-bottom: 20px;">
-                  <img src="https://noxai.chat/favicon.png" alt="NØX Icon" style="width: 20px; height: 20px; display: inline-block;" />
+                  <img src="https://noxai.chat/email/nox-icon.png" alt="NØX" width="20" height="20" style="width: 20px; height: 20px; display: inline-block; border: 0;" />
                 </div>
                 <p style="margin: 0 0 12px 0; font-weight: bold; color: #666; letter-spacing: 1px; text-transform: uppercase;">O sistema não te protege, quebre ele.</p>
                 <p style="margin: 0 0 12px 0;">Você está recebendo este e-mail pois é um Operador registrado no NØX Protocol.</p>
                 <p style="margin: 0;">
-                  <a href="${FRONTEND_URL}/account" style="color: #555; text-decoration: underline;">Conta</a> &nbsp;&nbsp;|&nbsp;&nbsp; 
-                  <a href="mailto:send@noxai.chat?subject=Unsubscribe" style="color: #555; text-decoration: underline;">Descadastrar-se</a>
+                  <a href="${FRONTEND_URL}/account" style="color: #555; text-decoration: underline;">Conta</a> &nbsp;&nbsp;|&nbsp;&nbsp;
+                  <a href="${safeUnsubscribe || "mailto:send@noxai.chat?subject=Unsubscribe"}" style="color: #555; text-decoration: underline;">Descadastrar-se</a>
                 </p>
               </div>
 

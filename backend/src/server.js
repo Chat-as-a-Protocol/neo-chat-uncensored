@@ -148,6 +148,7 @@ import {
 } from "./utils/billing.js";
 import { query } from "./utils/db.js";
 import { parsePositiveInt } from "./utils/numbers.js";
+import { verifyUnsubscribe } from "./utils/unsubscribe.js";
 
 // Carregar Configuração de Planos (NØX) -> Agora vem de utils/plans.js
 const runtimePromptPath = path.resolve(
@@ -2049,6 +2050,76 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", uptime: process.uptime() });
 });
+
+// ===== UNSUBSCRIBE (List-Unsubscribe / RFC 8058) =====
+// Self-managed: marketing emails carregam header List-Unsubscribe apontando
+// para cá. GET = clique humano (página de confirmação). POST = one-click do
+// Gmail/Yahoo (sem UI). Sem auth: o token HMAC na URL é a credencial.
+const unsubscribeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const unsubPage = (heading, message) => `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark only"><title>NØX</title></head>
+<body style="margin:0;background:#050505;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center;">
+<div style="max-width:420px;padding:40px 24px;">
+<div style="font-size:48px;font-weight:700;letter-spacing:-0.05em;color:#b9d631;">NØX</div>
+<h1 style="font-size:18px;text-transform:uppercase;letter-spacing:2px;color:#fff;margin:24px 0 12px;">${heading}</h1>
+<p style="font-size:15px;line-height:1.6;color:#a0a0a0;margin:0;">${message}</p>
+</div></body></html>`;
+
+async function handleUnsubscribe(req, res) {
+  const userId = String(req.query.u || "");
+  const token = String(req.query.t || "");
+
+  if (!userId.startsWith("user_") || !verifyUnsubscribe(userId, token)) {
+    if (req.method === "POST") {
+      return res.status(400).json({ error: "invalid_token" });
+    }
+    return res
+      .status(400)
+      .type("html")
+      .send(unsubPage("Link inválido", "Este link de descadastro não é válido ou expirou."));
+  }
+
+  try {
+    await query(
+      "UPDATE users SET marketing_opt_out = TRUE, marketing_opt_out_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [userId],
+    );
+  } catch (err) {
+    logger.error(`[Unsubscribe] DB error for ${userId}: ${err.message}`);
+    if (req.method === "POST") {
+      return res.status(500).json({ error: "internal_error" });
+    }
+    return res
+      .status(500)
+      .type("html")
+      .send(unsubPage("Erro", "Não foi possível processar agora. Tente novamente em instantes."));
+  }
+
+  // One-click (RFC 8058): resposta simples, sem interface.
+  if (req.method === "POST") {
+    return res.status(200).json({ status: "unsubscribed" });
+  }
+  return res
+    .status(200)
+    .type("html")
+    .send(
+      unsubPage(
+        "Pronto",
+        "Você não receberá mais e-mails de marketing do NØX. E-mails essenciais da conta continuam.",
+      ),
+    );
+}
+
+app.get("/api/unsubscribe", unsubscribeLimiter, handleUnsubscribe);
+app.post("/api/unsubscribe", unsubscribeLimiter, handleUnsubscribe);
 
 app.get("/api/ledger", authenticateToken, async (req, res) => {
   try {
