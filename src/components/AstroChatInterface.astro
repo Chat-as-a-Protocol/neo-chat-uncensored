@@ -1077,6 +1077,10 @@
     })
     .catch((err) => console.error('[Init] Critical failure in chat startup', err));
 
+  // Re-sync quota after every View Transition (astro:page-load fires on each soft navigation).
+  // updateQuota() re-queries the DOM itself, so it works with the swapped elements.
+  document.addEventListener('astro:page-load', () => { updateQuota(); });
+
   requestAnimationFrame(() => scrollToBottom(false));
 
   // === Menu hambúrguer do header ===
