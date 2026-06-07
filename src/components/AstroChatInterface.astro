@@ -26,8 +26,7 @@
 
       <nav id="nav-menu" class="nav-menu" aria-label="Navegação">
         <a href="/upgrade" class="nav-item nav-item--cta">
-          <span>Assinar PRO</span>
-          <small>Libere tudo, sem limites</small>
+          <span>Assinar PRØ</span>
         </a>
         <a href="/pricing" class="nav-item">Preços</a>
         <a href="/account" class="nav-item">Minha conta</a>
@@ -153,6 +152,7 @@
   const autoscrollThreshold = 56;
   const tokenStorageKey = 'nox_token';
   const tokenCookieMaxAge = 7 * 24 * 60 * 60;
+  const quotaCacheKey = 'nox_quota_cache';
 
 
   interface MessageOptions {
@@ -881,6 +881,30 @@
     }
   }
 
+  function applyQuotaToUI(data: UsagePayload) {
+    const indicator = document.getElementById('quota-indicator');
+    const count = indicator?.querySelector('.quota-count');
+    if (!count || !indicator) return;
+    const limit = Number(data.limit || 0);
+    const remaining = Number(data.remaining || 0);
+    const balance = Number(data.balance ?? 0);
+    const today = limit - remaining;
+    const safeToday = Number.isFinite(today) && Number.isFinite(limit) && limit > 0
+      ? Math.min(Math.max(today, 0), limit)
+      : today;
+    if (balance > 0) {
+      count.textContent = String(balance);
+    } else {
+      count.textContent = `${safeToday}/${limit}`;
+    }
+  }
+
+  // Restaura o badge instantaneamente do cache antes do fetch
+  try {
+    const cached = localStorage.getItem(quotaCacheKey);
+    if (cached) applyQuotaToUI(JSON.parse(cached));
+  } catch {}
+
   async function updateQuota(allowAuthRetry = true) {
     try {
       const token = getStoredToken();
@@ -908,26 +932,17 @@
 
       isGuestAccess = data.plan === 'guest' || data.tier === 'guest';
       quotaSynced = true;
+      try { localStorage.setItem(quotaCacheKey, JSON.stringify(data)); } catch {}
+      applyQuotaToUI(data);
       const indicator = document.getElementById('quota-indicator');
       const count = indicator?.querySelector('.quota-count');
       if (count && indicator) {
         const limit = Number(data.limit || 0);
         const remaining = Number(data.remaining || 0);
-        const balance = Number(data.balance ?? 0);
         const today = limit - remaining;
         const exhausted = isUsageExhausted(data);
-        const safeToday = Number.isFinite(today) && Number.isFinite(limit) && limit > 0
-          ? Math.min(Math.max(today, 0), limit)
-          : today;
         const isProTier = data.tier === 'pro' || data.tier === 'premium' || data.plan === 'paid_pro';
         const shouldShowUpgrade = !isProTier && Number.isFinite(today) && Number.isFinite(limit) && limit > 0 && today >= limit * 0.8;
-
-        if (balance > 0) {
-          // Mostra o saldo direto no badge do chat
-          count.textContent = String(balance);
-        } else {
-          count.textContent = `${safeToday}/${limit}`;
-        }
 
         const upgradePrompt = document.getElementById('upgrade-prompt');
         const upgradeButton = upgradePrompt?.querySelector('button');
