@@ -109,7 +109,9 @@ Ele não é exibido como plano gratuito em `/upgrade`.
 - `backend/src/server.js`: API Express, auth, chat, FlowPay e webhooks.
 - `backend/src/services/ledger.js`: ledger de créditos e consumo.
 - `backend/src/services/flowpay.js`: cliente seguro da API FlowPay.
-- `backend/src/services/email.js`: envio HTTP via Resend.
+- `backend/src/services/email.js`: envio HTTP via Resend (template dark on-brand + List-Unsubscribe em marketing).
+- `backend/src/utils/unsubscribe.js`: token HMAC e URL de opt-out (`/api/unsubscribe`).
+- `src/pages/health/deep.ts`: deep health check (frontend → backend via `BACKEND_URL`).
 - `shared/plans.json`: fonte de verdade de planos, tokens e preços.
 - `shared/runtime-prompt.md`: contrato mínimo injetado no runtime.
 
@@ -172,8 +174,10 @@ Frontend Railway:
 ```text
 Service: FRONTEND
 Start: node dist/server/entry.mjs
-Health: /health
+Health: /health  (raso, Railway)
+Health deep: /health/deep  (valida backend via BACKEND_URL na rede privada)
 PUBLIC_API_URL=https://api.noxai.chat
+BACKEND_URL=http://backend.railway.internal:PORT  (rede privada, só server-side)
 Docker runtime copia package.json, pnpm-lock.yaml e pnpm-workspace.yaml antes do install.
 ```
 
@@ -183,6 +187,7 @@ Backend Railway:
 Service: backend
 Start: node src/server.js
 Health: /health
+Unsubscribe: /api/unsubscribe  (List-Unsubscribe one-click / opt-out de marketing)
 FRONTEND_URL=https://noxai.chat
 FLOWPAY_API_URL=https://api.flowpay.cash
 RESEND_FROM_EMAIL=NØX <send@noxai.chat>

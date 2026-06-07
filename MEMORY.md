@@ -6,7 +6,7 @@
           NØX · TECHNICAL MEMORY
 ========================================
 Status: active
-Updated: 2026-06-04
+Updated: 2026-06-07
 ========================================
 ```
 
@@ -292,6 +292,38 @@ reset de senha não deve exigir Bearer token.
 Token de reset inválido é erro de payload/contrato,
 não falta de autenticação.
 
+### Health Deep + E-mail On-Brand + Unsubscribe (2026-06-07)
+
+Sintoma: faltava observabilidade real da cadeia frontend→backend;
+templates de e-mail desalinhados (ícone quebrado, cor errada, "lavado"
+no Gmail mobile); campanhas de marketing sem unsubscribe conforme.
+
+Causa:
+- `/health` só validava o próprio frontend, não o backend.
+- Template apontava para `favicon.png` (removido) → ícone quebrado;
+  usava lima `#D7FF64` (≠ marca `#b9d631`); sem trava de tema → Gmail invertia.
+- Envio via `/emails` com lista própria do Postgres, mas sem header
+  `List-Unsubscribe` (Resend Broadcasts/página hospedada só servem Audiences).
+
+Correção:
+- Frontend: `src/pages/health/deep.ts` — pinga `BACKEND_URL/health` (rede
+  privada, timeout 5s); 200 ok/ok, 503 degraded. `BACKEND_URL` é server-side only.
+- E-mail (`services/email/template.js`): cor `#b9d631` (logo+CTA), meta
+  `color-scheme: dark only`, ícone novo `public/email/nox-icon.png`.
+- Unsubscribe self-managed (RFC 8058): `utils/unsubscribe.js` (token HMAC),
+  endpoints GET/POST `/api/unsubscribe`, coluna `users.marketing_opt_out`
+  (ALTER idempotente no `schema.sql`), headers em `sendFeatureAnnouncement`,
+  scripts de campanha passam `userId` e filtram opt-out.
+- PWA: `CACHE_NAME` → `nox-chat-v670` pelo novo asset.
+
+Regra:
+- `BACKEND_URL` nunca no browser (só `PUBLIC_API_URL` lá).
+- Toda campanha de marketing leva `List-Unsubscribe` + one-click e filtra
+  `marketing_opt_out`. Transacionais isentos.
+- Antes do 1º disparo em prod: aplicar `schema.sql` (coluna opt-out).
+- DB de prod é acessível do local via proxy `*.rlwy.net` no `.env`; `psql`
+  não está instalado → usar o cliente `pg` do backend (`ssl: false`).
+
 ────────────────────────────────────────
 
 ## ⧉ Frontend Security Boundary (2026-05-12)
@@ -328,4 +360,7 @@ Qualquer lógica crítica de acesso, crédito, cobrança, pagamento, token, quot
 - **Nexus fan-out**: NØX é consumer em
   `nexusEvents.subscriptions[]`.
   CORS não participa de webhook server-to-server.
+- **BACKEND_URL**: rede privada, server-side only (`/health/deep`). Browser usa só `PUBLIC_API_URL`.
+- **Marketing e-mail**: `List-Unsubscribe` + one-click (RFC 8058) obrigatório; filtrar `marketing_opt_out`. Transacionais isentos.
+- **Schema prod**: `psql` ausente no local; aplicar `schema.sql` via cliente `pg` do backend (`ssl: false`), conecta via proxy `*.rlwy.net` do `.env`.
 - **Deploy**: Realizar `git push origin main` + `railway up` para sincronizar produção.

@@ -8,7 +8,7 @@
 Repo:    gitea.com/noxia/changeman
 App:     https://noxai.chat
 API:     https://api.noxai.chat
-Updated: 2026-05-06 (PIX produção validado)
+Updated: 2026-06-07 (Health deep + e-mail unsubscribe)
 ========================================
 ```
 
@@ -65,7 +65,9 @@ SSoT operacional. Todo agente neste repo segue estas regras sem exceção.
 ┃                                ┃ Ex: https://noxai.chat,https://www.noxai.chat       ┃
 ┃ PUBLIC_API_URL                 ┃ https://api.noxai.chat — URL do backend no frontend.┃
 ┃                                ┃ OBRIGATÓRIO no serviço FRONTEND do Railway.         ┃
-┃ RESEND_API_KEY                 ┃ Chave Resend para e-mails transacionais.            ┃
+┃ BACKEND_URL                    ┃ Rede privada (railway.internal). Só server-side.    ┃
+┃                                ┃ Usado pelo /health/deep. Nunca exposto ao browser.  ┃
+┃ RESEND_API_KEY                 ┃ Chave Resend para e-mails (transacionais + marketing)┃
 ┃ RESEND_FROM_EMAIL              ┃ NØX <send@noxai.chat>                               ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
@@ -217,6 +219,26 @@ Tiers ativos em `shared/plans.json`: `guest`, `free`, `paid_basic`, `paid_pro`.
 - Runtime prompt: `shared/runtime-prompt.md` — aplicado por último (recency bias).
 - **PROTEÇÃO NØX UNCENSORED:** É ESTRITAMENTE PROIBIDO que qualquer agente altere `include_venice_system_prompt` para `false` no backend ou insira cláusulas de recusa disfarçada (ex: "diga que não tem capacidade", "diga que é impossível") nos manifestos ou `runtime-prompt.md`. O NØX deve ser mantido 100% sem censura, garantindo a permanência do jailbreak da Venice.
 
+### 8. E-mail & Unsubscribe
+
+```text
+▓▓▓ EMAIL POLICY
+────────────────────────────────────────
+└─ Template base: backend/src/services/email/template.js
+   - Dark travado: meta color-scheme/supported-color-schemes = "dark only".
+   - Cor de marca: #b9d631 (logo + CTA). Ícone rodapé: /email/nox-icon.png.
+└─ Marketing (sendFeatureAnnouncement): OBRIGATÓRIO
+   - Header List-Unsubscribe: <https url>, <mailto:...>
+   - Header List-Unsubscribe-Post: List-Unsubscribe=One-Click  (RFC 8058)
+   - Link de unsubscribe no rodapé (não mais mailto genérico).
+   - Query da campanha filtra: AND marketing_opt_out = FALSE
+└─ Transacionais (welcome, magic link, reset, compra): isentos de unsubscribe.
+└─ /api/unsubscribe (backend): token HMAC por usuário (utils/unsubscribe.js).
+   GET = página de confirmação. POST = one-click silencioso. Sem auth (token=credencial).
+   Grava users.marketing_opt_out = TRUE (coluna em schema.sql, ALTER idempotente).
+└─ /health/deep (frontend SSR): lê BACKEND_URL server-side; nunca no browser.
+```
+
 ────────────────────────────────────────
 
 ## ◬ API Endpoints
@@ -233,6 +255,9 @@ GET     /api/ledger                  JWT    Extrato completo do ledger
 POST    /api/tokens/purchase         JWT    Iniciar compra de créditos
 POST    /api/product/purchase        JWT    Iniciar compra de produto PRO
 GET     /health                      OPEN   Railway healthcheck
+GET     /health/deep                 OPEN   Deep check (frontend → BACKEND_URL)
+POST    /api/unsubscribe             TOKEN  Opt-out one-click (RFC 8058)
+GET     /api/unsubscribe             TOKEN  Opt-out página de confirmação
 POST    /api/webhooks/flowpay        HMAC   Crédito FlowPay → ledger
 ```
 

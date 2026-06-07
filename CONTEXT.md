@@ -6,7 +6,7 @@
           NØX · PROJECT CONTEXT
 ========================================
 Status: active
-Updated: 2026-06-04 (Deploy Topology + NØX Core)
+Updated: 2026-06-07 (Health deep + e-mail unsubscribe)
 ========================================
 ```
 
@@ -203,6 +203,13 @@ via `email.js` + Resend.
 Isso representa uma dívida técnica aceitável para MVP,
 mas um gargalo para escala do ecossistema.
 
+Estado atual (ponte até o growth-system):
+campanhas de marketing são self-managed e conformes —
+header `List-Unsubscribe` + one-click (RFC 8058) via
+`/api/unsubscribe`, opt-out em `users.marketing_opt_out`,
+e templates dark on-brand (`#b9d631`). Lista de contatos
+permanece no Postgres do NØX, não no Resend (Broadcasts).
+
 A visão arquitetural canônica delega mensageria
 e ciclo de vida do usuário para o workspace vizinho:
 **`neo-growth-system`**.
@@ -305,7 +312,9 @@ Contrato canônico frontend/backend:
 - `/success`: retorno pós-pagamento (Privilégios Elevados).
 - `/privacy`: política de privacidade.
 - `/terms`: termos.
-- `/health`: health check SSR do frontend.
+- `/health`: health check SSR do frontend (raso, usado pelo Railway).
+- `/health/deep`: health check profundo (frontend SSR) — pinga `BACKEND_URL/health` na rede privada e agrega o status (`200` ok, `503` degraded).
+- `/api/unsubscribe` (backend): opt-out de marketing (GET página, POST one-click RFC 8058), grava `users.marketing_opt_out`.
 
 ────────────────────────────────────────
 

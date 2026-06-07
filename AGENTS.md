@@ -35,10 +35,13 @@ segurança > estabilidade > legibilidade > performance > estética
 - Runtime prompt: `shared/runtime-prompt.md`.
 - Repo: `https://gitea.com/noxia/changeman.git`.
 - Webhook: `POST /api/webhooks/flowpay` (Hardened).
-- PWA: `v4` (Cache resiliente). `CACHE_NAME` atual em `sw.js`: `nox-chat-v669`.
+- PWA: `v4` (Cache resiliente). `CACHE_NAME` atual em `sw.js`: `nox-chat-v670`.
 - FlowPay: PIX em produção validado (2026-05-06). `FLOWPAY_API_KEY` no Railway configurada e funcionando.
 - SEO: `@astrojs/sitemap` ativo; `site: https://noxai.chat` no `astro.config.mjs`; gera `/sitemap-index.xml` (rotas privadas filtradas). `robots.txt` aponta o `Sitemap:`.
-- Favicon: `/favicon.ico` (os antigos `favicon.png`/`favicon.svg` foram removidos; nada mais os referencia).
+- Favicon: `/favicon.ico` (os antigos `favicon.png`/`favicon.svg` foram removidos; nada mais os referencia). Ícone usado no rodapé dos e-mails: `public/email/nox-icon.png` (servido em `https://noxai.chat/email/nox-icon.png`).
+- Health: `/health` (Railway healthcheck, raso) + `/health/deep` (frontend SSR; valida a cadeia frontend → backend pingando `BACKEND_URL/health` na rede privada; 200 `ok`/`ok`, 503 em down/timeout/unconfigured).
+- `BACKEND_URL`: URL interna do backend (rede privada Railway), lida **só server-side** pelo `/health/deep`. Nunca exposta ao browser. Distinta de `PUBLIC_API_URL` (URL pública do backend usada no browser) e de `FLOWPAY_API_URL`.
+- E-mails: template base (`backend/src/services/email/template.js`) dark travado via meta `color-scheme: dark only`; cor de marca `#b9d631` (logo + CTA). Campanhas de marketing (`sendFeatureAnnouncement`) carregam `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058) apontando para `/api/unsubscribe`; opt-out grava `users.marketing_opt_out`. Transacionais (welcome, magic link, reset, compra) são isentos.
 - Conversão (saldo esgotado): além do `402`/`403` de quota, dispara modal no chat (`#quota-modal` → `/upgrade`) e e-mail `emailService.sendBalanceDepleted` (CTA p/ planos). Anti-spam por dedup Redis `email:depleted:<userId>` (TTL 7d), resetado quando `ledger.addEntry` recebe crédito (`amount > 0`). Apenas usuários registrados com e-mail.
 - Navegação: links de plano/conta vivem no menu do header (sticky, sempre visível); `scene-footer` só com `Privacy · Terms`. Mensagens do assistant têm botão de copiar.
 
@@ -57,6 +60,8 @@ segurança > estabilidade > legibilidade > performance > estética
 - **CORS**: **PROIBIDO** usar pacotes externos (`cors`). Usar injeção manual de headers no topo do `server.js` permitindo `includes("noxai.chat")`.
 - **PWA**: Incrementar `CACHE_NAME` em `sw.js` após qualquer mudança em assets estáticos.
 - **Webhooks**: Validar HMAC-SHA256 e suportar headers `X-Nexus-Signature` e `X-FlowPay-Signature`.
+- **BACKEND_URL**: usar apenas server-side (ex.: `/health/deep`); nunca referenciar em código de browser, que só alcança `PUBLIC_API_URL`.
+- **E-mail marketing**: campanhas (`sendFeatureAnnouncement`) devem levar headers `List-Unsubscribe` + one-click e filtrar `marketing_opt_out = FALSE` na query. Transacionais não levam unsubscribe. Migração da coluna via `backend/schema.sql` (idempotente) antes do 1º disparo.
 
 ────────────────────────────────────────
 
@@ -74,6 +79,14 @@ Para mudanças de backend:
 ```bash
 node --check backend/src/server.js
 fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
+```
+
+Para migração de schema (Postgres de prod via proxy; `psql` não está instalado — usar o cliente `pg` do backend):
+
+```bash
+cd backend
+DB=$(grep -E '^DATABASE_URL=' ../.env | head -1 | cut -d= -f2- | tr -d '"')
+DATABASE_URL="$DB" node --input-type=module -e "import pg from 'pg';import{readFileSync}from'node:fs';const p=new pg.Pool({connectionString:process.env.DATABASE_URL,ssl:false});await p.query(readFileSync('./schema.sql','utf8'));await p.end()"
 ```
 
 Para documentação:

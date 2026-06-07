@@ -1,4 +1,6 @@
 <!-- markdownlint-disable MD003 MD007 MD013 MD022 MD023 MD025 MD029 MD032 MD033 MD034 -->
+# Route
+
 ```text
 ========================================
           NØX · ROUTE CONTRACT
@@ -102,6 +104,12 @@ Topologia de deploy:
 └─ GET /health
    Health check SSR do frontend; backend também expõe GET /health
    no domínio API.
+
+┏ /health/deep
+└─ GET (frontend SSR) -> GET BACKEND_URL/health
+   Deep health check; valida a cadeia frontend -> backend na rede
+   privada. BACKEND_URL é lido só server-side. 200 ok/ok,
+   503 em down/timeout/unconfigured.
 ```
 
 ────────────────────────────────────────
@@ -151,6 +159,14 @@ Topologia de deploy:
 └─ Responsabilidade
    Alias operacional do webhook FlowPay. Novas subscriptions
    devem preferir /api/webhooks/flowpay.
+
+┏ GET|POST /api/unsubscribe
+├─ Consumidor
+│  Header List-Unsubscribe / one-click do Gmail-Yahoo (POST, RFC 8058)
+│  e link do rodapé dos e-mails de marketing (GET).
+└─ Responsabilidade
+   Validar token HMAC por usuário (sem auth de sessão), gravar
+   users.marketing_opt_out e responder (GET: página; POST: one-click).
 ```
 
 ────────────────────────────────────────
@@ -192,6 +208,7 @@ Smoke manual mínimo após deploy:
 
 ```text
 /health
+/health/deep -> GET BACKEND_URL/health (espera backend: ok)
 /login -> POST /api/auth/login
 /signup -> POST /api/auth/signup
 / -> POST /api/auth/guest -> POST /api/chat -> GET /api/usage
@@ -199,6 +216,7 @@ Smoke manual mínimo após deploy:
 /auth/magic-link -> POST /api/auth/magic-link/verify
 /account -> GET /api/usage
 FlowPay -> Nexus -> POST /api/webhooks/flowpay
+POST /api/unsubscribe?u=x&t=y (espera 400 invalid_token)
 ```
 
 ────────────────────────────────────────
