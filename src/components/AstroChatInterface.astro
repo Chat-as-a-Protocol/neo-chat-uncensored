@@ -204,7 +204,6 @@
   let isGuestAccess = true;
   let quotaSynced = false;
   let quotaLocked = false;
-  let latestUsage: UsagePayload | null = null;
   let marketingRedirectTimeout: number | null = null;
 
   // 1. Persistência: Tentar carregar do localStorage
@@ -679,60 +678,7 @@
     }
   }
 
-  function appendQuotaMessage(error: ChatApiError, failedMessage: string): void {
-    const payload = error.payload || {};
-    const usage = Number.isFinite(payload.usage) ? payload.usage : null;
-    const limit = Number.isFinite(payload.limit) ? payload.limit : null;
-    const hasUsage = typeof usage === 'number' && typeof limit === 'number';
-    const upgradeUrl = payload.upgradeUrl || '/upgrade';
-    const wasNearBottom = isUserNearBottom();
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'message-row is-assistant';
-    wrapper.dataset.role = 'assistant';
-
-    const bubble = document.createElement('div');
-    bubble.className = 'message-bubble assistant-bubble quota-bubble is-visible';
-
-    const content = document.createElement('div');
-    content.className = 'message-content';
-    content.textContent = hasUsage
-      ? `Limite gratuito atingido: ${usage}/${limit}. Faça upgrade ou acesse sua conta para continuar.`
-      : (payload.message || 'Limite de uso atingido. Faça upgrade ou acesse sua conta para continuar.');
-
-    const actions = document.createElement('div');
-    actions.className = 'error-actions';
-
-    const upgradeBtn = document.createElement('button');
-    upgradeBtn.type = 'button';
-    upgradeBtn.className = 'retry-btn quota-action-primary';
-    upgradeBtn.textContent = upgradeUrl.includes('signup') ? 'Criar conta' : 'Upgrade';
-    upgradeBtn.addEventListener('click', () => {
-      window.location.href = upgradeUrl;
-    });
-
-    const retryBtn = document.createElement('button');
-    retryBtn.type = 'button';
-    retryBtn.className = 'retry-btn';
-    retryBtn.textContent = 'Tentar novamente';
-    retryBtn.addEventListener('click', () => {
-      wrapper.remove();
-      sendMessage(failedMessage, { isRetry: true });
-    });
-
-    actions.appendChild(upgradeBtn);
-    actions.appendChild(retryBtn);
-    bubble.appendChild(content);
-    bubble.appendChild(actions);
-    wrapper.appendChild(bubble);
-    messagesContainer.appendChild(wrapper);
-
-    if (wasNearBottom) {
-      maybeScrollToBottom(true);
-    }
-  }
-
-  function handleChatApiError(error: unknown, failedMessage: string): boolean {
+  function handleChatApiError(error: unknown): boolean {
     if (!(error instanceof ChatApiError)) return false;
 
     if (error.status === 403 && error.payload?.error === 'Message limit reached') {
@@ -913,7 +859,7 @@
         streamingBubble = null;
       }
 
-      if (!handleChatApiError(err, userMessage)) {
+      if (!handleChatApiError(err)) {
         let message = 'Erro ao processar a mensagem.';
         if (err instanceof ChatApiError && err.payload?.message) {
           message = err.payload.message;
@@ -959,7 +905,7 @@
       if (!response.ok) return;
 
       const data: UsagePayload = await response.json();
-      latestUsage = data;
+
       isGuestAccess = data.plan === 'guest' || data.tier === 'guest';
       quotaSynced = true;
       const indicator = document.getElementById('quota-indicator');
