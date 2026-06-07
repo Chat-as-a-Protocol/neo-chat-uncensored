@@ -2,7 +2,7 @@
   "name": "neo-chat-uncensored-frontend",
   "type": "module",
   "version": "1.0.0",
-  "packageManager": "pnpm@11.1.0",
+  "packageManager": "pnpm@11.5.2",
   "engines": {
     "node": ">=22.12.0"
   },

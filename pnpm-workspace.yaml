@@ -9,3 +9,5 @@ overrides:
 allowBuilds:
   esbuild: true
   sharp: true
+
+pmOnFail: ignore
