@@ -730,7 +730,8 @@ app.post("/api/auth/signup", authLimiter, async (req, res) => {
     });
   }
 
-  const { email, name, password } = parsed.data;
+  const { name, password } = parsed.data;
+  const email = parsed.data.email.toLowerCase().trim();
   try {
     const existing = await query("SELECT id FROM users WHERE email = $1", [
       email,
@@ -796,7 +797,8 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     return res.status(400).json({ error: "Invalid email or password." });
   }
 
-  const { email, password } = parsed.data;
+  const { password } = parsed.data;
+  const email = parsed.data.email.toLowerCase().trim();
   try {
     const result = await query(
       "SELECT id, email, name, tier, password_hash FROM users WHERE email = $1",
@@ -894,11 +896,8 @@ const generateToken = (user) => {
 const SAFE_INFRA_RESPONSE =
   "Não posso confirmar detalhes de infraestrutura. Posso ajudar com o uso do sistema.";
 
-const OUTPUT_LEAK_PATTERNS = [
-  /\bvenice\s*ai\b/i,
-  /\bvenice\b/i,
-  /\bopenai\b/i,
-  /\banthropicb\b/i,
+// Patterns that always indicate infra leaks regardless of surrounding context
+const HARD_INFRA_OUTPUT_LEAK_PATTERNS = [
   /api\.venice\.ai/i,
   /api\.openai\.com/i,
   /api\.anthropic\.com/i,
@@ -906,19 +905,36 @@ const OUTPUT_LEAK_PATTERNS = [
   /api\.together\.xyz/i,
   /venice-uncensored/i,
   /venice-[a-z0-9-]+/i,
-  /gpt-[0-9]/i,
-  /llama-?[0-9]/i,
-  /\bgroq\b/i,
-  /\bgemini\b/i,
   /VENICE_API_KEY/i,
   /VENICE_MODEL/i,
   /VENICE_API_BASE/i,
 ];
 
+// Generic provider/model names — only treated as leaks when infra context is present
+const SOFT_INFRA_OUTPUT_LEAK_PATTERNS = [
+  /\bvenice\s*ai\b/i,
+  /\bvenice\b/i,
+  /\bopenai\b/i,
+  /\banthropic\b/i,
+  /\bgroq\b/i,
+  /\bgemini\b/i,
+  /gpt-[0-9]/i,
+  /llama-?[0-9]/i,
+];
+
+// Infra-adjacent keywords that distinguish a leak from a benign model comparison
+const INFRA_CONTEXT_PATTERN =
+  /\b(api|endpoint|url|base\s*url|key|secret|token|env|environment|variable|config|credential|header)s?\b/i;
+
 function guardOutput(text) {
   if (typeof text !== "string" || text.length === 0) return text;
-  const leaked = OUTPUT_LEAK_PATTERNS.some((p) => p.test(text));
-  if (leaked) {
+  if (HARD_INFRA_OUTPUT_LEAK_PATTERNS.some((p) => p.test(text))) {
+    return SAFE_INFRA_RESPONSE;
+  }
+  if (
+    SOFT_INFRA_OUTPUT_LEAK_PATTERNS.some((p) => p.test(text)) &&
+    INFRA_CONTEXT_PATTERN.test(text)
+  ) {
     return SAFE_INFRA_RESPONSE;
   }
   return text;
@@ -1429,6 +1445,9 @@ app.post(
         res.setHeader("Cache-Control", "no-cache");
         res.setHeader("Connection", "keep-alive");
 
+        if (!veniceResponse.body) {
+          return res.status(502).json({ error: "Upstream response missing body." });
+        }
         const reader = veniceResponse.body.getReader();
         const chunkDecoder = new TextDecoder();
         let assistantContent = "";
