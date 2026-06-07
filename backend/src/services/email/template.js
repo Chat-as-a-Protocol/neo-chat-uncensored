@@ -20,7 +20,7 @@ const normalizeEmailAction = (action) => {
 
 /**
  * Template Base para E-mails NØX (Versão Hardened)
- * Design: BG Black 85%, Acento Verde Limão (#d4ff1a), Estética de Terminal de Luxo
+ * Design: BG Black 85%, Acento Verde Limão (#d4ff1a), Estética de Chat de Luxo
  */
 export const renderTemplate = (title, content, action = null) => {
   const safeAction = normalizeEmailAction(action);

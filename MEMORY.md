@@ -20,8 +20,8 @@ Updated: 2026-06-04
 - Auth: Suporte a Magic Link sem senha (DB permite `password_hash` NULL).
 - Quotas: Proteção contra race-conditions via `redis.incr` atômico.
 - SSE: Buffer de linha no backend para garantir precisão no faturamento de tokens.
-- Estética: Geometria pura, zero emojis, tom de terminal de comando.
-- Sucesso: Página refatorada para "Privilégios Elevados" e "Comando de Terminal".
+- Estética: Geometria pura, zero emojis, tom de chat de comando.
+- Sucesso: Página refatorada para "Privilégios Elevados" e "Comando de chat".
 
 ────────────────────────────────────────
 
@@ -193,7 +193,7 @@ Regra: Não assumir que P.R.Ø possui manifesto próprio; verificar `src/content
 
 ### Redesign Premium do E-mail e Opt-out (2026-05-12)
 
-Sintoma: O template base de e-mails (`renderTemplate`) era básico demais (fundo branco, texto preto), desalinhado com a estética de terminal de luxo do app NØX.
+Sintoma: O template base de e-mails (`renderTemplate`) era básico demais (fundo branco, texto preto), desalinhado com a estética de chat de luxo do app NØX.
 Causa: Ausência de parametrização de CSS Dark Mode e falta de regras claras de opt-out (exigidas por serviços como o Resend).
 Correção:
 - Implementado layout Dark Mode absoluto com container `#0a0a0c` e bordas discretas.

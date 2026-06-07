@@ -10,5 +10,5 @@ test('Página inicial carrega corretamente', async ({ page }) => {
   // Aqui você pode adicionar mais passos, como:
   // - Clicar em botões
   // - Preencher inputs
-  // - Verificar se elementos do terminal aparecem
+  // - Verificar se elementos do chat aparecem
 });

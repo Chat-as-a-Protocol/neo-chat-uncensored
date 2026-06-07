@@ -195,7 +195,7 @@ e responsabilidade própria.
 ├─ Estado atual
 │  Ainda vive dentro do backend NØX.
 ├─ Saída provável
-│  Nó próprio para terminal, agentes ou runtime de conversa.
+│  Nó próprio para chat, agentes ou runtime de conversa.
 └─ Regra
    NØX deve chamar por API, evento ou contrato.
    Não compartilhar arquivos.

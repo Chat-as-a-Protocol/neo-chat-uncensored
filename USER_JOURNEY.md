@@ -19,7 +19,7 @@ Contrato canônico:
 ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ ROTA               ┃ VISIBILIDADE ┃ PROPÓSITO
 ┣━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ /                  ┃ Autenticada  ┃ Terminal principal NØX
+┃ /                  ┃ Autenticada  ┃ Chat principal NØX
 ┃ /login             ┃ Pública      ┃ Login e magic link
 ┃ /signup            ┃ Pública      ┃ Criação de conta identificada
 ┃ /auth/magic-link   ┃ Pública      ┃ Consumo do token de e-mail

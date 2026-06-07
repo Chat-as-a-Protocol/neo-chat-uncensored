@@ -7,13 +7,13 @@ import { emailService } from "../services/email.js";
 // ==========================================
 const CAMPAIGN_TITLE = "COMUNIDADE NØX NO TELEGRAM";
 const CAMPAIGN_CONTENT = `
-O acesso ao terminal é só o começo da jornada.
+O acesso ao chat é só o começo da jornada.
 
 Acabamos de oficializar o nosso canal no Telegram. É lá que o submundo do NØX se encontra e se organiza.
 
 **Acesso Antecipado:** novas features e upgrades nos modelos LLM são revelados primeiro por lá.
 
-**Engenharia de Prompt Avançada:** vamos compartilhar dicas práticas de como extrair respostas absurdamente potentes e sem filtros do terminal.
+**Engenharia de Prompt Avançada:** vamos compartilhar dicas práticas de como extrair respostas absurdamente potentes e sem filtros do chat.
 
 **Contato Direto:** converse com a comunidade e dite os próximos passos do desenvolvimento.
 

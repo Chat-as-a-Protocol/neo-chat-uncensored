@@ -18,7 +18,7 @@ export const emailService = {
     const content = `
       <p>Olá, <strong>${safeName}</strong>.</p>
       <p>Sua conta foi registrada com sucesso. Você agora tem acesso ao ecossistema NØX.</p>
-      <p>Seus acessos iniciais foram liberados e você já pode começar a utilizar o terminal.</p>
+      <p>Seus acessos iniciais foram liberados e você já pode começar a utilizar o chat.</p>
     `;
 
     return sendEmail({
@@ -39,7 +39,7 @@ export const emailService = {
     const loginUrl = `${FRONTEND_URL}/auth/magic-link?token=${encodeURIComponent(token)}`;
     const title = "LINK DE ACESSO";
     const content = `
-      <p>Você solicitou acesso ao terminal NØX. Clique no link abaixo para autenticar sua sessão.</p>
+      <p>Você solicitou acesso ao chat NØX. Clique no link abaixo para autenticar sua sessão.</p>
       <p><strong>Aviso de Segurança:</strong> Este link expira em 10 minutos e só pode ser usado uma única vez.</p>
     `;
 
@@ -161,7 +161,7 @@ export const emailService = {
     const title = "SEU SALDO ACABOU";
     const content = `
       <p>Olá, <strong>${safeName}</strong>.</p>
-      <p>Seus créditos $NØX chegaram a zero — por isso o terminal pausou as respostas.</p>
+      <p>Seus créditos $NØX chegaram a zero — por isso o chat pausou as respostas.</p>
       <p>Recarregue e continue a conversa de onde parou, sem perder o ritmo. Escolha um plano e volte pra ação.</p>
     `;
 

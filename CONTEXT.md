@@ -269,7 +269,7 @@ Mas o chat é candidato natural a sair do NØX
 quando o protocolo separar:
 
 - produto
-- terminal
+- chat
 - orquestração de agentes
 - billing/ledger
 
@@ -294,7 +294,7 @@ Não importar código interno entre nós.
 Contrato canônico frontend/backend:
 `docs/ROUTE_CONTRACT.md`.
 
-- `/`: terminal principal (NØX Core / P.R.Ø).
+- `/`: chat principal (NØX Core / P.R.Ø).
 - `/login`: login e magic link.
 - `/signup`: criação de conta.
 - `/auth/magic-link`: consumo do token de e-mail.

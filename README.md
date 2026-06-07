@@ -66,7 +66,7 @@ Resend é provedor externo consumido pelo backend.
 
 O runtime de chat ainda vive dentro do backend NØX,
 mas é candidato natural a sair para um nó próprio
-quando o protocolo separar terminal,
+quando o protocolo separar chat,
 orquestração e produto.
 
 ## ⟠ Arquitetura de Confiança
@@ -105,7 +105,7 @@ Ele não é exibido como plano gratuito em `/upgrade`.
 ## ⨷ Componentes
 
 - `src/pages/`: rotas Astro SSR.
-- `src/components/AstroChatInterface.astro`: terminal principal.
+- `src/components/AstroChatInterface.astro`: chat principal.
 - `backend/src/server.js`: API Express, auth, chat, FlowPay e webhooks.
 - `backend/src/services/ledger.js`: ledger de créditos e consumo.
 - `backend/src/services/flowpay.js`: cliente seguro da API FlowPay.
