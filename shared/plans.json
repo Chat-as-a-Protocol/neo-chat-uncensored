@@ -42,6 +42,17 @@
     }
   },
   "packages": {
+    "test_5": {
+      "name": "TESTE R$ 5",
+      "tokens": 100,
+      "price": 5,
+      "tier": "paid_basic",
+      "maxOutputTokens": 768,
+      "benefits": [
+        "Pacote de teste para validar o Webhook",
+        "Pode ser removido depois"
+      ]
+    },
     "1k": {
       "name": "† NEØ †",
       "tokens": 1000,

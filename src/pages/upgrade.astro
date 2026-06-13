@@ -40,7 +40,7 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
               ))}
             </ul>
 
-            <button onclick={`buyTokens('${pkg.id}')`} class="btn-token">
+            <button onclick={`buyTokens('${pkg.id}', this)`} class="btn-token">
               {pkg.id === '10k' ? 'ASCENDER' : 'ATIVAR'}
             </button>
           </article>
@@ -748,8 +748,18 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
       }
     }
 
-    window.buyTokens = function(packageType) {
-      return createPurchase('/api/tokens/purchase', { package: packageType });
+    window.buyTokens = async function(packageType, btn) {
+      if (btn?.disabled) return;
+      if (btn) {
+        btn.disabled = true;
+        btn.dataset.text = btn.innerText;
+        btn.innerText = 'GERANDO PIX...';
+      }
+      await createPurchase('/api/tokens/purchase', { package: packageType });
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = btn.dataset.text;
+      }
     }
 
     window.buyProduct = function(productId) {
