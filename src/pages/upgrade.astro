@@ -81,7 +81,8 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
 
   <style>
     .upgrade-container {
-      min-height: 100svh;
+      height: 100%;
+      min-height: 100%;
       position: relative;
       isolation: isolate;
       padding: max(18px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
