@@ -2078,7 +2078,235 @@ async function handleUnsubscribe(req, res) {
 app.get("/api/unsubscribe", unsubscribeLimiter, handleUnsubscribe);
 app.post("/api/unsubscribe", unsubscribeLimiter, handleUnsubscribe);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAT RUNTIME — Reserve & Reconcile
+// Documentação: docs/CHAT_RUNTIME_EXTRACTION.md
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /chat/authorize
+ *
+ * Valida o JWT do usuário, verifica entitlement e saldo disponível (saldo livre
+ * = saldo Ledger − reservas ativas), cria uma reserva e emite um runtime_token
+ * curto assinado com as claims canônicas para o Chat Runtime.
+ *
+ * O Frontend recebe o runtime_token e o transporta até o Chat Runtime.
+ * O Frontend NUNCA tem autoridade de emissão — apenas carrega o ingresso.
+ */
+app.post("/chat/authorize", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { agentId = "agent_nox", model = VENICE_MODEL } = req.body ?? {};
+
+    // Apenas usuários identificados com saldo podem autorizar execução no Runtime
+    const { has: hasBalance, balance } =
+      await ledgerService.hasLedgerBalance(userId);
+    if (!hasBalance) {
+      return res.status(402).json({
+        error: "INSUFFICIENT_FUNDS",
+        message: "Saldo insuficiente para iniciar execução no Chat Runtime.",
+      });
+    }
+
+    // Calcular tokens livres descontando reservas ativas no Postgres
+    let activeReserved = 0;
+    if (process.env.DATABASE_URL) {
+      const { query: dbQuery } = await import("./utils/db.js");
+      const reserveResult = await dbQuery(
+        `SELECT COALESCE(SUM(reserved_amount), 0)::int AS total
+         FROM ledger_reservations
+         WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()`,
+        [userId],
+      );
+      activeReserved = reserveResult.rows[0]?.total ?? 0;
+    }
+
+    const freeBalance = balance - activeReserved;
+    if (freeBalance <= 0) {
+      return res.status(402).json({
+        error: "BALANCE_RESERVED",
+        message: "Saldo disponível comprometido por reservas ativas.",
+      });
+    }
+
+    // Orçamento máximo: mínimo entre saldo livre e teto por execução (8000)
+    const MAX_TOKENS_PER_REQUEST = 8000;
+    const maxTotalTokens = Math.min(freeBalance, MAX_TOKENS_PER_REQUEST);
+    const maxInputTokens = Math.floor(maxTotalTokens * 0.375); // ~3000
+    const maxOutputTokens = Math.floor(maxTotalTokens * 0.625); // ~5000
+
+    const requestId = randomUUID();
+    const nonce = randomUUID();
+    const iat = Math.floor(Date.now() / 1000);
+    const exp = iat + 120; // 2 minutos — suficiente para o frontend entregar ao Runtime
+    const expiresAt = new Date(exp * 1000).toISOString();
+
+    // Gravar reserva no Postgres (idempotente por request_id UNIQUE)
+    if (process.env.DATABASE_URL) {
+      const { query: dbQuery } = await import("./utils/db.js");
+      await dbQuery(
+        `INSERT INTO ledger_reservations
+           (request_id, user_id, reserved_amount, status, expires_at)
+         VALUES ($1, $2, $3, 'active', $4)
+         ON CONFLICT (request_id) DO NOTHING`,
+        [requestId, userId, maxTotalTokens, expiresAt],
+      );
+    }
+
+    // Emitir runtime_token com claims canônicas JWT (RFC 7519)
+    const runtimeToken = jwt.sign(
+      {
+        iss: "nox-backend",
+        aud: "chat-runtime",
+        sub: userId,
+        jti: requestId,
+        requestId,
+        agentId,
+        model,
+        maxInputTokens,
+        maxOutputTokens,
+        maxTotalTokens,
+        plan: req.user.tier ?? "free",
+        features: ["streaming"],
+        nonce,
+      },
+      effectiveJwtSecret,
+      { expiresIn: 120 },
+    );
+
+    logger.info(
+      `[ChatAuthorize] User ${userId} authorized. requestId=${requestId} reserved=${maxTotalTokens}`,
+    );
+
+    return res.json({
+      runtime_token: runtimeToken,
+      requestId,
+      reservedTokens: maxTotalTokens,
+      expiresAt,
+    });
+  } catch (err) {
+    logger.error("[ChatAuthorize] Error:", err);
+    return res.status(500).json({ error: "Authorization failed" });
+  }
+});
+
+/**
+ * POST /runtime/usage
+ *
+ * Endpoint interno chamado APENAS pelo Reactor do Nexus após consumir o evento
+ * CHAT:USAGE_REPORTED. NÃO deve ser chamado diretamente pelo Chat Runtime
+ * nem pelo Frontend.
+ *
+ * Autenticação: HMAC-SHA256 do payload com FLOWPAY_WEBHOOK_SECRET (reuso
+ * do mesmo mecanismo já auditado no ecossistema), via header X-Nexus-Signature.
+ *
+ * Garante idempotência forte por requestId — eventos duplicados retornam 409.
+ */
+app.post("/runtime/usage", express.json({ limit: "16kb" }), async (req, res) => {
+  // ── 1. Autenticação de serviço (Nexus Reactor apenas) ──────────────────────
+  const signature = req.headers["x-nexus-signature"];
+  const secret = process.env.FLOWPAY_WEBHOOK_SECRET; // mesmo secret já compartilhado com o Nexus
+  if (!secret) {
+    return res.status(500).json({ error: "Service not configured" });
+  }
+  if (!signature) {
+    return res.status(401).json({ error: "Missing service signature" });
+  }
+  const bodyStr = JSON.stringify(req.body);
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(bodyStr)
+    .digest("hex");
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    logger.warn("[RuntimeUsage] Invalid Nexus signature");
+    return res.status(401).json({ error: "Invalid signature" });
+  }
+
+  // ── 2. Validação do payload ─────────────────────────────────────────────────
+  const schema = z.object({
+    requestId: z.string().min(1),
+    jti: z.string().min(1),
+    userId: z.string().min(1),
+    agentId: z.string().optional(),
+    inputTokens: z.number().int().min(0),
+    outputTokens: z.number().int().min(0),
+    totalTokens: z.number().int().min(0),
+    status: z.enum(["completed", "aborted", "failed", "timeout"]),
+    model: z.string().optional(),
+    runtimeNodeId: z.string().optional(),
+    startedAt: z.string().optional(),
+    finishedAt: z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid payload", details: parsed.error.issues });
+  }
+
+  const { requestId, userId, totalTokens, status } = parsed.data;
+
+  try {
+    // ── 3. Idempotência: verificar se já foi reconciliado ────────────────────
+    if (process.env.DATABASE_URL) {
+      const { query: dbQuery } = await import("./utils/db.js");
+
+      const existing = await dbQuery(
+        `SELECT status FROM ledger_reservations WHERE request_id = $1`,
+        [requestId],
+      );
+
+      if (existing.rows.length === 0) {
+        // Reserva não encontrada — pode ter expirado ou sido criada sem Postgres
+        logger.warn(`[RuntimeUsage] Reservation not found: ${requestId}`);
+        // Continua para tentar cobrar mesmo assim (fail-safe)
+      } else if (existing.rows[0].status !== "active") {
+        // Já reconciliado — idempotência
+        logger.info(`[RuntimeUsage] Already reconciled: ${requestId} (${existing.rows[0].status})`);
+        return res.status(409).json({ error: "Already reconciled", requestId });
+      }
+
+      // ── 4. Cobrar tokens reais no Ledger ──────────────────────────────────
+      if (totalTokens > 0) {
+        await ledgerService.addEntry(
+          userId,
+          -totalTokens,
+          "TOKEN_CONSUMPTION",
+          `runtime:${requestId}`, // reference única garante idempotência no Ledger
+        );
+      }
+
+      // ── 5. Atualizar reserva com status terminal ───────────────────────────
+      await dbQuery(
+        `UPDATE ledger_reservations
+         SET status = $1,
+             consumed_amount = $2,
+             reconciled_at = NOW()
+         WHERE request_id = $3`,
+        [status, totalTokens, requestId],
+      );
+    } else {
+      // Fallback sem Postgres: cobrar no Ledger Redis diretamente
+      if (totalTokens > 0) {
+        await ledgerService.addEntry(
+          userId,
+          -totalTokens,
+          "TOKEN_CONSUMPTION",
+          `runtime:${requestId}`,
+        );
+      }
+    }
+
+    logger.info(
+      `[RuntimeUsage] Reconciled. requestId=${requestId} userId=${userId} consumed=${totalTokens} status=${status}`,
+    );
+    return res.json({ reconciled: true, requestId, consumed: totalTokens, status });
+  } catch (err) {
+    logger.error("[RuntimeUsage] Reconciliation error:", err);
+    return res.status(500).json({ error: "Reconciliation failed" });
+  }
+});
+
 app.get("/api/ledger", authenticateToken, async (req, res) => {
+
   try {
     const statement = await ledgerService.getStatement(req.user.id);
     const balance = await ledgerService.getBalance(req.user.id);
