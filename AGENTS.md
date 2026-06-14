@@ -59,7 +59,8 @@ segurança > estabilidade > legibilidade > performance > estética
 - Tratar `FLOWPAY_API_URL` e `PUBLIC_API_URL` como coisas diferentes.
 - **CORS**: **PROIBIDO** usar pacotes externos (`cors`). Usar injeção manual de headers no topo do `server.js` permitindo `includes("noxai.chat")`.
 - **PWA**: Incrementar `CACHE_NAME` em `sw.js` após qualquer mudança em assets estáticos.
-- **Webhooks**: Validar HMAC-SHA256 e suportar headers `X-Nexus-Signature` e `X-FlowPay-Signature`.
+- **Webhooks (Topologia)**: A rota de entrada da FlowPay no Nexus **DEVE** apontar para o final exato `/api/webhooks/flowpay`. No `ecosystem.json` do NØX, o target path DEVE ser `/webhooks/flowpay` (sem duplicar).
+- **Webhooks (Segurança)**: O valor do secret assinado pela FlowPay (`NEXUS_SECRET_NEW`) **DEVE** ser estritamente igual ao validado pelo Nexus e NØX (`FLOWPAY_WEBHOOK_SECRET`). Validação via HMAC-SHA256 (`X-Nexus-Signature` ou `X-FlowPay-Signature`).
 - **BACKEND_URL**: usar apenas server-side (ex.: `/health/deep`); nunca referenciar em código de browser, que só alcança `PUBLIC_API_URL`.
 - **E-mail marketing**: campanhas (`sendFeatureAnnouncement`) devem levar headers `List-Unsubscribe` + one-click e filtrar `marketing_opt_out = FALSE` na query. Transacionais não levam unsubscribe. Migração da coluna via `backend/schema.sql` (idempotente) antes do 1º disparo.
 
