@@ -628,7 +628,7 @@ app.post(
         await sendPaymentEmail({
           userId,
           data,
-          metadata,
+          metadata: externalMetadata,
           reference,
           entitlement,
           isTokenPurchase,
@@ -656,6 +656,9 @@ app.post(
     }
   },
 );
+
+// /runtime/usage needs raw body for HMAC verification — must be before express.json()
+app.use("/runtime/usage", express.raw({ type: "application/json", limit: "16kb" }));
 
 app.use(express.json());
 
