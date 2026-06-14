@@ -8,7 +8,8 @@ import jwt from "jsonwebtoken";
 
 // Como o teste exige integração real com Postgres e o usuário
 // especificou "concorrência", precisamos usar process.env.DATABASE_URL
-const TEST_USER_ID = "test_runtime_user_" + Date.now();
+const TEST_RUN_ID = Date.now();
+const TEST_USER_ID = "test_runtime_user_" + TEST_RUN_ID;
 const JWT_SECRET = process.env.JWT_SECRET || "test-secret";
 const FLOWPAY_WEBHOOK_SECRET = process.env.FLOWPAY_WEBHOOK_SECRET || "test-flowpay-secret";
 process.env.FLOWPAY_WEBHOOK_SECRET = FLOWPAY_WEBHOOK_SECRET;
@@ -26,7 +27,7 @@ describe("Runtime Extraction - Authority & Idempotency", () => {
 
   before(async () => {
     // Preparar dados do usuário e saldo 
-    await pool.query(`INSERT INTO users (id, email) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [TEST_USER_ID, "runtime@test.com"]);
+    await pool.query(`INSERT INTO users (id, email) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [TEST_USER_ID, `runtime_${TEST_RUN_ID}@test.com`]);
     // Limpar ledger e reservas deste usuário
     await pool.query(`DELETE FROM ledger_reservations WHERE user_id = $1`, [TEST_USER_ID]);
     await pool.query(`DELETE FROM ledger WHERE user_id = $1`, [TEST_USER_ID]);
@@ -39,9 +40,9 @@ describe("Runtime Extraction - Authority & Idempotency", () => {
   });
 
   after(async () => {
-    // Limpar sujeira do banco de dados
     await pool.query(`DELETE FROM ledger_reservations WHERE user_id = $1`, [TEST_USER_ID]);
     await pool.query(`DELETE FROM ledger WHERE user_id = $1`, [TEST_USER_ID]);
+    await pool.query(`DELETE FROM users WHERE id = $1`, [TEST_USER_ID]);
   });
 
   it("1. [Concorrência] Duas autorizações simultâneas não devem ultrapassar o saldo livre", async () => {
