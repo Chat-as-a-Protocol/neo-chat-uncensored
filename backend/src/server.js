@@ -1640,58 +1640,6 @@ app.post(
   },
 );
 
-// ===== MODELOS DISPONÍVEIS =====
-app.get("/api/models", authenticateToken, async (req, res) => {
-  try {
-    if (!VENICE_MODEL_NAME) {
-      return res.status(503).json({ error: "AI model is not configured" });
-    }
-
-    const userTier =
-      (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
-
-    const cachedModels = await redis.get("models_cache");
-    let data;
-    if (cachedModels) {
-      data = JSON.parse(cachedModels);
-    } else {
-      // Puxa os modelos reais da API da Venice (somente text)
-      const veniceResponse = await fetch(
-        `${VENICE_API_BASE}/models?type=text`,
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
-          },
-        },
-      );
-
-      if (!veniceResponse.ok) {
-        throw new Error("Failed to fetch models from Venice API");
-      }
-
-      const json = await veniceResponse.json();
-      data = json.data;
-      await redis.setex("models_cache", 3600, JSON.stringify(data));
-    }
-
-    const allModels = data.map((model) => model.id);
-
-    // Lógica de Tier (exemplo: premium vê tudo, free vê um subconjunto ou todos)
-    // Como os modelos são dinâmicos agora, podemos retornar todos e deixar a UI mostrar
-    // Ou aplicar uma regra de blacklist/whitelist. Por padrão, deixarei todos disponíveis
-    // para mostrar a integração real. Se quiser travar, filtramos aqui.
-
-    res.json({
-      available: allModels,
-      currentTier: userTier,
-      defaultModel: VENICE_MODEL_NAME,
-    });
-  } catch (error) {
-    logger.error("Models fetch error:", error);
-    res.status(500).json({ error: "Failed to load models" });
-  }
-});
-
 // ===== MAGIC LINK AUTH =====
 const MAGIC_LINK_EXPIRATION_MINUTES =
   parseInt(process.env.MAGIC_LINK_EXPIRATION_MINUTES, 10) || 10;
@@ -2045,6 +1993,15 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
     );
     res.status(503).json({ error: "Service temporarily unavailable" });
   }
+});
+
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    status: "online",
+    service: "NØX Core API",
+    message: "Everything is running smoothly. Uncensored and private.",
+    docs: "https://noxai.chat",
+  });
 });
 
 app.get("/health", (_req, res) => {
