@@ -2084,106 +2084,135 @@ app.post("/api/unsubscribe", unsubscribeLimiter, handleUnsubscribe);
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Middleware: verifyNexusSignature
+ * Protege o endpoint /runtime/usage contra replays e acessos não autorizados.
+ */
+const verifyNexusSignature = (req, res, next) => {
+  const signature = req.headers["x-nexus-signature"];
+  const timestamp = req.headers["x-nexus-timestamp"];
+  const secret = process.env.FLOWPAY_WEBHOOK_SECRET;
+
+  if (!secret) {
+    return res.status(500).json({ error: "Service not configured" });
+  }
+  if (!signature || !timestamp) {
+    return res.status(401).json({ error: "Missing signature or timestamp" });
+  }
+
+  const now = Date.now();
+  const ts = parseInt(timestamp, 10);
+  if (isNaN(ts) || Math.abs(now - ts) > 5 * 60 * 1000) {
+    return res.status(401).json({ error: "Request expired (replay protection)" });
+  }
+
+  // Com express.raw, req.body é um Buffer contendo o rawBody exato
+  const rawBody = req.body.toString("utf8");
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest("hex");
+
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    logger.warn("[RuntimeUsage] Invalid Nexus signature");
+    return res.status(401).json({ error: "Invalid signature" });
+  }
+
+  req.rawBodyStr = rawBody;
+  next();
+};
+
+/**
  * POST /chat/authorize
- *
- * Valida o JWT do usuário, verifica entitlement e saldo disponível (saldo livre
- * = saldo Ledger − reservas ativas), cria uma reserva e emite um runtime_token
- * curto assinado com as claims canônicas para o Chat Runtime.
- *
- * O Frontend recebe o runtime_token e o transporta até o Chat Runtime.
- * O Frontend NUNCA tem autoridade de emissão — apenas carrega o ingresso.
+ * Valida entitlement e emite o ticket isolado via transação Postgres.
  */
 app.post("/chat/authorize", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const { agentId = "agent_nox", model = VENICE_MODEL } = req.body ?? {};
 
-    // Apenas usuários identificados com saldo podem autorizar execução no Runtime
-    const { has: hasBalance, balance } =
-      await ledgerService.hasLedgerBalance(userId);
-    if (!hasBalance) {
-      return res.status(402).json({
-        error: "INSUFFICIENT_FUNDS",
-        message: "Saldo insuficiente para iniciar execução no Chat Runtime.",
-      });
-    }
-
-    // Calcular tokens livres descontando reservas ativas no Postgres
-    let activeReserved = 0;
-    if (process.env.DATABASE_URL) {
-      const { query: dbQuery } = await import("./utils/db.js");
-      const reserveResult = await dbQuery(
-        `SELECT COALESCE(SUM(reserved_amount), 0)::int AS total
-         FROM ledger_reservations
-         WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()`,
-        [userId],
-      );
-      activeReserved = reserveResult.rows[0]?.total ?? 0;
-    }
-
-    const freeBalance = balance - activeReserved;
-    if (freeBalance <= 0) {
-      return res.status(402).json({
-        error: "BALANCE_RESERVED",
-        message: "Saldo disponível comprometido por reservas ativas.",
-      });
-    }
-
-    // Orçamento máximo: mínimo entre saldo livre e teto por execução (8000)
-    const MAX_TOKENS_PER_REQUEST = 8000;
-    const maxTotalTokens = Math.min(freeBalance, MAX_TOKENS_PER_REQUEST);
-    const maxInputTokens = Math.floor(maxTotalTokens * 0.375); // ~3000
-    const maxOutputTokens = Math.floor(maxTotalTokens * 0.625); // ~5000
-
+    let maxTotalTokens = 0;
     const requestId = randomUUID();
     const nonce = randomUUID();
     const iat = Math.floor(Date.now() / 1000);
-    const exp = iat + 120; // 2 minutos — suficiente para o frontend entregar ao Runtime
+    const exp = iat + 120; // 2 minutos
     const expiresAt = new Date(exp * 1000).toISOString();
 
-    // Gravar reserva no Postgres (idempotente por request_id UNIQUE)
     if (process.env.DATABASE_URL) {
-      const { query: dbQuery } = await import("./utils/db.js");
-      await dbQuery(
-        `INSERT INTO ledger_reservations
-           (request_id, user_id, reserved_amount, status, expires_at)
-         VALUES ($1, $2, $3, 'active', $4)
-         ON CONFLICT (request_id) DO NOTHING`,
-        [requestId, userId, maxTotalTokens, expiresAt],
-      );
+      const { pool } = await import("./utils/db.js");
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        // Advisory Lock por user_id (hashtext converte a string para um int 32-bits)
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [userId]);
+
+        const balanceResult = await client.query(
+          `WITH current_balance AS (
+             SELECT COALESCE(SUM(amount), 0)::int as balance 
+             FROM ledger WHERE user_id = $1
+           ),
+           active_reserves AS (
+             SELECT COALESCE(SUM(reserved_amount), 0)::int as reserved 
+             FROM ledger_reservations 
+             WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()
+           )
+           SELECT cb.balance, ar.reserved, (cb.balance - ar.reserved) as free_balance
+           FROM current_balance cb CROSS JOIN active_reserves ar`,
+          [userId]
+        );
+
+        const freeBalance = balanceResult.rows[0]?.free_balance ?? 0;
+        
+        if (freeBalance <= 0) {
+          await client.query("ROLLBACK");
+          return res.status(402).json({
+            error: "INSUFFICIENT_FUNDS",
+            message: "Saldo insuficiente ou comprometido por reservas ativas.",
+          });
+        }
+
+        const MAX_TOKENS_PER_REQUEST = 8000;
+        maxTotalTokens = Math.min(freeBalance, MAX_TOKENS_PER_REQUEST);
+
+        await client.query(
+          `INSERT INTO ledger_reservations
+             (request_id, user_id, reserved_amount, status, expires_at)
+           VALUES ($1, $2, $3, 'active', $4)`,
+          [requestId, userId, maxTotalTokens, expiresAt]
+        );
+
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+    } else {
+      // Fallback para Redis
+      const { has: hasBalance, balance } = await ledgerService.hasLedgerBalance(userId);
+      if (!hasBalance) {
+        return res.status(402).json({ error: "INSUFFICIENT_FUNDS" });
+      }
+      maxTotalTokens = Math.min(balance, 8000);
     }
 
-    // Emitir runtime_token com claims canônicas JWT (RFC 7519)
+    const maxInputTokens = Math.floor(maxTotalTokens * 0.375);
+    const maxOutputTokens = Math.floor(maxTotalTokens * 0.625);
+
     const runtimeToken = jwt.sign(
       {
-        iss: "nox-backend",
-        aud: "chat-runtime",
-        sub: userId,
-        jti: requestId,
-        requestId,
-        agentId,
-        model,
-        maxInputTokens,
-        maxOutputTokens,
-        maxTotalTokens,
-        plan: req.user.tier ?? "free",
-        features: ["streaming"],
-        nonce,
+        iss: "nox-backend", aud: "chat-runtime", sub: userId,
+        jti: requestId, requestId, agentId, model,
+        maxInputTokens, maxOutputTokens, maxTotalTokens,
+        plan: req.user.tier ?? "free", features: ["streaming"], nonce,
       },
       effectiveJwtSecret,
-      { expiresIn: 120 },
+      { expiresIn: 120 }
     );
 
-    logger.info(
-      `[ChatAuthorize] User ${userId} authorized. requestId=${requestId} reserved=${maxTotalTokens}`,
-    );
+    logger.info(`[ChatAuthorize] User ${userId} authorized. requestId=${requestId}`);
 
-    return res.json({
-      runtime_token: runtimeToken,
-      requestId,
-      reservedTokens: maxTotalTokens,
-      expiresAt,
-    });
+    return res.json({ runtime_token: runtimeToken, requestId, reservedTokens: maxTotalTokens, expiresAt });
   } catch (err) {
     logger.error("[ChatAuthorize] Error:", err);
     return res.status(500).json({ error: "Authorization failed" });
@@ -2192,118 +2221,128 @@ app.post("/chat/authorize", authenticateToken, async (req, res) => {
 
 /**
  * POST /runtime/usage
- *
- * Endpoint interno chamado APENAS pelo Reactor do Nexus após consumir o evento
- * CHAT:USAGE_REPORTED. NÃO deve ser chamado diretamente pelo Chat Runtime
- * nem pelo Frontend.
- *
- * Autenticação: HMAC-SHA256 do payload com FLOWPAY_WEBHOOK_SECRET (reuso
- * do mesmo mecanismo já auditado no ecossistema), via header X-Nexus-Signature.
- *
- * Garante idempotência forte por requestId — eventos duplicados retornam 409.
+ * Endpoint de reconciliação. Idempotente e transacional.
  */
-app.post("/runtime/usage", express.json({ limit: "16kb" }), async (req, res) => {
-  // ── 1. Autenticação de serviço (Nexus Reactor apenas) ──────────────────────
-  const signature = req.headers["x-nexus-signature"];
-  const secret = process.env.FLOWPAY_WEBHOOK_SECRET; // mesmo secret já compartilhado com o Nexus
-  if (!secret) {
-    return res.status(500).json({ error: "Service not configured" });
-  }
-  if (!signature) {
-    return res.status(401).json({ error: "Missing service signature" });
-  }
-  const bodyStr = JSON.stringify(req.body);
-  const expected = crypto
-    .createHmac("sha256", secret)
-    .update(bodyStr)
-    .digest("hex");
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
-    logger.warn("[RuntimeUsage] Invalid Nexus signature");
-    return res.status(401).json({ error: "Invalid signature" });
-  }
-
-  // ── 2. Validação do payload ─────────────────────────────────────────────────
-  const schema = z.object({
-    requestId: z.string().min(1),
-    jti: z.string().min(1),
-    userId: z.string().min(1),
-    agentId: z.string().optional(),
-    inputTokens: z.number().int().min(0),
-    outputTokens: z.number().int().min(0),
-    totalTokens: z.number().int().min(0),
-    status: z.enum(["completed", "aborted", "failed", "timeout"]),
-    model: z.string().optional(),
-    runtimeNodeId: z.string().optional(),
-    startedAt: z.string().optional(),
-    finishedAt: z.string().optional(),
-  });
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid payload", details: parsed.error.issues });
-  }
-
-  const { requestId, userId, totalTokens, status } = parsed.data;
-
-  try {
-    // ── 3. Idempotência: verificar se já foi reconciliado ────────────────────
-    if (process.env.DATABASE_URL) {
-      const { query: dbQuery } = await import("./utils/db.js");
-
-      const existing = await dbQuery(
-        `SELECT status FROM ledger_reservations WHERE request_id = $1`,
-        [requestId],
-      );
-
-      if (existing.rows.length === 0) {
-        // Reserva não encontrada — pode ter expirado ou sido criada sem Postgres
-        logger.warn(`[RuntimeUsage] Reservation not found: ${requestId}`);
-        // Continua para tentar cobrar mesmo assim (fail-safe)
-      } else if (existing.rows[0].status !== "active") {
-        // Já reconciliado — idempotência
-        logger.info(`[RuntimeUsage] Already reconciled: ${requestId} (${existing.rows[0].status})`);
-        return res.status(409).json({ error: "Already reconciled", requestId });
-      }
-
-      // ── 4. Cobrar tokens reais no Ledger ──────────────────────────────────
-      if (totalTokens > 0) {
-        await ledgerService.addEntry(
-          userId,
-          -totalTokens,
-          "TOKEN_CONSUMPTION",
-          `runtime:${requestId}`, // reference única garante idempotência no Ledger
-        );
-      }
-
-      // ── 5. Atualizar reserva com status terminal ───────────────────────────
-      await dbQuery(
-        `UPDATE ledger_reservations
-         SET status = $1,
-             consumed_amount = $2,
-             reconciled_at = NOW()
-         WHERE request_id = $3`,
-        [status, totalTokens, requestId],
-      );
-    } else {
-      // Fallback sem Postgres: cobrar no Ledger Redis diretamente
-      if (totalTokens > 0) {
-        await ledgerService.addEntry(
-          userId,
-          -totalTokens,
-          "TOKEN_CONSUMPTION",
-          `runtime:${requestId}`,
-        );
-      }
+app.post(
+  "/runtime/usage",
+  express.raw({ type: "application/json", limit: "16kb" }),
+  verifyNexusSignature,
+  async (req, res) => {
+    let parsedData;
+    try {
+      parsedData = JSON.parse(req.rawBodyStr);
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid JSON" });
     }
 
-    logger.info(
-      `[RuntimeUsage] Reconciled. requestId=${requestId} userId=${userId} consumed=${totalTokens} status=${status}`,
-    );
-    return res.json({ reconciled: true, requestId, consumed: totalTokens, status });
-  } catch (err) {
-    logger.error("[RuntimeUsage] Reconciliation error:", err);
-    return res.status(500).json({ error: "Reconciliation failed" });
+    const schema = z.object({
+      requestId: z.string().min(1),
+      jti: z.string().min(1),
+      userId: z.string().min(1),
+      inputTokens: z.number().int().min(0),
+      outputTokens: z.number().int().min(0),
+      totalTokens: z.number().int().min(0),
+      status: z.enum(["completed", "aborted", "failed", "timeout"]),
+    }).passthrough();
+
+    const parsed = schema.safeParse(parsedData);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid payload", details: parsed.error.issues });
+    }
+
+    const { requestId, userId, totalTokens, status } = parsed.data;
+
+    if (process.env.DATABASE_URL) {
+      const { pool } = await import("./utils/db.js");
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        const updateResult = await client.query(
+          `UPDATE ledger_reservations
+           SET status = $1, consumed_amount = $2, reconciled_at = NOW()
+           WHERE request_id = $3 AND status = 'active'
+           RETURNING id, expires_at`,
+          [status, totalTokens, requestId]
+        );
+
+        if (updateResult.rows.length === 0) {
+          // Reserva não era active, ou não existe
+          const existing = await client.query(`SELECT status FROM ledger_reservations WHERE request_id = $1`, [requestId]);
+          await client.query("ROLLBACK");
+          
+          if (existing.rows.length === 0) {
+            return res.status(404).json({ error: "Reservation not found" });
+          } else {
+            if (existing.rows[0].status === "expired") {
+              logger.warn(`[RuntimeUsage] Late usage event for expired reservation: ${requestId}`);
+              // Regra canônica: não debita automaticamente se chegou atrasado pós-expired.
+              return res.status(200).json({ reconciled: false, reason: "late_usage_event", status: "expired" });
+            }
+            logger.info(`[RuntimeUsage] Already reconciled: ${requestId} (${existing.rows[0].status})`);
+            return res.status(200).json({ reconciled: true, already_reconciled: true, status: existing.rows[0].status });
+          }
+        }
+
+        // Aplicar consumo no Ledger
+        if (totalTokens > 0) {
+          await client.query(
+            `INSERT INTO ledger (user_id, amount, type, reference)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (reference) DO NOTHING`,
+            [userId, -totalTokens, "TOKEN_CONSUMPTION", `runtime:${requestId}`]
+          );
+        }
+
+        await client.query("COMMIT");
+        logger.info(`[RuntimeUsage] Reconciled. requestId=${requestId} consumed=${totalTokens} status=${status}`);
+        return res.json({ reconciled: true, requestId, consumed: totalTokens, status });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        logger.error("[RuntimeUsage] Reconciliation error:", err);
+        return res.status(500).json({ error: "Reconciliation failed" });
+      } finally {
+        client.release();
+      }
+    } else {
+      // Redis fallback logic (não cobre transações atômicas robustas)
+      if (totalTokens > 0) {
+        await ledgerService.addEntry(userId, -totalTokens, "TOKEN_CONSUMPTION", `runtime:${requestId}`);
+      }
+      return res.json({ reconciled: true, requestId, consumed: totalTokens, status });
+    }
   }
-});
+);
+
+// ===== GARBAGE COLLECTION DE RESERVAS =====
+if (process.env.DATABASE_URL) {
+  setInterval(async () => {
+    try {
+      const { pool } = await import("./utils/db.js");
+      const client = await pool.connect();
+      try {
+        // Lock consultivo global para evitar corrida entre pods (ID arbitrário: 987654)
+        const lockResult = await client.query("SELECT pg_try_advisory_lock(987654) as acquired");
+        if (lockResult.rows[0].acquired) {
+          const result = await client.query(
+            `UPDATE ledger_reservations 
+             SET status = 'expired' 
+             WHERE status = 'active' AND expires_at < NOW()
+             RETURNING request_id`
+          );
+          if (result.rowCount > 0) {
+            logger.info(`[GC] Expired ${result.rowCount} stale reservations`);
+          }
+          await client.query("SELECT pg_advisory_unlock(987654)");
+        }
+      } finally {
+        client.release();
+      }
+    } catch (e) {
+      logger.error("[GC] Error running garbage collection:", e);
+    }
+  }, 60000); // 1 minuto
+}
 
 app.get("/api/ledger", authenticateToken, async (req, res) => {
 
@@ -2614,6 +2653,13 @@ process.on("uncaughtException", (err) => {
 
 // ===== START SERVER =====
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  logger.info(`NØX Backend running on port ${PORT}`);
-});
+
+// Export default para facilitar testes de integração (Supertest)
+export default app;
+
+// Apenas sobe o servidor se for executado diretamente
+if (process.env.NODE_ENV !== "test" && import.meta.url === `file://${process.argv[1]}`) {
+  app.listen(PORT, () => {
+    logger.info(`NØX Backend running on port ${PORT}`);
+  });
+}
