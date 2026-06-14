@@ -19,8 +19,8 @@ if (!REDIS_URL || REDIS_URL.includes("${{")) {
 const redis = new Redis(REDIS_URL);
 
 async function seed() {
-  const email = "admin@neo.ai";
-  const password = "neo123456";
+  const email = "[EMAIL_ADDRESS]";
+  const password = "[PASSWORD]";
   const userId = "user_" + Buffer.from(email).toString("base64");
 
   console.log(`[SEED] Criando usuário de teste: ${email}`);
