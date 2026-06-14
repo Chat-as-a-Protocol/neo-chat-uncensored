@@ -78,3 +78,23 @@ CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Tabela de Reservas do Chat Runtime (Reserve & Reconcile)
+-- Criada quando o Backend emite um runtime_token e liberada após reconciliação.
+CREATE TABLE IF NOT EXISTS ledger_reservations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id TEXT UNIQUE NOT NULL,           -- jti / requestId do runtime_token
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reserved_amount INTEGER NOT NULL,          -- tokens bloqueados do saldo livre
+  consumed_amount INTEGER,                   -- tokens reais cobrados (preenchido na reconciliação)
+  status TEXT NOT NULL DEFAULT 'active',     -- active | completed | aborted | failed | timeout | expired
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  reconciled_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS idx_reservations_user_id ON ledger_reservations(user_id);
+CREATE INDEX IF NOT EXISTS idx_reservations_request_id ON ledger_reservations(request_id);
+CREATE INDEX IF NOT EXISTS idx_reservations_status ON ledger_reservations(status);
+CREATE INDEX IF NOT EXISTS idx_reservations_expires_at ON ledger_reservations(expires_at);
+

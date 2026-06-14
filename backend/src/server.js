@@ -1640,58 +1640,6 @@ app.post(
   },
 );
 
-// ===== MODELOS DISPONÍVEIS =====
-app.get("/api/models", authenticateToken, async (req, res) => {
-  try {
-    if (!VENICE_MODEL_NAME) {
-      return res.status(503).json({ error: "AI model is not configured" });
-    }
-
-    const userTier =
-      (await redis.get(`tier:${req.user.id}`)) || req.user.tier || "free";
-
-    const cachedModels = await redis.get("models_cache");
-    let data;
-    if (cachedModels) {
-      data = JSON.parse(cachedModels);
-    } else {
-      // Puxa os modelos reais da API da Venice (somente text)
-      const veniceResponse = await fetch(
-        `${VENICE_API_BASE}/models?type=text`,
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
-          },
-        },
-      );
-
-      if (!veniceResponse.ok) {
-        throw new Error("Failed to fetch models from Venice API");
-      }
-
-      const json = await veniceResponse.json();
-      data = json.data;
-      await redis.setex("models_cache", 3600, JSON.stringify(data));
-    }
-
-    const allModels = data.map((model) => model.id);
-
-    // Lógica de Tier (exemplo: premium vê tudo, free vê um subconjunto ou todos)
-    // Como os modelos são dinâmicos agora, podemos retornar todos e deixar a UI mostrar
-    // Ou aplicar uma regra de blacklist/whitelist. Por padrão, deixarei todos disponíveis
-    // para mostrar a integração real. Se quiser travar, filtramos aqui.
-
-    res.json({
-      available: allModels,
-      currentTier: userTier,
-      defaultModel: VENICE_MODEL_NAME,
-    });
-  } catch (error) {
-    logger.error("Models fetch error:", error);
-    res.status(500).json({ error: "Failed to load models" });
-  }
-});
-
 // ===== MAGIC LINK AUTH =====
 const MAGIC_LINK_EXPIRATION_MINUTES =
   parseInt(process.env.MAGIC_LINK_EXPIRATION_MINUTES, 10) || 10;
@@ -2047,6 +1995,15 @@ app.get("/api/usage", authenticateToken, usageLimiter, async (req, res) => {
   }
 });
 
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    status: "online",
+    service: "NØX Core API",
+    message: "Everything is running smoothly. Uncensored and private.",
+    docs: "https://noxai.chat",
+  });
+});
+
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", uptime: process.uptime() });
 });
@@ -2121,7 +2078,274 @@ async function handleUnsubscribe(req, res) {
 app.get("/api/unsubscribe", unsubscribeLimiter, handleUnsubscribe);
 app.post("/api/unsubscribe", unsubscribeLimiter, handleUnsubscribe);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAT RUNTIME — Reserve & Reconcile
+// Documentação: docs/CHAT_RUNTIME_EXTRACTION.md
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Middleware: verifyNexusSignature
+ * Protege o endpoint /runtime/usage contra replays e acessos não autorizados.
+ */
+const verifyNexusSignature = (req, res, next) => {
+  const signature = req.headers["x-nexus-signature"];
+  const timestamp = req.headers["x-nexus-timestamp"];
+  const secret = process.env.FLOWPAY_WEBHOOK_SECRET;
+
+  if (!secret) {
+    return res.status(500).json({ error: "Service not configured" });
+  }
+  if (!signature || !timestamp) {
+    return res.status(401).json({ error: "Missing signature or timestamp" });
+  }
+
+  const now = Date.now();
+  const ts = parseInt(timestamp, 10);
+  if (isNaN(ts) || Math.abs(now - ts) > 5 * 60 * 1000) {
+    return res.status(401).json({ error: "Request expired (replay protection)" });
+  }
+
+  // Com express.raw, req.body é um Buffer contendo o rawBody exato
+  const rawBody = req.body.toString("utf8");
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest("hex");
+
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    logger.warn("[RuntimeUsage] Invalid Nexus signature");
+    return res.status(401).json({ error: "Invalid signature" });
+  }
+
+  req.rawBodyStr = rawBody;
+  next();
+};
+
+/**
+ * POST /chat/authorize
+ * Valida entitlement e emite o ticket isolado via transação Postgres.
+ */
+app.post("/chat/authorize", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { agentId = "agent_nox", model = VENICE_MODEL } = req.body ?? {};
+
+    let maxTotalTokens = 0;
+    const requestId = randomUUID();
+    const nonce = randomUUID();
+    const iat = Math.floor(Date.now() / 1000);
+    const exp = iat + 120; // 2 minutos
+    const expiresAt = new Date(exp * 1000).toISOString();
+
+    if (process.env.DATABASE_URL) {
+      const { pool } = await import("./utils/db.js");
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        // Advisory Lock por user_id (hashtext converte a string para um int 32-bits)
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [userId]);
+
+        const balanceResult = await client.query(
+          `WITH current_balance AS (
+             SELECT COALESCE(SUM(amount), 0)::int as balance 
+             FROM ledger WHERE user_id = $1
+           ),
+           active_reserves AS (
+             SELECT COALESCE(SUM(reserved_amount), 0)::int as reserved 
+             FROM ledger_reservations 
+             WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()
+           )
+           SELECT cb.balance, ar.reserved, (cb.balance - ar.reserved) as free_balance
+           FROM current_balance cb CROSS JOIN active_reserves ar`,
+          [userId]
+        );
+
+        const freeBalance = balanceResult.rows[0]?.free_balance ?? 0;
+        
+        if (freeBalance <= 0) {
+          await client.query("ROLLBACK");
+          return res.status(402).json({
+            error: "INSUFFICIENT_FUNDS",
+            message: "Saldo insuficiente ou comprometido por reservas ativas.",
+          });
+        }
+
+        const MAX_TOKENS_PER_REQUEST = 8000;
+        maxTotalTokens = Math.min(freeBalance, MAX_TOKENS_PER_REQUEST);
+
+        await client.query(
+          `INSERT INTO ledger_reservations
+             (request_id, user_id, reserved_amount, status, expires_at)
+           VALUES ($1, $2, $3, 'active', $4)`,
+          [requestId, userId, maxTotalTokens, expiresAt]
+        );
+
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+    } else {
+      // Fallback para Redis
+      const { has: hasBalance, balance } = await ledgerService.hasLedgerBalance(userId);
+      if (!hasBalance) {
+        return res.status(402).json({ error: "INSUFFICIENT_FUNDS" });
+      }
+      maxTotalTokens = Math.min(balance, 8000);
+    }
+
+    const maxInputTokens = Math.floor(maxTotalTokens * 0.375);
+    const maxOutputTokens = Math.floor(maxTotalTokens * 0.625);
+
+    const runtimeToken = jwt.sign(
+      {
+        iss: "nox-backend", aud: "chat-runtime", sub: userId,
+        jti: requestId, requestId, agentId, model,
+        maxInputTokens, maxOutputTokens, maxTotalTokens,
+        plan: req.user.tier ?? "free", features: ["streaming"], nonce,
+      },
+      effectiveJwtSecret,
+      { expiresIn: 120 }
+    );
+
+    logger.info(`[ChatAuthorize] User ${userId} authorized. requestId=${requestId}`);
+
+    return res.json({ runtime_token: runtimeToken, requestId, reservedTokens: maxTotalTokens, expiresAt });
+  } catch (err) {
+    logger.error("[ChatAuthorize] Error:", err);
+    return res.status(500).json({ error: "Authorization failed" });
+  }
+});
+
+/**
+ * POST /runtime/usage
+ * Endpoint de reconciliação. Idempotente e transacional.
+ */
+app.post(
+  "/runtime/usage",
+  express.raw({ type: "application/json", limit: "16kb" }),
+  verifyNexusSignature,
+  async (req, res) => {
+    let parsedData;
+    try {
+      parsedData = JSON.parse(req.rawBodyStr);
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid JSON" });
+    }
+
+    const schema = z.object({
+      requestId: z.string().min(1),
+      jti: z.string().min(1),
+      userId: z.string().min(1),
+      inputTokens: z.number().int().min(0),
+      outputTokens: z.number().int().min(0),
+      totalTokens: z.number().int().min(0),
+      status: z.enum(["completed", "aborted", "failed", "timeout"]),
+    }).passthrough();
+
+    const parsed = schema.safeParse(parsedData);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid payload", details: parsed.error.issues });
+    }
+
+    const { requestId, userId, totalTokens, status } = parsed.data;
+
+    if (process.env.DATABASE_URL) {
+      const { pool } = await import("./utils/db.js");
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        const updateResult = await client.query(
+          `UPDATE ledger_reservations
+           SET status = $1, consumed_amount = $2, reconciled_at = NOW()
+           WHERE request_id = $3 AND status = 'active'
+           RETURNING id, expires_at`,
+          [status, totalTokens, requestId]
+        );
+
+        if (updateResult.rows.length === 0) {
+          // Reserva não era active, ou não existe
+          const existing = await client.query(`SELECT status FROM ledger_reservations WHERE request_id = $1`, [requestId]);
+          await client.query("ROLLBACK");
+          
+          if (existing.rows.length === 0) {
+            return res.status(404).json({ error: "Reservation not found" });
+          } else {
+            if (existing.rows[0].status === "expired") {
+              logger.warn(`[RuntimeUsage] Late usage event for expired reservation: ${requestId}`);
+              // Regra canônica: não debita automaticamente se chegou atrasado pós-expired.
+              return res.status(200).json({ reconciled: false, reason: "late_usage_event", status: "expired" });
+            }
+            logger.info(`[RuntimeUsage] Already reconciled: ${requestId} (${existing.rows[0].status})`);
+            return res.status(200).json({ reconciled: true, already_reconciled: true, status: existing.rows[0].status });
+          }
+        }
+
+        // Aplicar consumo no Ledger
+        if (totalTokens > 0) {
+          await client.query(
+            `INSERT INTO ledger (user_id, amount, type, reference)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (reference) DO NOTHING`,
+            [userId, -totalTokens, "TOKEN_CONSUMPTION", `runtime:${requestId}`]
+          );
+        }
+
+        await client.query("COMMIT");
+        logger.info(`[RuntimeUsage] Reconciled. requestId=${requestId} consumed=${totalTokens} status=${status}`);
+        return res.json({ reconciled: true, requestId, consumed: totalTokens, status });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        logger.error("[RuntimeUsage] Reconciliation error:", err);
+        return res.status(500).json({ error: "Reconciliation failed" });
+      } finally {
+        client.release();
+      }
+    } else {
+      // Redis fallback logic (não cobre transações atômicas robustas)
+      if (totalTokens > 0) {
+        await ledgerService.addEntry(userId, -totalTokens, "TOKEN_CONSUMPTION", `runtime:${requestId}`);
+      }
+      return res.json({ reconciled: true, requestId, consumed: totalTokens, status });
+    }
+  }
+);
+
+// ===== GARBAGE COLLECTION DE RESERVAS =====
+if (process.env.DATABASE_URL) {
+  setInterval(async () => {
+    try {
+      const { pool } = await import("./utils/db.js");
+      const client = await pool.connect();
+      try {
+        // Lock consultivo global para evitar corrida entre pods (ID arbitrário: 987654)
+        const lockResult = await client.query("SELECT pg_try_advisory_lock(987654) as acquired");
+        if (lockResult.rows[0].acquired) {
+          const result = await client.query(
+            `UPDATE ledger_reservations 
+             SET status = 'expired' 
+             WHERE status = 'active' AND expires_at < NOW()
+             RETURNING request_id`
+          );
+          if (result.rowCount > 0) {
+            logger.info(`[GC] Expired ${result.rowCount} stale reservations`);
+          }
+          await client.query("SELECT pg_advisory_unlock(987654)");
+        }
+      } finally {
+        client.release();
+      }
+    } catch (e) {
+      logger.error("[GC] Error running garbage collection:", e);
+    }
+  }, 60000); // 1 minuto
+}
+
 app.get("/api/ledger", authenticateToken, async (req, res) => {
+
   try {
     const statement = await ledgerService.getStatement(req.user.id);
     const balance = await ledgerService.getBalance(req.user.id);
@@ -2429,6 +2653,13 @@ process.on("uncaughtException", (err) => {
 
 // ===== START SERVER =====
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  logger.info(`NØX Backend running on port ${PORT}`);
-});
+
+// Export default para facilitar testes de integração (Supertest)
+export default app;
+
+// Apenas sobe o servidor se for executado diretamente
+if (process.env.NODE_ENV !== "test" && import.meta.url === `file://${process.argv[1]}`) {
+  app.listen(PORT, () => {
+    logger.info(`NØX Backend running on port ${PORT}`);
+  });
+}

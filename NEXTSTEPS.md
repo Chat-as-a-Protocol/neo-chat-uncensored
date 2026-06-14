@@ -225,14 +225,6 @@ Resend é provider externo chamado pelo backend.
 
 ## ⨷ Pendente Imediato
 
-### 🛑 Investigação de Webhook (Woovi -> FlowPay) - Retomar no Domingo
-O teste de compra PIX foi feito em produção (User pagou R$ 5,00, Ordem 44).
-A ordem consta como `CREATED` no D1 (`flowpay_api_prod`), o que significa que o FlowPay não absorveu o webhook da Woovi.
-**Passos para domingo:**
-1. **Validar Woovi Dashboard**: Abrir o log de webhooks na Woovi e procurar a tentativa de entrega para `https://api.flowpay.cash/api/webhook`.
-2. **Checar Erro 401**: Se a Woovi estiver recebendo erro 401 do FlowPay, é porque o FlowPay falhou na validação HMAC.
-3. **Corrigir Secret**: Pegar o Webhook Secret no painel da Woovi e preencher na variável `WOOVI_WEBHOOK_SECRET` do dashboard da Cloudflare no projeto FlowPay. Atualmente o FlowPay está caindo no fallback e quebrando a assinatura.
-4. Quando resolvido, a ordem mudará para `COMPLETED` no D1 e o FlowPay fará o fan-out seguro (NEXUS_SECRET_NEW) pro Nexus.
 
 ### Tarefas Gerais
 1. ~~Conferir variáveis do backend no Railway~~ — **CONCLUÍDO** (`FLOWPAY_API_KEY` e `FLOWPAY_API_URL` configuradas em 2026-05-06).
@@ -272,9 +264,7 @@ NØX Backend -> Chat Runtime Node
      e billing.
    - O nó de chat executa conversa/agentes por contrato.
    - Seguir o blueprint documentado em `docs/EVENT_DRIVEN_MIGRATION_PLAN.md`.
-10. **Melhoria da Interface (UI) dos E-mails:**
-   - O template HTML base (`renderTemplate` em `email.js` ou futuro `neo-provider-resend`) está muito básico (fundo branco/claro) sem logo e sem identidade visual do NØX.
-   - Precisa receber o banho de estética Dark Mode/Premium com as paletas de luxo do NØX, para que qualquer disparo transmita o ar "Soberano/Hacker".
+
 
 ────────────────────────────────────────
 

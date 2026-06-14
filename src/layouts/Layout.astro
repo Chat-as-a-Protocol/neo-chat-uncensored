@@ -34,14 +34,14 @@ const canonicalURL = new URL(Astro.url.pathname, 'https://noxai.chat').href;
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content="Chat AI uncensored, privado e sem filtros. Sua alternativa de ChatGPT livre e soberano." />
-    <meta property="og:image" content="/neoai.png" />
+    <meta property="og:image" content={new URL('/og-image.png', Astro.site)} />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:url" content={canonicalURL} />
     <meta property="twitter:title" content={title} />
     <meta property="twitter:description" content="Chat AI uncensored, privado e sem filtros. Sua alternativa de ChatGPT livre e soberano." />
-    <meta property="twitter:image" content="/neoai.png" />
+    <meta property="twitter:image" content={new URL('/og-image.png', Astro.site)} />
     <ClientRouter />
 
     <script is:inline define:vars={{ isProd: import.meta.env.PROD }}>
