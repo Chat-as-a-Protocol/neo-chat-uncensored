@@ -197,9 +197,11 @@ Entrada         → Canônico interno
 
 Tiers ativos em `shared/plans.json`: `guest`, `free`, `paid_basic`, `paid_pro`.
 
-### 5. Webhook FlowPay
+### 5. Webhook FlowPay (Topologia NØX ↔ Nexus ↔ FlowPay)
 
-- Rota: `POST /api/webhooks/flowpay`
+- **Rota final no Nexus**: O NØX recebe do Nexus em `POST /api/webhooks/flowpay`. No ecosytem.json, a assinatura de rota DEVE ser exatamente `"/webhooks/flowpay"` para evitar duplicação pelo router do Nexus.
+- **Roteamento de entrada (Nexus)**: A FlowPay deve apontar para a URL completa do Nexus terminada em `/api/webhooks/flowpay`. O router do Nexus NÃO aceita requisições na raiz `/webhook` seca.
+- **Assinatura Compartilhada**: A FlowPay usa a variável `NEXUS_SECRET_NEW` para assinar. O Nexus e o NØX usam a variável `FLOWPAY_WEBHOOK_SECRET` para validar. O valor dessas variáveis **DEVE** ser exatamente o mesmo em todos os projetos.
 - Validação: HMAC-SHA256 com `X-Nexus-Signature` ou `X-FlowPay-Signature`.
 - Idempotência antecipada: `redis.get(webhook_processed:ref)` antes de processar.
 - Ao confirmar: `ledgerService.addEntry(userId, tokens, TOKEN_PURCHASE, reference)`.
