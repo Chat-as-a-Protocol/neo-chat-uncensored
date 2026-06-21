@@ -2,7 +2,7 @@
   "name": "neo-chat-uncensored-frontend",
   "type": "module",
   "version": "1.0.0",
-  "packageManager": "pnpm@11.5.2",
+  "packageManager": "pnpm@11.8.0",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -18,8 +18,8 @@
   "dependencies": {
     "@astrojs/node": "^10.0.6",
     "@astrojs/sitemap": "^3.7.3",
-    "@astrojs/tailwind": "^6.0.2",
-    "astro": "^6.2.1",
+    "@astrojs/tailwind": "latest",
+    "astro": "^6.4.6",
     "tailwindcss": "^3.4.1",
     "zod": "^3.22.4"
   },
@@ -27,6 +27,8 @@
     "@astrojs/check": "^0.9.8",
     "@playwright/test": "^1.60.0",
     "terser": "^5.16.0",
-    "typescript": "~5.7.3"
+    "typescript": "~5.7.3",
+    "vite": "^7.3.5",
+    "js-yaml": "^4.1.2"
   }
 }
