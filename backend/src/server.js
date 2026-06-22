@@ -2637,6 +2637,81 @@ app.post(
   },
 );
 
+// ===== LANGUAGE DETECTION =====
+
+/**
+ * GET /api/detect-language
+ * Detects the user's preferred language based on their IP geolocation via
+ * the Cloudflare `cf-ipcountry` header. Returns a 2-letter language code.
+ * Falls back to "en" when the country is unknown or the header is absent.
+ * No authentication required — intended for use on PWA first load.
+ */
+const COUNTRY_TO_LANGUAGE = {
+  // Portuguese
+  BR: "pt", PT: "pt", AO: "pt", MZ: "pt", CV: "pt", GW: "pt", ST: "pt", TL: "pt",
+  // Spanish
+  ES: "es", MX: "es", AR: "es", CO: "es", CL: "es", PE: "es", VE: "es",
+  EC: "es", GT: "es", CU: "es", BO: "es", DO: "es", HN: "es", PY: "es",
+  SV: "es", NI: "es", CR: "es", PA: "es", UY: "es", GQ: "es",
+  // French
+  FR: "fr", BE: "fr", CH: "fr", LU: "fr", MC: "fr", SN: "fr", CI: "fr",
+  ML: "fr", BF: "fr", NE: "fr", TG: "fr", BJ: "fr", GA: "fr", CG: "fr",
+  CD: "fr", CM: "fr", MG: "fr", DZ: "fr", MA: "fr", TN: "fr",
+  // German
+  DE: "de", AT: "de", LI: "de",
+  // Italian
+  IT: "it", SM: "it", VA: "it",
+  // Dutch
+  NL: "nl", SR: "nl",
+  // Russian
+  RU: "ru", BY: "ru", KZ: "ru", KG: "ru",
+  // Japanese
+  JP: "ja",
+  // Chinese (Simplified)
+  CN: "zh",
+  // Chinese (Traditional)
+  TW: "zh-TW", HK: "zh-TW",
+  // Korean
+  KR: "ko",
+  // Arabic
+  SA: "ar", AE: "ar", EG: "ar", IQ: "ar", JO: "ar", KW: "ar", LB: "ar",
+  LY: "ar", OM: "ar", QA: "ar", SD: "ar", SY: "ar", YE: "ar",
+  // Hindi
+  IN: "hi",
+  // Turkish
+  TR: "tr",
+  // Polish
+  PL: "pl",
+  // Swedish
+  SE: "sv",
+  // Norwegian
+  NO: "no",
+  // Danish
+  DK: "da",
+  // Finnish
+  FI: "fi",
+  // Czech
+  CZ: "cs",
+  // Romanian
+  RO: "ro",
+  // Hungarian
+  HU: "hu",
+  // Greek
+  GR: "el",
+  // Ukrainian
+  UA: "uk",
+  // English-primary countries
+  US: "en", GB: "en", AU: "en", CA: "en", NZ: "en", IE: "en", ZA: "en",
+  NG: "en", GH: "en", KE: "en", UG: "en", TZ: "en", ZM: "en", ZW: "en",
+  SG: "en", PH: "en", PK: "en", BD: "en", MY: "en",
+};
+
+app.get("/api/detect-language", (req, res) => {
+  const country = (req.headers["cf-ipcountry"] || "").toUpperCase().trim();
+  const language = COUNTRY_TO_LANGUAGE[country] || "en";
+  res.json({ language, country: country || null });
+});
+
 // Error handling middleware
 app.use((err, _req, res, _next) => {
   logger.error("Global Express Error:", err.stack || err);
