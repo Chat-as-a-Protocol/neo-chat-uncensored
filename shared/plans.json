@@ -3,7 +3,7 @@
     "guest": {
       "name": "Guest",
       "initialBalance": 700,
-      "maxOutputTokens": 256,
+      "maxOutputTokens": 512,
       "benefits": [
         "Acesso sem cadastro",
         "700 tokens iniciais",
@@ -14,7 +14,7 @@
     "free": {
       "name": "Identified",
       "initialBalance": 2000,
-      "maxOutputTokens": 512,
+      "maxOutputTokens": 1024,
       "benefits": [
         "Cadastro confirmado",
         "2.000 tokens de boas-vindas",

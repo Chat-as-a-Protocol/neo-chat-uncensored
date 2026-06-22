@@ -1109,6 +1109,12 @@ async function loadPersona(personaId, userTier = "free") {
   }
 }
 
+// ===== PERSONA CONFIG =====
+const personaConfig = {
+  nox: { temperature: 0.85, presence_penalty: 0.3 },
+  default: { temperature: 0.7, presence_penalty: 0 },
+};
+
 // ===== VENICE API PROXY =====
 app.post(
   "/api/chat",
@@ -1119,10 +1125,13 @@ app.post(
     try {
       const {
         messages,
-        temperature = 0.7,
         stream = true,
         personaId = "nox",
       } = req.body;
+
+      const activeConfig = personaConfig[personaId] || personaConfig["default"];
+      const temperature = req.body.temperature ?? activeConfig.temperature;
+      const presence_penalty = req.body.presence_penalty ?? activeConfig.presence_penalty;
 
       // Validar input
       const schema = z.object({
@@ -1405,7 +1414,7 @@ app.post(
 
       // Chamar Venice API
       const controller = new AbortController();
-      const veniceTimeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const veniceTimeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
       let veniceResponse;
       try {
         veniceResponse = await fetch(`${VENICE_API_BASE}/chat/completions`, {
@@ -1414,11 +1423,14 @@ app.post(
             Authorization: `Bearer ${process.env.VENICE_API_KEY}`,
             "Content-Type": "application/json",
             Accept: stream ? "text/event-stream" : "application/json",
+            "Accept-Encoding": "gzip",
+            "X-Request-ID": randomUUID(),
           },
           body: JSON.stringify({
             model: VENICE_MODEL_NAME,
             messages: finalMessages,
             temperature,
+            presence_penalty,
             stream,
             max_tokens: effectiveMaxTokens,
             venice_parameters: {
