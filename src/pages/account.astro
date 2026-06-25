@@ -33,7 +33,7 @@ if (!token) {
           <dd id="account-email" class="dd-email">--</dd>
         </div>
         <div>
-          <dt>Tokens usados</dt>
+          <dt>Saldo Restante</dt>
           <dd id="account-usage">--/--</dd>
         </div>
         <div>
@@ -231,8 +231,17 @@ if (!token) {
           // Usuário pago: mostra saldo disponível
           accountUsageEl.textContent = `${balance}`;
         } else {
-          // Guest/free: mostra consumo
-          accountUsageEl.textContent = `${limit - remaining}/${limit}`;
+          // Guest/free: mostra saldo restante em vez de usado
+          const displayRemaining = Math.max(0, remaining);
+          if (remaining <= 0 && limit > 0) {
+            accountUsageEl.innerHTML = `<span style="color: #ff6b6b;" title="Limite Excedido">0 / ${limit}</span>`;
+            if (accountStatusEl) {
+              accountStatusEl.textContent = 'Limite Excedido. Faça upgrade para continuar.';
+              accountStatusEl.style.color = '#ff6b6b';
+            }
+          } else {
+            accountUsageEl.textContent = `${displayRemaining} / ${limit}`;
+          }
         }
       }
       const displayName = typeof data.name === 'string' && data.name.trim()
@@ -244,7 +253,7 @@ if (!token) {
 
       if (accountNameEl) accountNameEl.textContent = displayName;
       if (accountEmailEl) accountEmailEl.textContent = displayEmail;
-      if (accountRemainingEl) accountRemainingEl.textContent = String(data.remaining);
+      if (accountRemainingEl) accountRemainingEl.textContent = String(Math.max(0, data.remaining || 0));
       if (accountBalanceEl) accountBalanceEl.textContent = String(data.balance ?? 0);
 
       setPlanStatus(entitlement);
