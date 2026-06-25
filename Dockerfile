@@ -12,7 +12,7 @@ RUN corepack enable
 WORKDIR /app
 
 # Copiamos apenas o necessário para instalar dependências de produção
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
 # Copiamos o build
