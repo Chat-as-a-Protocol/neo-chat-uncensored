@@ -324,6 +324,20 @@ Regra:
 - DB de prod é acessível do local via proxy `*.rlwy.net` no `.env`; `psql`
   não está instalado → usar o cliente `pg` do backend (`ssl: false`).
 
+### Persistência de Carrinho e Polling On-Chain (2026-06-25)
+
+Sintoma: Em `/upgrade`, a interface perdia o QR Code do PIX em recarregamentos acidentais e não dava feedback de liquidação da transação, além de expor o `correlationId` cru na UI. A cópia do PIX carecia de feedback tátil e o textarea criava barras de rolagem inestéticas.
+Causa: Ausência de persistência local (TTL) e polling inseguro (baseado em checagem de saldo geral, sujeito a ruído de consumo simultâneo).
+Correção:
+- **UI & Estética:** Substituído o `<textarea>` do PIX por `<input type="text">` single-line com `text-overflow: ellipsis`. O botão "COPIAR PIX" ganhou transição forte (✓ COPIADO!). Menu reordenado para evidenciar "Minha conta" como CTA principal. Ocultamento de metadados internos de PIX.
+- **Frontend (CheckoutManager):** Gestão isolada de `localStorage` para reidratação com 30min de TTL.
+- **Frontend (PaymentMonitor):** Polling com limite de 10 min, equipado com `AbortController` para prevenir request overflow.
+- **Backend:** Criada a rota `GET /api/transactions/:txId/status` que consulta a liquidação direto no ledger (`reference = $1`), blindando contra falsos positivos.
+
+Regra:
+- Feedbacks de pagamento assíncrono no cliente devem usar polling sobre ID transacional específico (`txId`) on-chain, nunca por flutuação genérica de saldo.
+- Sempre desacoplar a lógica de DOM das regras de persistência (CheckoutManager / PaymentMonitor).
+
 ────────────────────────────────────────
 
 ## ⧉ Frontend Security Boundary (2026-05-12)
