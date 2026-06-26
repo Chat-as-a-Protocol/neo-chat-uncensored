@@ -3,7 +3,7 @@ FROM node:22-slim AS builder
 RUN corepack enable
 WORKDIR /app
 COPY . .
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile
 RUN pnpm run build
 
 # Runtime Stage
@@ -12,8 +12,8 @@ RUN corepack enable
 WORKDIR /app
 
 # Copiamos apenas o necessário para instalar dependências de produção
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod --no-frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --prod --frozen-lockfile
 
 # Copiamos o build
 COPY --from=builder /app/dist ./dist
