@@ -59,8 +59,8 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
         </div>
         <img id="pix-qr" class="pix-qr" alt="QR Code Pix" hidden />
         <label for="pix-code" class="pix-label">Pix copia e cola</label>
-        <textarea id="pix-code" class="pix-code" readonly rows="4"></textarea>
-        <button type="button" class="btn-token" onclick="copyPixCode()">COPIAR PIX</button>
+        <input type="text" id="pix-code" class="pix-code" readonly />
+        <button type="button" class="btn-token" onclick="copyPixCode(this)">COPIAR PIX</button>
         <p id="pix-meta" class="pix-meta"></p>
       </section>
 
@@ -369,15 +369,26 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
 
     .pix-code {
       width: 100%;
-      resize: vertical;
-      min-height: 96px;
+      height: 48px;
       margin: 0 0 10px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.14);
       background: rgba(0, 0, 0, 0.36);
-      color: rgba(255, 255, 255, 0.9);
-      padding: 12px;
-      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: rgba(255, 255, 255, 0.7);
+      padding: 0 16px;
+      font: 13px/48px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      outline: none;
+      transition: all 0.2s ease;
+      cursor: text;
+    }
+
+    .pix-code:focus {
+      border-color: rgba(185, 214, 49, 0.58);
+      color: rgba(255, 255, 255, 1);
+      background: rgba(0, 0, 0, 0.5);
     }
 
     .pix-meta {
@@ -727,9 +738,9 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
       PaymentMonitor.stop();
     }
 
-    window.copyPixCode = async function() {
+    window.copyPixCode = async function(btn) {
       const code = document.getElementById('pix-code');
-      if (!(code instanceof HTMLTextAreaElement) || !code.value) return;
+      if (!code || !code.value) return;
 
       const selectPixCode = () => {
         code.focus();
@@ -739,13 +750,31 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
 
       if (!navigator.clipboard?.writeText) {
         selectPixCode();
-        return;
+        document.execCommand('copy');
+      } else {
+        try {
+          await navigator.clipboard.writeText(code.value);
+        } catch {
+          selectPixCode();
+          document.execCommand('copy');
+        }
       }
 
-      try {
-        await navigator.clipboard.writeText(code.value);
-      } catch {
-        selectPixCode();
+      if (btn) {
+        const originalText = btn.dataset.originalText || btn.innerText;
+        btn.dataset.originalText = originalText;
+        
+        btn.innerText = '✓ COPIADO!';
+        btn.style.color = '#000';
+        btn.style.background = '#b9d631';
+        btn.style.borderColor = '#b9d631';
+        
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.style.color = '';
+          btn.style.background = '';
+          btn.style.borderColor = '';
+        }, 2500);
       }
     }
 
