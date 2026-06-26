@@ -2515,6 +2515,26 @@ app.post("/api/tokens/purchase", authenticateToken, async (req, res) => {
   }
 });
 
+// ===== TRANSACTION STATUS ENDPOINT =====
+app.get("/api/transactions/:txId/status", authenticateToken, async (req, res) => {
+  try {
+    const { txId } = req.params;
+    if (!txId) return res.status(400).json({ error: "Missing txId" });
+
+    // O webhook registra a entrada no ledger usando o id_transacao do FlowPay como reference
+    const result = await query("SELECT id FROM ledger WHERE reference = $1 LIMIT 1", [txId]);
+
+    if (result.rows.length > 0) {
+      return res.json({ status: "PAID" });
+    }
+
+    return res.json({ status: "PENDING" });
+  } catch (error) {
+    logger.error("[Transactions] Status check failed:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // ===== PRODUCT PURCHASE ENDPOINT =====
 app.post("/api/products/purchase", authenticateToken, async (req, res) => {
   try {

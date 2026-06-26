@@ -560,6 +560,102 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
       }
     }
 
+    const CheckoutManager = {
+      KEY: 'nox_pending_cart',
+      TTL_MS: 30 * 60 * 1000,
+      save(pkgId, pixData) {
+        try {
+          const payload = JSON.stringify({ pkgId, pixData, savedAt: Date.now() });
+          localStorage.setItem(this.KEY, payload);
+        } catch (error) {
+          console.warn('[System Storage] Falha ao persistir estado do carrinho:', error);
+        }
+      },
+      clear() {
+        try { localStorage.removeItem(this.KEY); } catch (error) { console.warn('[System Storage] Falha ao limpar carrinho:', error); }
+      },
+      restore() {
+        try {
+          const raw = localStorage.getItem(this.KEY);
+          if (!raw) return null;
+          const cart = JSON.parse(raw);
+          const isExpired = (Date.now() - cart.savedAt) > this.TTL_MS;
+          if (!cart.pixData || isExpired) {
+            this.clear();
+            return null;
+          }
+          return cart;
+        } catch (error) {
+          console.error('[System Storage] Corrupção de dados no carrinho. Resetando.', error);
+          this.clear();
+          return null;
+        }
+      }
+    };
+
+    const PaymentMonitor = {
+      intervalId: null,
+      attempts: 0,
+      MAX_ATTEMPTS: 120, // 10 minutos
+      POLL_INTERVAL_MS: 5000,
+      abortController: null,
+      start(baselineData, onSuccess) {
+        this.stop();
+        this.attempts = 0;
+        console.info('[System Monitor] Iniciando rastreio de liquidação de PIX.');
+        this.intervalId = setInterval(() => {
+          this.checkStatus(baselineData, onSuccess);
+        }, this.POLL_INTERVAL_MS);
+      },
+      async checkStatus(baselineData, onSuccess) {
+        this.attempts++;
+        if (this.attempts > this.MAX_ATTEMPTS) {
+          console.warn('[System Monitor] Timeout atingido. Encerrando polling.');
+          this.stop();
+          return;
+        }
+        if (this.abortController) this.abortController.abort();
+        this.abortController = new AbortController();
+        try {
+          // Checa diretamente no backend se a transação do FlowPay foi liquidada
+          const token = getAuthToken();
+          const response = await fetch(`${API_URL}/api/transactions/${baselineData.txId}/status`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+            signal: this.abortController.signal
+          });
+          const currentData = await readJsonResponse(response);
+          if (currentData.status === 'PAID') {
+            console.info('[System Monitor] Pagamento confirmado on-chain/backend.');
+            this.stop();
+            onSuccess(currentData);
+          }
+        } catch (error) {
+          if (error.name === 'AbortError') return;
+          console.error('[System Network] Falha no ciclo de polling:', error);
+        }
+      },
+      stop() {
+        if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+        if (this.abortController) { this.abortController.abort(); this.abortController = null; }
+      }
+    };
+
+    function triggerPaymentSuccess(newData) {
+      const panel = document.getElementById('pix-result');
+      if (panel) {
+        panel.innerHTML = '<div class="success-state" style="padding: 2rem; text-align: center; color: var(--color-brand); font-weight: bold;">Pagamento Confirmado! Seus tokens já estão disponíveis. Redirecionando...</div>';
+        setTimeout(() => { window.location.href = '/'; }, 3000);
+      }
+      CheckoutManager.clear();
+    }
+
+    function initCartRecovery() {
+      const pendingCart = CheckoutManager.restore();
+      if (!pendingCart) return;
+      console.info('[System Cart] Reidratando sessão de checkout pendente.');
+      showPixCharge(pendingCart.pixData);
+    }
+
     function normalizePixData(data) {
       const pixData = data?.pixData || data?.pix_data || {};
       return {
@@ -594,14 +690,18 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
       code.value = pixData.brCode || '';
 
       const metaParts = [
-        pixData.correlationId ? `Ref: ${pixData.correlationId}` : null,
-        pixData.status ? `Status: ${pixData.status}` : null,
-        pixData.value ? `Valor: R$ ${Number(pixData.value).toFixed(2)}` : null,
+        pixData.value ? `R$ ${Number(pixData.value).toFixed(2)}` : null,
+        pixData.status === 'ACTIVE' ? '· Aguardando pagamento' : null,
       ].filter(Boolean);
-      meta.textContent = metaParts.join(' | ');
+      meta.textContent = metaParts.join(' ');
 
       panel.hidden = false;
       panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      if (pixData.correlationId) {
+        PaymentMonitor.start({ txId: pixData.correlationId }, triggerPaymentSuccess);
+      }
+
       return true;
     }
 
@@ -611,7 +711,11 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
         return;
       }
 
-      if (showPixCharge(data)) return;
+      if (showPixCharge(data)) {
+        const pixData = normalizePixData(data);
+        CheckoutManager.save(data._pkgId || null, pixData);
+        return;
+      }
 
       alert('Ops! Tivemos um imprevisto ao gerar seu Pix. Por favor, tente novamente em alguns instantes.');
     }
@@ -619,6 +723,8 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
     window.closePixResult = function() {
       const panel = document.getElementById('pix-result');
       if (panel) panel.hidden = true;
+      CheckoutManager.clear();
+      PaymentMonitor.stop();
     }
 
     window.copyPixCode = async function() {
@@ -709,7 +815,7 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
       }
     }
 
-    async function createPurchase(endpoint, body) {
+    async function createPurchase(endpoint, body, pkgId = null) {
       const token = getAuthToken();
       if (!token) return window.location.href = '/login';
 
@@ -741,7 +847,7 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
           return;
         }
 
-        handleBillingResponse(data);
+        handleBillingResponse({ ...data, _pkgId: pkgId });
       } catch (error) {
         clearTimeout(timeoutId);
         const isTimeout = error.name === 'AbortError';
@@ -756,7 +862,7 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
         btn.dataset.text = btn.innerText;
         btn.innerText = 'GERANDO PIX...';
       }
-      await createPurchase('/api/tokens/purchase', { package: packageType });
+      await createPurchase('/api/tokens/purchase', { package: packageType }, packageType);
       if (btn) {
         btn.disabled = false;
         btn.innerText = btn.dataset.text;
@@ -764,7 +870,9 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
     }
 
     window.buyProduct = function(productId) {
-      return createPurchase('/api/products/purchase', { productId });
+      return createPurchase('/api/products/purchase', { productId }, productId);
     }
+
+    document.addEventListener('DOMContentLoaded', initCartRecovery);
   </script>
 </Layout>
