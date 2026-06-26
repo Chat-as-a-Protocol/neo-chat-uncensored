@@ -890,22 +890,30 @@
     }
   }
 
+  // 1. Lógica Pura: Calcula o estado de exibição da cota (testável, sem dependência de UI)
+  function formatQuotaDisplay(limit: number = 0, remaining: number = 0, balance: number = 0): string {
+    if (balance > 0) {
+      return String(balance);
+    }
+    const displayRemaining = Math.max(0, remaining);
+    return `${displayRemaining}/${limit}`;
+  }
+
+  // 2. Efeito Colateral: Aplica o estado calculado na interface
   function applyQuotaToUI(data: UsagePayload) {
     const indicator = document.getElementById('quota-indicator');
     const count = indicator?.querySelector('.quota-count');
-    if (!count || !indicator) return;
-    const limit = Number(data.limit || 0);
-    const remaining = Number(data.remaining || 0);
-    const balance = Number(data.balance ?? 0);
-    const today = limit - remaining;
-    const safeToday = Number.isFinite(today) && Number.isFinite(limit) && limit > 0
-      ? Math.min(Math.max(today, 0), limit)
-      : today;
-    if (balance > 0) {
-      count.textContent = String(balance);
-    } else {
-      count.textContent = `${safeToday}/${limit}`;
+
+    if (!indicator || !count) {
+      console.warn('[System UI] Falha ao injetar quota: Elementos DOM não localizados.');
+      return;
     }
+
+    const limit = Number(data.limit ?? 0);
+    const remaining = Number(data.remaining ?? 0);
+    const balance = Number(data.balance ?? 0);
+
+    count.textContent = formatQuotaDisplay(limit, remaining, balance);
   }
 
   // Restaura o badge instantaneamente do cache antes do fetch
