@@ -153,6 +153,15 @@ export const normalizeFlowPayChargeResponse = (data = {}) => {
   };
 };
 
+const toServicePayload = (payload) => ({
+  amount_brl:   payload.amount_brl   ?? payload.valor ?? 0,
+  product_name: payload.product_name ?? payload.product_id ?? payload.wallet ?? "nox",
+  product_ref:  payload.product_ref  ?? payload.product_id  ?? null,
+  customer_name:  payload.customer_name  ?? null,
+  customer_email: payload.customer_email ?? null,
+  metadata: payload.metadata ?? null,
+});
+
 export const createFlowPayCharge = async (
   payload,
   { env = process.env, fetchImpl = globalThis.fetch } = {},
@@ -160,40 +169,35 @@ export const createFlowPayCharge = async (
   const apiUrl = resolveFlowPayApiUrl(env);
   const apiKey = resolveFlowPayApiKey(env);
 
-  // Diagnostic Log (Safe: only prefix and length)
-  const keyPrefix = apiKey.slice(0, 4);
-  const isJWT = apiKey.startsWith("ey");
+  const isServiceKey = apiKey.startsWith("fpay_live_") || apiKey.startsWith("fpay_test_");
+  const isBasicAuth  = apiKey.startsWith("Q2xp");
+  const isJWT        = apiKey.startsWith("ey");
+
   console.log(
-    `[FlowPay] Attempting charge. URL: ${apiUrl}, KeyPrefix: ${keyPrefix}***, Length: ${apiKey.length}, isJWT: ${isJWT}`,
+    `[FlowPay] Attempting charge. URL: ${apiUrl}, KeyPrefix: ${apiKey.slice(0, 16)}***, isServiceKey: ${isServiceKey}`,
   );
 
-  // Detectar se é uma chave Basic (Client_Id:Client_Secret em Base64)
-  const isBasicAuth = apiKey.startsWith("Q2xp");
+  const headers = { "Content-Type": "application/json" };
 
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  // Lógica de Autenticação Estrita:
-  // 1. Se for Basic (ClientId:Secret), usamos Authorization Basic
-  // 2. Se for um JWT (Sessão), usamos Authorization Bearer
-  // 3. Caso contrário, tratamos como API Key pura usando x-api-key
-  if (isBasicAuth) {
-    headers["Authorization"] = `Basic ${apiKey}`;
-  } else if (isJWT) {
+  if (isServiceKey || isJWT) {
     headers["Authorization"] = `Bearer ${apiKey}`;
+  } else if (isBasicAuth) {
+    headers["Authorization"] = `Basic ${apiKey}`;
   } else {
     headers["x-api-key"] = apiKey;
   }
+
+  const body = isServiceKey ? toServicePayload(payload) : payload;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   let response;
   try {
-    response = await fetchImpl(`${apiUrl}/api/create-charge`, {
+    const endpoint = isServiceKey ? "/api/service/orders" : "/api/create-charge";
+    response = await fetchImpl(`${apiUrl}${endpoint}`, {
       method: "POST",
       headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
   } catch (err) {
