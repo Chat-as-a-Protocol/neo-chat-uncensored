@@ -1260,9 +1260,9 @@ app.post(
       // - Nenhum role="assistant" do client vira turno nativo no finalMessages.
       //
       // Limites de custo:
-      const MAX_HISTORY_MESSAGES  = 20;
+      const MAX_HISTORY_MESSAGES  = 100;
       const MAX_MESSAGE_CHARS     = 1500;
-      const MAX_TOTAL_HISTORY_CHARS = 8000;
+      const MAX_TOTAL_HISTORY_CHARS = 50000;
 
       // 1. Filtrar roles válidos
       const rawClientMessages = messages.filter(
