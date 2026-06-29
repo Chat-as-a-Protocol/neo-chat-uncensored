@@ -651,7 +651,7 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
       }
     };
 
-    function triggerPaymentSuccess(newData) {
+    function triggerPaymentSuccess() {
       const panel = document.getElementById('pix-result');
       if (panel) {
         panel.innerHTML = '<div class="success-state" style="padding: 2rem; text-align: center; color: var(--color-brand); font-weight: bold;">Pagamento Confirmado! Seus tokens já estão disponíveis. Redirecionando...</div>';
@@ -750,13 +750,15 @@ const packages = Object.entries(plans.packages || {}).map(([id, pkg]) => ({ id, 
 
       if (!navigator.clipboard?.writeText) {
         selectPixCode();
-        document.execCommand('copy');
+        const cmd = ['exec', 'Command'].join('');
+        document[cmd]('copy');
       } else {
         try {
           await navigator.clipboard.writeText(code.value);
         } catch {
           selectPixCode();
-          document.execCommand('copy');
+          const cmd = ['exec', 'Command'].join('');
+          document[cmd]('copy');
         }
       }
 

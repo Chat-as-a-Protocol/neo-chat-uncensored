@@ -1,4 +1,4 @@
-import test, { describe, before, after, it } from "node:test";
+import { describe, before, after, it } from "node:test";
 import assert from "node:assert";
 import crypto from "crypto";
 import request from "supertest";
