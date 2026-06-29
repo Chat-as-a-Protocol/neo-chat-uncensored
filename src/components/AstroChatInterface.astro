@@ -214,7 +214,8 @@
   try {
     const saved = localStorage.getItem('neo_chat_history');
     if (saved) {
-      messages = JSON.parse(saved);
+      messages = (JSON.parse(saved) as { role: string; content: string }[])
+        .filter(msg => typeof msg.content === 'string' && msg.content.trim().length > 0);
       // Re-renderizar histórico salvo
       messages.forEach(msg => {
         appendMessage(msg.role, msg.content, { forceScroll: false });
@@ -777,6 +778,10 @@
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout no frontend
 
+      const sanitizedMessages = messages.filter(
+        msg => typeof msg.content === 'string' && msg.content.trim().length > 0
+      );
+
       const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -784,7 +789,7 @@
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          messages,
+          messages: sanitizedMessages,
           personaId: (document.getElementById('persona-select') as HTMLSelectElement)?.value || 'nox',
           stream: true,
         }),
@@ -1032,7 +1037,19 @@
   form.addEventListener('submit', async (e: SubmitEvent) => {
     e.preventDefault();
     const userMessage = input.value.trim();
-    if (!userMessage || isSending) return;
+
+    if (!userMessage) {
+      input.setAttribute('aria-invalid', 'true');
+      input.placeholder = 'Digite uma mensagem antes de enviar.';
+      input.focus();
+      setTimeout(() => {
+        input.removeAttribute('aria-invalid');
+        input.placeholder = 'Digite aqui...';
+      }, 2500);
+      return;
+    }
+
+    if (isSending) return;
 
     input.value = '';
     input.style.height = 'auto';
