@@ -807,10 +807,15 @@
         throw await buildChatApiError(response);
       }
 
+      console.log('[Chat Streaming] Response received — status:', response.status, 'ok:', response.ok);
+
       const reader = response.body?.getReader();
       if (!reader) {
+        console.error('[Chat Streaming] response.body is null — cannot create reader');
         throw new Error('API response body ausente');
       }
+
+      console.log('[Chat Streaming] Reader created successfully');
 
       const decoder = new TextDecoder();
       const assistantId = `msg-ast-${Date.now()}`;
@@ -818,49 +823,87 @@
       let assistantContent = '';
       let isFirstChunk = true;
       let buffer = '';
+      let chunkCount = 0;
+      let lineCount = 0;
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
 
+        if (done) {
+          console.log('[Chat Streaming] Stream done. Total chunks:', chunkCount, '| Total SSE lines processed:', lineCount, '| Final content length:', assistantContent.length);
+          break;
+        }
+
+        chunkCount++;
         const decodedChunk = decoder.decode(value, { stream: true });
+        console.log(`[Chat Streaming] Chunk #${chunkCount} decoded (${decodedChunk.length} chars):`, JSON.stringify(decodedChunk.slice(0, 200)));
+
         buffer += decodedChunk;
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
+          console.log('[Chat Streaming] SSE line:', JSON.stringify(line));
 
+          if (!line.startsWith('data: ')) {
+            console.log('[Chat Streaming] Skipping non-data line');
+            continue;
+          }
+
+          lineCount++;
           const dataStr = line.slice(6);
-          if (dataStr.trim() === '[DONE]') continue;
+
+          if (dataStr.trim() === '[DONE]') {
+            console.log('[Chat Streaming] Received [DONE] sentinel');
+            continue;
+          }
+
+          console.log(`[Chat Streaming] Attempting JSON.parse on:`, JSON.stringify(dataStr.slice(0, 300)));
 
           try {
             const data = JSON.parse(dataStr);
+            console.log('[Chat Streaming] JSON parsed successfully. choices[0]?.delta:', JSON.stringify(data.choices?.[0]?.delta));
+
             const textChunk = data.choices?.[0]?.delta?.content || '';
-            if (!textChunk) continue;
+            console.log('[Chat Streaming] Extracted textChunk:', JSON.stringify(textChunk), '| empty?', textChunk === '');
+
+            if (!textChunk) {
+              console.log('[Chat Streaming] textChunk is empty — skipping UI update');
+              continue;
+            }
 
             assistantContent += textChunk;
+            console.log('[Chat Streaming] assistantContent length now:', assistantContent.length);
 
             if (isFirstChunk) {
+              console.log('[Chat Streaming] First content chunk — creating assistant message bubble');
               hideTypingIndicator();
               const inserted = appendMessage('assistant', assistantContent, {
                 id: assistantId,
                 streaming: true,
                 forceScroll: true,
               });
+              console.log('[Chat Streaming] appendMessage returned:', inserted);
               streamingBubble = inserted.bubble;
               isFirstChunk = false;
             } else {
+              console.log('[Chat Streaming] Updating existing message bubble');
               updateMessage(assistantId, assistantContent);
             }
           } catch (err) {
-            console.error('[Chat] Falha no JSON.parse:', err);
+            console.error('[Chat Streaming] JSON.parse failed for dataStr:', JSON.stringify(dataStr.slice(0, 300)), '| Error:', err);
           }
         }
       }
 
+      console.log('[Chat Streaming] Final assistantContent before save (length:', assistantContent.length, '):', JSON.stringify(assistantContent.slice(0, 200)));
+
       if (streamingBubble) {
         streamingBubble.classList.remove('is-streaming');
+      }
+
+      if (!assistantContent) {
+        console.warn('[Chat Streaming] assistantContent is empty after stream completed — message will NOT be saved or displayed');
       }
 
       messages.push({ role: 'assistant', content: assistantContent });
