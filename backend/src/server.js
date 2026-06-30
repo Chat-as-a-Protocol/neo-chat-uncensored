@@ -11,6 +11,7 @@ import path from "node:path";
 import { z } from "zod";
 import logger from "./lib/logger.js";
 import { checkQuota } from "./middleware/quota.js";
+import { blockSuspiciousRequests } from "./middleware/security.js";
 import {
   FALLBACK_GUEST_PLAN,
   getUserPlan,
@@ -128,6 +129,9 @@ app.use((req, res, next) => {
   next();
 });
 app.set("trust proxy", 1); // Confiar no proxy (Cloudflare/Railway) para pegar o IP real
+
+// 1. SECURITY - Block scanner bots and suspicious paths before any other logic
+app.use(blockSuspiciousRequests);
 
 import redis from "./lib/redis.js";
 import { emailService } from "./services/email.js";
