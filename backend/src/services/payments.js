@@ -168,7 +168,7 @@ export const paymentService = {
     status = "received",
     metadata = {},
   }) {
-    if (!process.env.DATABASE_URL) {
+    if (!process.env.TURSODB_URL) {
       return { persisted: false, reason: "database_unconfigured" };
     }
 
