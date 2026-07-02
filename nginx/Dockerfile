@@ -1,3 +1,14 @@
+# ==============================================================================
+# NØX WAF SHIELD DOCKERFILE
+# ==============================================================================
+# NOTE ON RAILWAY HEALTHCHECKS:
+# In the root railway.json, healthcheckPath is intentionally omitted so that
+# edge/proxy services reading root config do not fail boot if /health is proxied.
+# For this standalone Nginx service, railway.json configures healthcheckPath to
+# "/nginx-health" (handled natively in memory by Nginx) so firewall uptime
+# is completely independent of backend availability.
+# ==============================================================================
+
 FROM nginx:alpine
 
 # Remove configuração padrão do Nginx
