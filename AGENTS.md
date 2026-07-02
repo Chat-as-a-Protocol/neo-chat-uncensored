@@ -35,6 +35,8 @@ segurança > estabilidade > legibilidade > performance > estética
 - Runtime prompt: `shared/runtime-prompt.md`.
 - Repo: `https://gitea.com/noxia/changeman.git`.
 - Webhook: `POST /api/webhooks/flowpay` (Hardened).
+- WAF / Firewall: Nginx isolado na pasta modular `/nginx` (`Dockerfile`, `nginx.conf`, `railway.json`). Roda na porta `3000` no serviço Railway `nginx-WAF` (Root Directory configurado como `/nginx`). Repassa tráfego seguro para `backend.railway.internal:3001`.
+- Health (Firewall): `/nginx-health` (respondendo `200 OK` direto da memória do Nginx em 0.1ms; configurado como `healthcheckPath` no `nginx/railway.json` para que a saúde do firewall seja 100% independente da saúde do backend).
 - PWA: `v4` (Cache resiliente). `CACHE_NAME` atual em `sw.js`: `nox-chat-v670`.
 - FlowPay: PIX em produção validado (2026-05-06). `FLOWPAY_API_KEY` no Railway configurada e funcionando.
 - SEO: `@astrojs/sitemap` ativo; `site: https://noxai.chat` no `astro.config.mjs`; gera `/sitemap-index.xml` (rotas privadas filtradas). `robots.txt` aponta o `Sitemap:`.
@@ -62,6 +64,8 @@ segurança > estabilidade > legibilidade > performance > estética
 - **Webhooks (Topologia)**: A rota de entrada da FlowPay no Nexus **DEVE** apontar para o final exato `/api/webhooks/flowpay`. No `ecosystem.json` do NØX, o target path DEVE ser `/webhooks/flowpay` (sem duplicar).
 - **Webhooks (Segurança)**: O valor do secret assinado pela FlowPay (`NEXUS_SECRET_NEW`) **DEVE** ser estritamente igual ao validado pelo Nexus e NØX (`FLOWPAY_WEBHOOK_SECRET`). Validação via HMAC-SHA256 (`X-Nexus-Signature` ou `X-FlowPay-Signature`).
 - **BACKEND_URL**: usar apenas server-side (ex.: `/health/deep`); nunca referenciar em código de browser, que só alcança `PUBLIC_API_URL`.
+- **WAF / Nginx**: O entrypoint do Alpine executa `envsubst` com saída direta para `/etc/nginx/nginx.conf` (`NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx`) para evitar blocos `http {}` aninhados. O contêiner expõe e escuta na porta `3000`.
+- **Railway JSON Schemas**: Arquivos `.json` de configuração no Railway (`railway.json` e `nginx/railway.json`) têm validação estrita (`additionalProperties: false`). **PROIBIDO** adicionar chaves extras como `$comment` ou `_comment`.
 - **E-mail marketing**: campanhas (`sendFeatureAnnouncement`) devem levar headers `List-Unsubscribe` + one-click e filtrar `marketing_opt_out = FALSE` na query. Transacionais não levam unsubscribe. Migração da coluna via `backend/schema.sql` (idempotente) antes do 1º disparo.
 
 ────────────────────────────────────────

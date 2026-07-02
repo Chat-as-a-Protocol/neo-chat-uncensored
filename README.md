@@ -26,8 +26,13 @@ Frontend NØX
   │
   │ PUBLIC_API_URL=https://api.noxai.chat
   ▼
+Nginx WAF Shield (nginx-WAF)
+  api.noxai.chat [Porta 3000]
+  │
+  │ proxy_pass http://backend.railway.internal:3001
+  ▼
 Backend NØX
-  api.noxai.chat
+  backend.railway.internal [Porta 3001]
   │
   ├─ PostgreSQL
   │  users, payments, ledger, magic links
