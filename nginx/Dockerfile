@@ -1,12 +1,8 @@
 # ==============================================================================
 # NØX WAF SHIELD DOCKERFILE
 # ==============================================================================
-# NOTE ON RAILWAY HEALTHCHECKS:
-# In the root railway.json, healthcheckPath is intentionally omitted so that
-# edge/proxy services reading root config do not fail boot if /health is proxied.
-# For this standalone Nginx service, railway.json configures healthcheckPath to
-# "/nginx-health" (handled natively in memory by Nginx) so firewall uptime
-# is completely independent of backend availability.
+# Railway injects a dynamic $PORT environment variable. This Dockerfile uses
+# nginx:alpine's built-in envsubst mechanism to substitute ${PORT} at startup.
 # ==============================================================================
 
 FROM nginx:alpine
@@ -14,11 +10,13 @@ FROM nginx:alpine
 # Remove configuração padrão do Nginx
 RUN rm -f /etc/nginx/conf.d/default.conf
 
-# Copia nossa configuração de blindagem WAF
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy nginx.conf as a template for envsubst processing
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-# Expõe a porta que o Railway publicará
-EXPOSE 3000
+# Only substitute $PORT — do not touch nginx's own variables ($host, $request, etc.)
+ENV NGINX_ENVSUBST_FILTER=PORT
+ENV PORT=3000
 
-# Inicia em foreground
+# Inicia em foreground (entrypoint handles envsubst automatically)
 CMD ["nginx", "-g", "daemon off;"]
+
