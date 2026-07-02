@@ -67,6 +67,10 @@ segurança > estabilidade > legibilidade > performance > estética
 - **WAF / Nginx**: O entrypoint do Alpine executa `envsubst` com saída direta para `/etc/nginx/nginx.conf` (`NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx`) para evitar blocos `http {}` aninhados. O contêiner expõe e escuta na porta `3000`.
 - **Railway JSON Schemas**: Arquivos `.json` de configuração no Railway (`railway.json` e `nginx/railway.json`) têm validação estrita (`additionalProperties: false`). **PROIBIDO** adicionar chaves extras como `$comment` ou `_comment`.
 - **E-mail marketing**: campanhas (`sendFeatureAnnouncement`) devem levar headers `List-Unsubscribe` + one-click e filtrar `marketing_opt_out = FALSE` na query. Transacionais não levam unsubscribe. Migração da coluna via `backend/schema.sql` (idempotente) antes do 1º disparo.
+- **Postgres HA & Variáveis no Railway**: O código em `backend/src` exige estritamente a variável `POSTGRES_URL`. No painel do Railway, mapear sempre `POSTGRES_URL=${{Postgres.DATABASE_URL}}` no serviço `backend`.
+- **Cache DNS do Nginx WAF (Regra de Ouro)**: Quando o serviço `backend` sofrer redeploy ou restart, ele receberá um novo IP na rede privada interna (`.railway.internal`). **É OBRIGATÓRIO dar um Restart no serviço `nginx-WAF`** no Railway logo após qualquer deploy do backend para renovar o cache DNS do upstream e evitar erros `504 Gateway Timeout` ou `110: Operation timed out`.
+- **Testes CLI & Anti-Bot**: O middleware `backend/src/middleware/security.js` rejeita ferramentas CLI sem User-Agent válido (`403 Forbidden` ou `444`). Em testes automatizados ou comandos `curl`, sempre passar `-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NOX-TestClient/4.2"`.
+- **Helmet CSP**: O cabeçalho `Content-Security-Policy` é emitido exclusivamente pela API (`https://api.noxai.chat`) via Helmet, não sendo exposto no frontend SSR (`https://noxai.chat`).
 
 ────────────────────────────────────────
 
