@@ -11,7 +11,7 @@ export const LEDGER_TYPES = {
 };
 
 const shouldUsePostgres = (userId) =>
-  Boolean(process.env.TURSODB_URL) &&
+  Boolean(process.env.POSTGRES_URL) &&
   !String(userId).startsWith("guest_") &&
   IS_REAL_REDIS;
 
@@ -135,7 +135,8 @@ export const ledgerService = {
     return entries
       .filter(
         (e) =>
-          (e.type === "CONSUMPTION" || e.type === LEDGER_TYPES.TOKEN_CONSUMPTION) &&
+          (e.type === "CONSUMPTION" ||
+            e.type === LEDGER_TYPES.TOKEN_CONSUMPTION) &&
           e.createdAt >= startOfDay &&
           e.createdAt < endOfDay,
       )
@@ -160,7 +161,8 @@ export const ledgerService = {
 
     return entries
       .filter(
-        (e) => e.type === "CONSUMPTION" || e.type === LEDGER_TYPES.TOKEN_CONSUMPTION,
+        (e) =>
+          e.type === "CONSUMPTION" || e.type === LEDGER_TYPES.TOKEN_CONSUMPTION,
       )
       .reduce((acc, e) => acc + Math.abs(e.amount), 0);
   },
@@ -179,7 +181,9 @@ export const ledgerService = {
     }
 
     const entriesStr = await redis.lrange(`ledger:${userId}`, 0, -1);
-    return entriesStr.map((e) => JSON.parse(e)).sort((a, b) => b.createdAt - a.createdAt);
+    return entriesStr
+      .map((e) => JSON.parse(e))
+      .sort((a, b) => b.createdAt - a.createdAt);
   },
 
   /**

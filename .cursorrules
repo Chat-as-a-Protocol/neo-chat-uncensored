@@ -27,21 +27,21 @@ SSoT operacional. Todo agente neste repo segue estas regras sem exceção.
 ## ⧉ Stack Canônica
 
 ```text
-┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ LAYER          ┃ TECH                     ┃ NOTA                   ┃
-┣━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ Runtime        ┃ Node.js >=22.12.0        ┃ fnm v22.22.2           ┃
-┃ Frontend       ┃ Astro 6 SSR + @astrojs/node ┃ output: server      ┃
-┃ Backend        ┃ Express + Helmet + Zod   ┃ backend/src/server.js  ┃
-┃ LLM            ┃ Venice (Uncensored)      ┃ executor, não verdade  ┃
-┃ Ledger         ┃ Postgres + Redis fallback┃ LEDGER-FIRST           ┃
-┃ Billing        ┃ js-tiktoken cl100k_base  ┃ precisão real          ┃
-┃ Auth           ┃ JWT Fail-Closed          ┃ Zero-Trust             ┃
-┃ Payments       ┃ FlowPay via api.flowpay.cash ┃ webhook HMAC-SHA256┃
-┃ Email          ┃ Resend via backend       ┃ send@noxai.chat        ┃
-┃ Deploy         ┃ Railway + Cloudflare     ┃ 2 serviços separados   ┃
-┃ Package Manager┃ pnpm                     ┃ NUNCA npm ou yarn      ┃
-┗━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ LAYER          ┃ TECH                         ┃ NOTA                   ┃
+┣━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ Runtime        ┃ Node.js >=22.12.0            ┃ fnm v22.22.2           ┃
+┃ Frontend       ┃ Astro 6 SSR + @astrojs/node  ┃ output: server         ┃
+┃ Backend        ┃ Express + Helmet + Zod       ┃ backend/src/server.js  ┃
+┃ LLM            ┃ Venice (Uncensored)          ┃ executor, não verdade  ┃
+┃ Ledger         ┃ TursoDB  + Redis fallback.   ┃ LEDGER-FIRST           ┃
+┃ Billing        ┃ js-tiktoken cl100k_base      ┃ precisão real          ┃
+┃ Auth           ┃ JWT Fail-Closed              ┃ Zero-Trust             ┃
+┃ Payments       ┃ FlowPay via api.flowpay.cash ┃ webhook HMAC-SHA256.   ┃
+┃ Email          ┃ Resend via backend           ┃ send@noxai.chat        ┃
+┃ Deploy         ┃ Railway + Cloudflare         ┃ 2 serviços separados   ┃
+┃ Package Manager┃ pnpm                         ┃ NUNCA npm ou yarn      ┃
+┗━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ────────────────────────────────────────
@@ -49,27 +49,27 @@ SSoT operacional. Todo agente neste repo segue estas regras sem exceção.
 ## ⨷ Variáveis de Ambiente
 
 ```text
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ VARIÁVEL                       ┃ DESCRIÇÃO / REGRA                                   ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ VENICE_API_KEY                 ┃ Chave da API Venice. Obrigatória em produção.       ┃
-┃ VENICE_MODEL                   ┃ ID do modelo Venice a usar.                         ┃
-┃ JWT_SECRET                     ┃ Secret para assinar tokens JWT. Obrigatório.        ┃
-┃ FLOWPAY_API_URL                ┃ https://api.flowpay.cash — NUNCA api.noxai.chat     ┃
-┃ FLOWPAY_API_KEY                ┃ Deve ser idêntica a FLOWPAY_INTERNAL_API_KEY do     ┃
-┃                                ┃ Cloudflare Worker flowpay-api. Validada via x-api-key┃
-┃ FLOWPAY_WEBHOOK_SECRET         ┃ Secret para validar HMAC-SHA256 do webhook.         ┃
-┃ DATABASE_URL                   ┃ Postgres. Obrigatório para usuários identificados.  ┃
-┃ REDIS_URL                      ┃ Redis. Fallback em memória se ausente (dev only).   ┃
-┃ FRONTEND_URL                   ┃ Lista de origens CORS separadas por vírgula.        ┃
-┃                                ┃ Ex: https://noxai.chat,https://www.noxai.chat       ┃
-┃ PUBLIC_API_URL                 ┃ https://api.noxai.chat — URL do backend no frontend.┃
-┃                                ┃ OBRIGATÓRIO no serviço FRONTEND do Railway.         ┃
-┃ BACKEND_URL                    ┃ Rede privada (railway.internal). Só server-side.    ┃
-┃                                ┃ Usado pelo /health/deep. Nunca exposto ao browser.  ┃
-┃ RESEND_API_KEY                 ┃ Chave Resend para e-mails (transacionais + marketing)┃
-┃ RESEND_FROM_EMAIL              ┃ NØX <send@noxai.chat>                               ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ VARIÁVEL                       ┃ DESCRIÇÃO / REGRA                                     ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ VENICE_API_KEY                 ┃ Chave da API Venice. Obrigatória em produção.         ┃
+┃ VENICE_MODEL                   ┃ ID do modelo Venice a usar.                           ┃
+┃ JWT_SECRET                     ┃ Secret para assinar tokens JWT. Obrigatório.          ┃
+┃ FLOWPAY_API_URL                ┃ https://api.flowpay.cash — NUNCA api.noxai.chat       ┃
+┃ FLOWPAY_API_KEY                ┃ Deve ser idêntica a FLOWPAY_INTERNAL_API_KEY do       ┃
+┃                                ┃ Cloudflare Worker flowpay-api. Validada via x-api-key ┃
+┃ FLOWPAY_WEBHOOK_SECRET         ┃ Secret para validar HMAC-SHA256 do webhook.           ┃
+┃ TURSODB_URL                    ┃ Turso.    Obrigatório para usuários identificados.    ┃
+┃ REDIS_URL                      ┃ Redis. Fallback em memória se ausente (dev only).     ┃
+┃ FRONTEND_URL                   ┃ Lista de origens CORS separadas por vírgula.          ┃
+┃                                ┃ Ex: https://noxai.chat,https://www.noxai.chat         ┃
+┃ PUBLIC_API_URL                 ┃ https://api.noxai.chat — URL do backend no frontend.  ┃
+┃                                ┃ OBRIGATÓRIO no serviço FRONTEND do Railway.           ┃
+┃ BACKEND_URL                    ┃ Rede privada (railway.internal). Só server-side.      ┃
+┃                                ┃ Usado pelo /health/deep. Nunca exposto ao browser.    ┃
+┃ RESEND_API_KEY                 ┃ Chave Resend para e-mails (transacionais + marketing) ┃
+┃ RESEND_FROM_EMAIL              ┃ NØX <send@noxai.chat>                                 ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ────────────────────────────────────────
@@ -199,19 +199,27 @@ Tiers ativos em `shared/plans.json`: `guest`, `free`, `paid_basic`, `paid_pro`.
 
 ### 5. Webhook FlowPay (Topologia NØX ↔ Nexus ↔ FlowPay)
 
-- **Rota final no Nexus**: O NØX recebe do Nexus em `POST /api/webhooks/flowpay`. No ecosytem.json, a assinatura de rota DEVE ser exatamente `"/webhooks/flowpay"` para evitar duplicação pelo router do Nexus.
-- **Roteamento de entrada (Nexus)**: A FlowPay deve apontar para a URL completa do Nexus terminada em `/api/webhooks/flowpay`. O router do Nexus NÃO aceita requisições na raiz `/webhook` seca.
-- **Assinatura Compartilhada**: A FlowPay usa a variável `NEXUS_SECRET_NEW` para assinar. O Nexus e o NØX usam a variável `FLOWPAY_WEBHOOK_SECRET` para validar. O valor dessas variáveis **DEVE** ser exatamente o mesmo em todos os projetos.
+- **Rota final no Nexus**: O NØX recebe do Nexus em `POST /api/webhooks/flowpay`. 
+No ecosytem.json, a assinatura de rota DEVE ser exatamente `"/webhooks/flowpay"` 
+para evitar duplicação pelo router do Nexus.
+- **Roteamento de entrada (Nexus)**: A FlowPay deve apontar para a URL completa 
+do Nexus terminada em `/api/webhooks/flowpay`. O router do Nexus NÃO aceita 
+requisições na raiz `/webhook` seca.
+- **Assinatura Compartilhada**: A FlowPay usa a variável `NEXUS_SECRET_NEW` para 
+assinar. O Nexus e o NØX usam a variável `FLOWPAY_WEBHOOK_SECRET` para validar. 
+O valor dessas variáveis **DEVE** ser exatamente o mesmo em todos os projetos.
 - Validação: HMAC-SHA256 com `X-Nexus-Signature` ou `X-FlowPay-Signature`.
 - Idempotência antecipada: `redis.get(webhook_processed:ref)` antes de processar.
 - Ao confirmar: `ledgerService.addEntry(userId, tokens, TOKEN_PURCHASE, reference)`.
-- `ON CONFLICT(reference) DO NOTHING` no Postgres garante idempotência no ledger.
+- `ON CONFLICT(reference) DO NOTHING` no TursoDB garante idempotência no 
+ledger.
 
 ### 6. PWA
 
 - Incrementar `CACHE_NAME` em `sw.js` após qualquer mudança em assets estáticos.
 - SW registrado apenas em `import.meta.env.PROD`.
-- Ocultação: O `sw.js` não deve expor rotas do backend. Use regras de cache baseadas em extensões para evitar revelar a estrutura do sistema.
+- Ocultação: O `sw.js` não deve expor rotas do backend. Use regras de cache 
+baseadas em extensões para evitar revelar a estrutura do sistema.
 
 ### 7. Persona Engine
 
@@ -219,7 +227,11 @@ Tiers ativos em `shared/plans.json`: `guest`, `free`, `paid_basic`, `paid_pro`.
 - Cache Redis: 1 hora por manifesto.
 - `tier: pro` → só carrega para usuários `pro`.
 - Runtime prompt: `shared/runtime-prompt.md` — aplicado por último (recency bias).
-- **PROTEÇÃO NØX UNCENSORED:** É ESTRITAMENTE PROIBIDO que qualquer agente altere `include_venice_system_prompt` para `false` no backend ou insira cláusulas de recusa disfarçada (ex: "diga que não tem capacidade", "diga que é impossível") nos manifestos ou `runtime-prompt.md`. O NØX deve ser mantido 100% sem censura, garantindo a permanência do jailbreak da Venice.
+- **PROTEÇÃO NØX UNCENSORED:** É ESTRITAMENTE PROIBIDO que qualquer agente altere 
+`include_venice_system_prompt` para `false` no backend ou insira cláusulas de 
+recusa disfarçada (ex: "diga que não tem capacidade", "diga que é impossível") 
+nos manifestos ou `runtime-prompt.md`. O NØX deve ser mantido 100% sem censura, 
+garantindo a permanência do jailbreak da Venice.
 
 ### 8. E-mail & Unsubscribe
 
@@ -280,8 +292,6 @@ node --test backend/src/services/ledger.test.js
 make check
 make build
 ```
-
-────────────────────────────────────────
 
 ## ⍟ Fechamento
 

@@ -297,7 +297,7 @@ const resolveFlowPayWebhookUserId = async ({ data = {}, metadata = {} }) => {
 
   const payerId = String(data.payerId || "").trim();
   if (payerId.startsWith("user_")) return payerId;
-  if (!isDeliverableEmail(payerId) || !process.env.TURSODB_URL) return null;
+  if (!isDeliverableEmail(payerId) || !process.env.POSTGRES_URL) return null;
 
   try {
     const result = await query(
@@ -334,7 +334,7 @@ const resolveWebhookRecipient = async ({
     };
   }
 
-  if (!process.env.TURSODB_URL) return null;
+  if (!process.env.POSTGRES_URL) return null;
 
   try {
     const result = await query("SELECT email, name FROM users WHERE id = $1", [
@@ -2142,7 +2142,7 @@ const verifyNexusSignature = (req, res, next) => {
 
 /**
  * POST /chat/authorize
- * Valida entitlement e emite o ticket isolado via transação Postgres.
+ * Valida entitlement e emite o ticket isolado via transação PostgreSQL.
  */
 app.post("/chat/authorize", authenticateToken, async (req, res) => {
   try {
@@ -2156,7 +2156,7 @@ app.post("/chat/authorize", authenticateToken, async (req, res) => {
     const exp = iat + 120; // 2 minutos
     const expiresAt = new Date(exp * 1000).toISOString();
 
-    if (process.env.TURSODB_URL) {
+    if (process.env.POSTGRES_URL) {
       const { pool } = await import("./utils/db.js");
       const client = await pool.connect();
       try {
@@ -2271,7 +2271,7 @@ app.post(
 
     const { requestId, userId, totalTokens, status } = parsed.data;
 
-    if (process.env.TURSODB_URL) {
+    if (process.env.POSTGRES_URL) {
       const { pool } = await import("./utils/db.js");
       const client = await pool.connect();
       try {
@@ -2334,7 +2334,7 @@ app.post(
 );
 
 // ===== GARBAGE COLLECTION DE RESERVAS =====
-if (process.env.TURSODB_URL) {
+if (process.env.POSTGRES_URL) {
   setInterval(async () => {
     try {
       const { pool } = await import("./utils/db.js");
@@ -2345,9 +2345,9 @@ if (process.env.TURSODB_URL) {
         if (lockResult.rows[0].acquired) {
           const result = await client.query(
             `UPDATE ledger_reservations 
-             SET status = 'expired' 
-             WHERE status = 'active' AND expires_at < NOW()
-             RETURNING request_id`
+            SET status = 'expired' 
+            WHERE status = 'active' AND expires_at < NOW()
+            RETURNING request_id`
           );
           if (result.rowCount > 0) {
             logger.info(`[GC] Expired ${result.rowCount} stale reservations`);

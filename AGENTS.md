@@ -86,8 +86,8 @@ Para migração de schema (Postgres de prod via proxy; `psql` não está instala
 
 ```bash
 cd backend
-DB=$(grep -E '^DATABASE_URL=' ../.env | head -1 | cut -d= -f2- | tr -d '"')
-DATABASE_URL="$DB" node --input-type=module -e "import pg from 'pg';import{readFileSync}from'node:fs';const p=new pg.Pool({connectionString:process.env.DATABASE_URL,ssl:false});await p.query(readFileSync('./schema.sql','utf8'));await p.end()"
+DB=$(grep -E '^POSTGRES_URL=' ../.env | head -1 | cut -d= -f2- | tr -d '"')
+POSTGRES_URL="$DB" node --input-type=module -e "import pg from 'pg';import{readFileSync}from'node:fs';const p=new pg.Pool({connectionString:process.env.POSTGRES_URL,ssl:false});await p.query(readFileSync('./schema.sql','utf8'));await p.end()"
 ```
 
 Para documentação:

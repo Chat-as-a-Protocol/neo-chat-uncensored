@@ -123,10 +123,10 @@ else
 
   # Extrai o user_id para deletar
   TEMP_ID=$(echo "$REG_RESP" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-  info "Deletando usuário do banco via psql..."
+  info "Deletando usuário do banco via PostgreSQL..."
 
-  # Nota: requer DATABASE_URL no ambiente
-  { [ -n "${DATABASE_URL:-}" ] && psql "$DATABASE_URL" -c "DELETE FROM users WHERE email = '$TEMP_EMAIL';" 2>/dev/null; } || \
+  # Nota: requer POSTGRES_URL no ambiente
+  { [ -n "${POSTGRES_URL:-}" ] && psql "$POSTGRES_URL" -c "DELETE FROM users WHERE email = '$TEMP_EMAIL';" 2>/dev/null; } || \
     railway connect Postgres -c "DELETE FROM users WHERE email = '$TEMP_EMAIL';" 2>/dev/null || \
     info "Delete manual necessário: DELETE FROM users WHERE email = '$TEMP_EMAIL';"
 

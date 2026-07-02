@@ -1,4 +1,6 @@
 <!-- markdownlint-disable MD003 MD007 MD013 MD022 MD023 MD025 MD029 MD032 MD033 MD034 -->
+# NØX · ENV CONTRACT
+
 ```text
 ========================================
           NØX · ENV CONTRACT
@@ -72,9 +74,9 @@ Topologia operacional:
 └─ Regra
    Nunca apontar para https://api.noxai.chat.
 
-┏ DATABASE_URL
+┏ POSTGRES_URL
 ├─ Responsabilidade
-│  Postgres de usuários, pagamentos, magic links e ledger.
+│  PostgreSQL de usuários, pagamentos, magic links e ledger.
 └─ Regra
    Secret. Nome obrigatório; valor nunca documentado.
 
@@ -186,7 +188,7 @@ Topologia operacional:
 └─ PUBLIC_API_URL existe no frontend.
 └─ FRONTEND_URL existe no backend.
 └─ FLOWPAY_API_URL existe no backend e possui guard contra self-call.
-└─ DATABASE_URL existe no backend.
+└─ POSTGRES_URL existe no backend.
 └─ REDIS_URL existe no backend.
 └─ JWT_SECRET existe no backend.
 └─ VENICE_API_KEY existe no backend.
@@ -204,7 +206,7 @@ Para fail-fast total em deploy,
 validar também:
 
 ```text
-DATABASE_URL
+POSTGRES_URL
 REDIS_URL
 FLOWPAY_API_URL
 FLOWPAY_WEBHOOK_SECRET

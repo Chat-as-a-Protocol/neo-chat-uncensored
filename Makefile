@@ -170,4 +170,4 @@ seed:
 
 db-init:
 	@echo "[DB] Inicializando tabelas no PostgreSQL..."
-	@psql $(DATABASE_URL) -f backend/schema.sql
+	@psql $(POSTGRES_URL) -f backend/schema.sql

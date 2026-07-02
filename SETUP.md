@@ -41,7 +41,7 @@ neo-chat-uncensored/
 ├── backend/
 │   ├── src/server.js       API Express
 │   ├── src/services/       ledger, FlowPay, e-mail, pagamentos
-│   └── schema.sql          Postgres
+│   └── schema.sql          PostgreSQL
 ├── shared/
 │   ├── plans.json          planos, limites, tokens e preços
 │   └── runtime-prompt.md   prompt runtime mínimo
@@ -78,7 +78,7 @@ neo-chat-uncensored/
 ├─ Health
 │  GET /health
 ├─ Usa
-│  Postgres
+│  PostgreSQL
 │  Redis
 ├─ Chama
 │  Venice API
@@ -221,7 +221,7 @@ JWT_SECRET=...
 VENICE_API_KEY=...
 VENICE_MODEL=<venice-model-id>
 # opcional: VENICE_API_BASE=https://api.venice.ai/api/v1
-DATABASE_URL=${{Postgres.DATABASE_URL}}
+POSTGRES_URL=${{Postgres.DATABASE_URL}}
 REDIS_URL=${{Redis.REDIS_URL}}
 FRONTEND_URL=https://noxai.chat
 FLOWPAY_API_URL=https://api.flowpay.cash
@@ -279,7 +279,7 @@ mas são normalizados antes de aplicar regra de acesso.
 
 - Secrets nunca entram no frontend.
 - `RESEND_API_KEY`, `FLOWPAY_API_KEY`, `JWT_SECRET`,
-  `VENICE_API_KEY`, `VENICE_MODEL`, `DATABASE_URL` e `REDIS_URL`
+  `VENICE_API_KEY`, `VENICE_MODEL`, `POSTGRES_URL` e `REDIS_URL`
   ficam no backend.
 - Webhooks validam assinatura `X-Nexus-Signature`.
 - Ledger usa idempotência por referência de pagamento.

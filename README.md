@@ -29,7 +29,7 @@ Frontend NØX
 Backend NØX
   api.noxai.chat
   │
-  ├─ Postgres
+  ├─ PostgreSQL
   │  users, payments, ledger, magic links
   │
   ├─ Redis
@@ -54,7 +54,7 @@ Backend NØX
 Usuário
   └─ Frontend Astro SSR
      └─ Backend Express
-        ├─ Auth via Postgres
+        ├─ Auth via PostgreSQL
         ├─ Sessão JWT de identidade pura
         ├─ Quota/cache via Redis
         ├─ Venice para geração
