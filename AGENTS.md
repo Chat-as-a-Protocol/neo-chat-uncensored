@@ -71,6 +71,7 @@ segurança > estabilidade > legibilidade > performance > estética
 - **Cache DNS do Nginx WAF (Regra de Ouro)**: Quando o serviço `backend` sofrer redeploy ou restart, ele receberá um novo IP na rede privada interna (`.railway.internal`). **É OBRIGATÓRIO dar um Restart no serviço `nginx-WAF`** no Railway logo após qualquer deploy do backend para renovar o cache DNS do upstream e evitar erros `504 Gateway Timeout` ou `110: Operation timed out`.
 - **Testes CLI & Anti-Bot**: O middleware `backend/src/middleware/security.js` rejeita ferramentas CLI sem User-Agent válido (`403 Forbidden` ou `444`). Em testes automatizados ou comandos `curl`, sempre passar `-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NOX-TestClient/4.2"`.
 - **Helmet CSP**: O cabeçalho `Content-Security-Policy` é emitido exclusivamente pela API (`https://api.noxai.chat`) via Helmet, não sendo exposto no frontend SSR (`https://noxai.chat`).
+- **Invisibilidade do Provedor (Saída SSE/JSON no Chat)**: No endpoint `/api/chat`, a propriedade `"model"` nos chunks SSE (`rawChunks`) ou no JSON síncrono atualmente reflete o identificador do provedor externo. Em manutenções futuras nessa rota, é recomendada a camuflagem desse atributo para `"model": "nox-ai-v1"` (via replace no stream ou atribuição no JSON), mantendo intactos o billing e o texto da resposta.
 
 ────────────────────────────────────────
 
