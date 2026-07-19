@@ -169,32 +169,17 @@ export const createFlowPayCharge = async (
   const apiUrl = resolveFlowPayApiUrl(env);
   const apiKey = resolveFlowPayApiKey(env);
 
-  const isServiceKey = apiKey.startsWith("fpay_live_") || apiKey.startsWith("fpay_test_");
-  const isBasicAuth  = apiKey.startsWith("Q2xp");
-  const isJWT        = apiKey.startsWith("ey");
-
-  console.log(
-    `[FlowPay] Attempting charge. URL: ${apiUrl}, KeyPrefix: ${apiKey.slice(0, 16)}***, isServiceKey: ${isServiceKey}`,
-  );
-
-  const headers = { "Content-Type": "application/json" };
-
-  if (isServiceKey || isJWT) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  } else if (isBasicAuth) {
-    headers["Authorization"] = `Basic ${apiKey}`;
-  } else {
-    headers["x-api-key"] = apiKey;
-  }
-
-  const body = isServiceKey ? toServicePayload(payload) : payload;
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+  };
+  const body = toServicePayload(payload);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   let response;
   try {
-    const endpoint = isServiceKey ? "/api/service/orders" : "/api/create-charge";
-    response = await fetchImpl(`${apiUrl}${endpoint}`, {
+    response = await fetchImpl(`${apiUrl}/api/service/orders`, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
@@ -236,17 +221,7 @@ export const checkFlowPayHealth = async ({
 } = {}) => {
   const apiUrl = resolveFlowPayApiUrl(env);
   const apiKey = resolveFlowPayApiKey(env);
-  const isBasicAuth = apiKey.startsWith("Q2xp");
-  const isJWT = apiKey.startsWith("ey");
-  const headers = {};
-
-  if (isBasicAuth) {
-    headers["Authorization"] = `Basic ${apiKey}`;
-  } else if (isJWT) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  } else {
-    headers["x-api-key"] = apiKey;
-  }
+  const headers = { Authorization: `Bearer ${apiKey}` };
 
   const response = await fetchImpl(`${apiUrl}/api/health`, {
     headers,
