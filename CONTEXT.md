@@ -49,7 +49,7 @@ através de duas ações críticas executadas:
 ```text
 Repo      Gitea (https://gitea.com/noxia/changeman.git)
 Frontend  Astro 6 SSR + @astrojs/node
-Backend   Express + Redis + Postgres
+Backend   Express + Redis + Postgres HA
 LLM       Venice (Uncensored)
 Payment   FlowPay via api.flowpay.cash
 Events    Nexus webhook (HMAC-SHA256)
@@ -57,13 +57,13 @@ Email     Resend
 Deploy    Railway + Cloudflare
 ```
 
-Auth por senha/magic-link usa Postgres.
+Auth por senha/magic-link usa Postgres HA.
 Contas via Magic Link nascem sem senha (`password_hash` NULL).
 
 JWT segue o padrão de **Identidade Pura**:
 contém apenas o `userId`.
 
-O backend resolve o tier dinamicamente via Postgres
+O backend resolve o tier dinamicamente via Postgres HA
 em cada request.
 
 O cookie `nox_token` sincroniza SSR e cliente.
@@ -77,7 +77,7 @@ Redis:
 cache operacional, quota de guests
 e contagem de mensagens race-safe.
 
-Ledger (Postgres + Redis fallback): fonte de verdade de saldo
+Ledger (Postgres HA + Redis fallback): fonte de verdade de saldo
 para usuários identificados.
 
 **LEDGER-FIRST.**
@@ -162,7 +162,7 @@ e **Zero-Trust**:
 - **`neo-flow-chat-ui` / `neo-flow-admin`**:
   interfaces auxiliares e de gestão da plataforma.
 - **`neo-flow-infra`**:
-  infraestrutura Docker/Postgres e banco `chat_protocol`.
+  infraestrutura Docker/Postgres HA e banco `chat_protocol`.
 
 **A Regra:** os nós compartilham contratos,
 não compartilham arquivos nem dependências no caminho de release.
@@ -179,7 +179,7 @@ FRONTEND
   ▼
 backend
   api.noxai.chat
-  ├─ Postgres
+  ├─ Postgres HA
   ├─ Redis
   ├─ Venice API
   ├─ FlowPay API
@@ -208,7 +208,7 @@ campanhas de marketing são self-managed e conformes —
 header `List-Unsubscribe` + one-click (RFC 8058) via
 `/api/unsubscribe`, opt-out em `users.marketing_opt_out`,
 e templates dark on-brand (`#b9d631`). Lista de contatos
-permanece no Postgres do NØX, não no Resend (Broadcasts).
+permanece no Postgres HA do NØX, não no Resend (Broadcasts).
 
 A visão arquitetural canônica delega mensageria
 e ciclo de vida do usuário para o workspace vizinho:

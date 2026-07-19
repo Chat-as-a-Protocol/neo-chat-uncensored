@@ -169,5 +169,5 @@ seed:
 	@node scripts/seed-test-user.js
 
 db-init:
-	@echo "[DB] Inicializando tabelas no PostgreSQL..."
-	@psql $(POSTGRES_URL) -f backend/schema.sql
+	@echo "[DB] Inicializando tabelas no Postgres HA..."
+	@psql $(DATABASE_URL) -f backend/schema.sql

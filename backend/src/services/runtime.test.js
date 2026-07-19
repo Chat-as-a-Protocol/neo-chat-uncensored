@@ -7,7 +7,7 @@ import app from "../server.js";
 import jwt from "jsonwebtoken";
 
 // Como o teste exige integração real com Postgres e o usuário
-// especificou "concorrência", precisamos usar process.env.POSTGRES_URL
+// especificou "concorrência", precisamos usar process.env.DATABASE_URL
 const TEST_RUN_ID = Date.now();
 const TEST_USER_ID = "test_runtime_user_" + TEST_RUN_ID;
 const JWT_SECRET = process.env.JWT_SECRET || "test-secret";
@@ -20,7 +20,7 @@ const generateToken = (userId) => {
 
 describe("Runtime Extraction - Authority & Idempotency", () => {
   // Pula os testes se não tivermos Postgres ativo para testar locks atômicos
-  if (!process.env.POSTGRES_URL) {
+  if (!process.env.DATABASE_URL) {
     console.log("Skipping Postgres-only runtime tests.");
     return;
   }

@@ -63,7 +63,7 @@ Topologia de deploy:
 
 ┏ /auth/reset-password
 └─ POST /api/auth/password-reset/complete
-   Consumir token de reset e gravar nova senha no Postgres.
+   Consumir token de reset e gravar nova senha no Postgres HA.
 
 ┏ /account
 └─ GET /api/usage
@@ -177,10 +177,10 @@ Topologia de deploy:
 ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ RESPONSABILIDADE       ┃ AUTORIDADE
 ┣━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ Identidade             ┃ Backend + Postgres
+┃ Identidade             ┃ Backend + Postgres HA
 ┃ Sessão                 ┃ Backend emite JWT
 ┃                        ┃ Frontend apenas armazena e envia
-┃ Tier e entitlement     ┃ Backend + Postgres + Redis
+┃ Tier e entitlement     ┃ Backend + Postgres HA + Redis
 ┃                        ┃ shared/plans.json
 ┃ Saldo                  ┃ Ledger backend
 ┃ Quota                  ┃ Backend via checkQuota, Redis e ledger

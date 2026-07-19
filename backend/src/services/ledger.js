@@ -11,7 +11,7 @@ export const LEDGER_TYPES = {
 };
 
 const shouldUsePostgres = (userId) =>
-  Boolean(process.env.POSTGRES_URL) &&
+  Boolean(process.env.DATABASE_URL) &&
   !String(userId).startsWith("guest_") &&
   IS_REAL_REDIS;
 

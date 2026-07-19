@@ -1,41 +1,60 @@
-import node from "@astrojs/node";
-import sitemap from "@astrojs/sitemap";
-import tailwind from "@astrojs/tailwind";
-import { defineConfig } from "astro/config";
+import node from '@astrojs/node';
+import sitemap from '@astrojs/sitemap';
+import tailwind from '@astrojs/tailwind';
+import { defineConfig } from 'astro/config';
+
+const port = Number.parseInt(process.env.PORT ?? '3000', 10);
 
 export default defineConfig({
-  site: "https://noxai.chat",
-  output: "server",
+  site: 'https://noxai.chat',
+
+  output: 'server',
+
   adapter: node({
-    mode: "standalone",
+    mode: 'standalone',
   }),
+
   integrations: [
     tailwind(),
+
     sitemap({
-      // Apenas páginas públicas indexáveis; remove rotas privadas/de sessão.
       filter: (page) => {
-        const path = new URL(page).pathname;
-        const blocked = ["/account/", "/success/", "/login/", "/signup/", "/upgrade/"];
-        return !path.startsWith("/auth/") && !blocked.includes(path);
+        const { pathname } = new URL(page);
+
+        const blockedRoutes = [
+          '/account/',
+          '/success/',
+          '/login/',
+          '/signup/',
+          '/upgrade/',
+        ];
+
+        return (
+          !pathname.startsWith('/auth/') && !blockedRoutes.includes(pathname)
+        );
       },
     }),
   ],
+
   devToolbar: {
     enabled: false,
   },
+
   vite: {
     build: {
-      sourcemap: false, // Desativa mapeamento de código original no Chrome
-      minify: "terser",
+      sourcemap: false,
+      minify: 'terser',
+
       terserOptions: {
         compress: {
-          drop_console: true, // Remove console.logs no build de produção
+          drop_console: true,
         },
       },
     },
   },
+
   server: {
-    host: process.env.HOST || "0.0.0.0",
-    port: parseInt(process.env.PORT || "3000"),
+    host: process.env.HOST ?? '0.0.0.0',
+    port: Number.parseInt((process.env.ASTRO_PORT = 4321), 10),
   },
 });

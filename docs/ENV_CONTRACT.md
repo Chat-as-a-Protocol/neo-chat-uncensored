@@ -74,9 +74,9 @@ Topologia operacional:
 └─ Regra
    Nunca apontar para https://api.noxai.chat.
 
-┏ POSTGRES_URL
+┏ DATABASE_URL
 ├─ Responsabilidade
-│  PostgreSQL de usuários, pagamentos, magic links e ledger.
+│  Postgres HA de usuários, pagamentos, magic links e ledger.
 └─ Regra
    Secret. Nome obrigatório; valor nunca documentado.
 
@@ -188,7 +188,7 @@ Topologia operacional:
 └─ PUBLIC_API_URL existe no frontend.
 └─ FRONTEND_URL existe no backend.
 └─ FLOWPAY_API_URL existe no backend e possui guard contra self-call.
-└─ POSTGRES_URL existe no backend.
+└─ DATABASE_URL existe no backend.
 └─ REDIS_URL existe no backend.
 └─ JWT_SECRET existe no backend.
 └─ VENICE_API_KEY existe no backend.
@@ -206,7 +206,7 @@ Para fail-fast total em deploy,
 validar também:
 
 ```text
-POSTGRES_URL
+DATABASE_URL
 REDIS_URL
 FLOWPAY_API_URL
 FLOWPAY_WEBHOOK_SECRET

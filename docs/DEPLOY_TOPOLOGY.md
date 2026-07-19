@@ -51,7 +51,7 @@ Nós não compartilham arquivos.
 └─ Responsabilidade
    Auth, chat, ledger, billing, FlowPay, webhooks e e-mail.
 
-┏ Postgres
+┏ Postgres HA
 ├─ Tipo
 │  Railway database
 └─ Responsabilidade
@@ -82,7 +82,7 @@ FRONTEND
   ▼
 backend
   │
-  ├── Postgres
+  ├── Postgres HA
   │     users
   │     payments
   │     ledger

@@ -34,7 +34,7 @@ Nginx WAF Shield (nginx-WAF)
 Backend NØX
   backend.railway.internal [Porta 3001]
   │
-  ├─ PostgreSQL
+  ├─ Postgres HA
   │  users, payments, ledger, magic links
   │
   ├─ Redis
@@ -59,7 +59,7 @@ Backend NØX
 Usuário
   └─ Frontend Astro SSR
      └─ Backend Express
-        ├─ Auth via PostgreSQL
+        ├─ Auth via Postgres HA
         ├─ Sessão JWT de identidade pura
         ├─ Quota/cache via Redis
         ├─ Venice para geração
@@ -78,7 +78,7 @@ orquestração e produto.
 
 O NØX opera sob três pilares de integridade técnica:
 
-1. **Pure Identity (JWT)**: Tokens de acesso contêm apenas a identidade (`userId`). A autorização de recursos e tiers é resolvida dinamicamente no Backend via PostgreSQL, garantindo que mudanças de plano sejam refletidas instantaneamente em todos os dispositivos.
+1. **Pure Identity (JWT)**: Tokens de acesso contêm apenas a identidade (`userId`). A autorização de recursos e tiers é resolvida dinamicamente no Backend via Postgres HA, garantindo que mudanças de plano sejam refletidas instantaneamente em todos os dispositivos.
 2. **Ledger Resilience**: Todo consumo de IA é processado em blocos `try/finally`. Tokens parciais são debitados mesmo em caso de interrupção de conexão ou erro de stream.
 3. **Deterministic Billing**: Novos usuários recebem um `welcome_bonus` no Ledger, transformando a cota gratuita em créditos reais rastreáveis desde a primeira interação.
 

@@ -2,7 +2,7 @@ import pg from 'pg';
 const { Pool } = pg;
 
 export const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
+  connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 20,
   min: 2,
@@ -13,4 +13,3 @@ export const pool = new Pool({
 });
 
 export const query = (text, params) => pool.query(text, params);
-
