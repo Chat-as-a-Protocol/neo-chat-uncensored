@@ -3,6 +3,11 @@ import AstroChatInterface from '../components/AstroChatInterface.astro';
 import Layout from '../layouts/Layout.astro';
 import SceneBackground from '../components/SceneBackground.astro';
 
+Astro.response.headers.set(
+  'Link',
+  '</.well-known/api-catalog>; rel="describedby", </docs/api>; rel="service-doc"'
+);
+
 // A "trava" agora é gerenciada dentro do componente de Chat para permitir a amostra de 3 mensagens.
 // O redirecionamento só acontece se o usuário tentar acessar páginas Pro ou se o componente decidir.
 ---
