@@ -1,25 +1,27 @@
 # Build Stage
 FROM node:22.20.0-slim AS builder
 RUN corepack enable
-WORKDIR /workspace
+WORKDIR /app
 
-# Copy everything from root
-COPY . .
-
-# Install all dependencies (workspace)
+# Copy frontend files only
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-# Build only frontend
-RUN cd frontend && pnpm run build
+COPY . .
+RUN pnpm run build
 
 # Runtime Stage
 FROM node:22.20.0-slim
 RUN corepack enable
 WORKDIR /app
 
-# Copy frontend dist directly
-COPY --from=builder /workspace/frontend/dist ./
+# Copy only what's needed
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
+
+# Copy built frontend
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 8080
-CMD ["node", "server/entry.mjs"]
+CMD ["node", "dist/server/entry.mjs"]
 
