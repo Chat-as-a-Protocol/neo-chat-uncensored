@@ -1,0 +1,467 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const token = Astro.cookies.get('nox_token')?.value;
+
+if (!token) {
+  return Astro.redirect('/login');
+}
+---
+
+<Layout title="Conta · NØX">
+  <main class="account-shell">
+    <img src="/nox_vert.webp" alt="NØX" class="panel-logo-bg" />
+    <section class="account-panel" aria-labelledby="account-title">
+      <a href="/" class="back-link">← Chat</a>
+
+      <div class="account-heading">
+        <span class="eyebrow">Perfil</span>
+        <h1 id="account-title">Conta</h1>
+      </div>
+
+      <dl class="account-stats">
+        <div>
+          <dt>Usuário</dt>
+          <dd id="account-name">--</dd>
+        </div>
+        <div>
+          <dt>Plano</dt>
+          <dd id="account-plan">--</dd>
+        </div>
+        <div class="full">
+          <dt>E-mail</dt>
+          <dd id="account-email" class="dd-email">--</dd>
+        </div>
+        <div>
+          <dt>Saldo Restante</dt>
+          <dd id="account-usage">--/--</dd>
+        </div>
+        <div>
+          <dt>Disponível</dt>
+          <dd id="account-remaining">--</dd>
+        </div>
+        <div class="full">
+          <dt>Saldo $NØX</dt>
+          <dd id="account-balance">--</dd>
+        </div>
+      </dl>
+
+      <p id="account-status" class="account-status">Carregando conta...</p>
+
+      <div id="conversion-cta" class="conversion-cta" style="display: none;">
+        <p>Finalize seu cadastro para liberar 1.000 tokens, histórico salvo e créditos $NØX.</p>
+        <a href="/login" class="cta-link">Completar Agora</a>
+      </div>
+
+      <div class="account-actions">
+        <a href="/upgrade" class="primary-action">Upgrade</a>
+        <button id="logout-button" type="button" class="secondary-action">Sair</button>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  const productionApiUrl = 'https://api.noxai.chat';
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const configuredApiUrl = String(import.meta.env.PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+  const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);
+  const apiUrl = configuredApiUrl && (isLocalhost || !configuredApiIsLocal)
+    ? configuredApiUrl
+    : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
+  const accountNameEl = document.getElementById('account-name');
+  const accountEmailEl = document.getElementById('account-email');
+  const accountPlanEl = document.getElementById('account-plan');
+  const accountUsageEl = document.getElementById('account-usage');
+  const accountRemainingEl = document.getElementById('account-remaining');
+  const accountBalanceEl = document.getElementById('account-balance');
+  const accountStatusEl = document.getElementById('account-status');
+  const logoutButton = document.getElementById('logout-button');
+  const tokenStorageKey = 'nox_token';
+  const tokenCookieMaxAge = 7 * 24 * 60 * 60;
+
+  function getCookie(name: string) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
+  }
+
+  function persistAuthToken(token: string) {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    localStorage.setItem(tokenStorageKey, token);
+    document.cookie = `${tokenStorageKey}=${token}; path=/; max-age=${tokenCookieMaxAge}; SameSite=Lax${secure}`;
+  }
+
+  function decodeSessionToken(token: string): { id?: string; guest?: boolean; tier?: string } | null {
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+      return JSON.parse(atob(padded));
+    } catch {
+      return null;
+    }
+  }
+
+  function isGuestToken(token: string) {
+    const session = decodeSessionToken(token);
+    return Boolean(
+      session?.guest ||
+      String(session?.id || '').startsWith('guest_') ||
+      session?.tier === 'guest'
+    );
+  }
+
+  function selectAuthToken(cookieToken: string | null, storedToken: string | null) {
+    if (cookieToken && storedToken && isGuestToken(cookieToken) && !isGuestToken(storedToken)) {
+      persistAuthToken(storedToken);
+      return storedToken;
+    }
+
+    return cookieToken || storedToken;
+  }
+
+  function getAuthToken() {
+    return selectAuthToken(getCookie(tokenStorageKey), localStorage.getItem(tokenStorageKey));
+  }
+
+  function clearAuthToken() {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    localStorage.removeItem(tokenStorageKey);
+    document.cookie = `${tokenStorageKey}=; path=/; max-age=0; SameSite=Lax${secure}`;
+  }
+
+  function setStatus(message: string) {
+    if (accountStatusEl) {
+      accountStatusEl.textContent = message;
+      accountStatusEl.style.opacity = '1';
+    }
+  }
+
+  function setPlanStatus(entitlement: string) {
+    if (!accountStatusEl) return;
+    
+    const benefits = {
+      'guest': 'Modo degustação: 500 tokens e 3 interações por conversa.',
+      'free': 'Usuário Identificado: 1.000 tokens e histórico de chat persistente.',
+      'paid_basic': 'Créditos Ativos: saldo $NØX disponível para uso ampliado.',
+      'paid_pro': 'Status ELITE: Acesso total ao núcleo NØX e suporte de arquitetura.'
+    };
+
+    const key = entitlement.includes('pro') || entitlement.includes('premium') ? 'paid_pro' :
+                entitlement.includes('credits') || entitlement.includes('basic') ? 'paid_basic' :
+                entitlement.includes('free') ? 'free' : 'guest';
+                
+    accountStatusEl.textContent = benefits[key] || 'Conta ativa e sincronizada.';
+    accountStatusEl.style.opacity = '1';
+    accountStatusEl.style.color = 'rgba(255, 255, 255, 0.8)';
+  }
+
+  function formatPlan(entitlement: string) {
+    if (entitlement === 'paid_pro' || entitlement === 'pro' || entitlement === 'premium') return 'P.R.Ø (ELITE)';
+    if (entitlement === 'credits' || entitlement === 'paid_basic' || entitlement === 'basic') return 'Créditos Ativos';
+    if (entitlement === 'free') return 'Free';
+    return 'Visitante';
+  }
+
+  async function loadAccount() {
+    const token = getAuthToken();
+    if (!token) {
+      window.location.href = '/login';
+      return;
+    }
+
+    try {
+      // 1. Pegar Uso, Saldo e Entitlement em uma única chamada soberana
+      const response = await fetch(`${apiUrl}/api/usage`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        clearAuthToken();
+        window.location.href = '/login';
+        return;
+      }
+
+      if (!response.ok) {
+        setStatus('Não foi possível carregar a conta agora.');
+        return;
+      }
+
+      const data = await response.json();
+      const entitlement = data.entitlement || data.plan || data.tier || 'guest';
+      
+      // 3. Aplicar Identidade, Saldo e Gatilhos
+      const planLabel = formatPlan(entitlement);
+      const conversionCta = document.getElementById('conversion-cta');
+      
+      if (conversionCta) {
+        conversionCta.style.display = entitlement === 'guest' ? 'block' : 'none';
+      }
+
+      if (accountPlanEl) {
+        accountPlanEl.textContent = planLabel;
+        if (entitlement === 'paid_pro' || entitlement === 'pro' || entitlement === 'premium') {
+          accountPlanEl.classList.add('pro-glow');
+          document.querySelector('.account-panel')?.classList.add('is-pro');
+          const upgradeBtn = document.querySelector('.primary-action');
+          if (upgradeBtn) {
+            upgradeBtn.textContent = 'Comunidade';
+            upgradeBtn.setAttribute('href', 'https://t.me/nox_ia');
+          }
+        } else {
+           accountPlanEl.classList.remove('pro-glow');
+           document.querySelector('.account-panel')?.classList.remove('is-pro');
+           const upgradeBtn = document.querySelector('.primary-action');
+           if (upgradeBtn) {
+             upgradeBtn.textContent = 'Upgrade';
+             upgradeBtn.setAttribute('href', '/upgrade');
+           }
+        }
+      }
+      
+      if (accountUsageEl) {
+        const limit = Number(data.limit || 0);
+        const remaining = Number(data.remaining || 0);
+        const balance = Number(data.balance ?? 0);
+        
+        if (balance > 0) {
+          // Usuário pago: mostra saldo disponível
+          accountUsageEl.textContent = `${balance}`;
+        } else {
+          // Guest/free: mostra saldo restante em vez de usado
+          const displayRemaining = Math.max(0, remaining);
+          if (remaining <= 0 && limit > 0) {
+            accountUsageEl.innerHTML = `<span style="color: #ff6b6b;" title="Limite Excedido">0 / ${limit}</span>`;
+            if (accountStatusEl) {
+              accountStatusEl.textContent = 'Limite Excedido. Faça upgrade para continuar.';
+              accountStatusEl.style.color = '#ff6b6b';
+            }
+          } else {
+            accountUsageEl.textContent = `${displayRemaining} / ${limit}`;
+          }
+        }
+      }
+      const displayName = typeof data.name === 'string' && data.name.trim()
+        ? data.name.trim()
+        : 'Usuário';
+      const displayEmail = typeof data.email === 'string' && data.email.trim()
+        ? data.email.trim()
+        : '--';
+
+      if (accountNameEl) accountNameEl.textContent = displayName;
+      if (accountEmailEl) accountEmailEl.textContent = displayEmail;
+      if (accountRemainingEl) accountRemainingEl.textContent = String(Math.max(0, data.remaining || 0));
+      if (accountBalanceEl) accountBalanceEl.textContent = String(data.balance ?? 0);
+
+      setPlanStatus(entitlement);
+    } catch {
+      setStatus('Conexão indisponível. Tente novamente em instantes.');
+    }
+  }
+
+  logoutButton?.addEventListener('click', () => {
+    clearAuthToken();
+    window.location.href = '/login';
+  });
+
+  loadAccount();
+</script>
+
+<style>
+  .account-shell {
+    min-height: 100svh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    background: url('/bg_claro.webp') center/cover no-repeat;
+    background-color: #000;
+  }
+
+  .panel-logo-bg {
+    position: absolute;
+    right: calc(50% - 240px);
+    top: calc(50% - 330px);
+    height: 140px;
+    width: auto;
+    filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.92));
+    z-index: 1; /* Fica atrás do painel */
+    pointer-events: none;
+    opacity: 0.9;
+    transform: rotate(4deg);
+  }
+
+  .account-panel {
+    position: relative;
+    z-index: 2; /* Fica à frente da logo para gerar a refração */
+    width: 100%;
+    max-width: 410px;
+    padding: 40px 28px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 28px;
+    background: radial-gradient(
+      circle at 90% 10%, 
+      rgba(255, 255, 255, 0.0) 0%, 
+      rgba(12, 14, 20, 0.6) 60%
+    );
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px) saturate(1.4);
+    -webkit-backdrop-filter: blur(32px) saturate(1.4);
+  }
+
+  .pro-glow {
+    color: var(--accent) !important;
+    text-shadow: 0 0 15px rgba(185, 214, 49, 0.6);
+  }
+
+  .is-pro {
+    border-color: rgba(185, 214, 49, 0.25) !important;
+  }
+
+  .back-link {
+    display: inline-flex;
+    margin-bottom: 28px;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.86rem;
+  }
+
+  .account-heading {
+    margin-bottom: 24px;
+  }
+
+  .eyebrow {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+  }
+
+  h1 {
+    color: #fff;
+    font-size: 2.2rem;
+  }
+
+  .account-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+  }
+
+  .account-stats div {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  .account-stats .full {
+    grid-column: 1 / -1;
+  }
+
+  .dd-email {
+    font-size: 0.98rem;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  dt {
+    margin-bottom: 6px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.74rem;
+  }
+
+  dd {
+    margin: 0;
+    color: #fff;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.12rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+
+  .account-status {
+    min-height: 20px;
+    margin: 18px 0 22px;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.86rem;
+  }
+
+  .conversion-cta {
+    margin: 0 0 24px;
+    padding: 16px;
+    border: 1px dashed rgba(185, 214, 49, 0.3);
+    border-radius: 12px;
+    background: rgba(185, 214, 49, 0.05);
+    text-align: center;
+  }
+
+  .conversion-cta p {
+    margin-bottom: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+
+  .cta-link {
+    display: inline-block;
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+  }
+
+  .cta-link:hover {
+    text-decoration: underline;
+  }
+
+  .account-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .primary-action,
+  .secondary-action {
+    flex: 1;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .primary-action {
+    color: #101204;
+    background: var(--accent);
+  }
+
+  .secondary-action {
+    color: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  @media (max-width: 420px) {
+    .account-stats {
+      grid-template-columns: 1fr;
+    }
+
+    h1 {
+      font-size: 1.9rem;
+    }
+  }
+</style>

@@ -1,0 +1,222 @@
+---
+import { ClientRouter } from 'astro:transitions';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const canonicalURL = new URL(Astro.url.pathname, 'https://noxai.chat').href;
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/pwaicon/apple-touch-icon.png" />
+    <meta name="theme-color" content="#181923" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NØX" />
+    <meta name="generator" content={Astro.generator} />
+    
+    <title>{title}</title>
+    <meta name="description" content="Chat AI uncensored, privado e sem filtros. Sua alternativa de ChatGPT livre e sem censura." />
+    <meta name="keywords" content="chat AI, uncensored, privado, sem filtros, sem censura, chatGPT livre, NØX" />
+    <link rel="canonical" href={canonicalURL} />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content="Chat AI uncensored, privado e sem filtros. Sua alternativa de ChatGPT livre e soberano." />
+    <meta property="og:image" content={new URL('/og-image.png', Astro.site)} />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content={canonicalURL} />
+    <meta property="twitter:title" content={title} />
+    <meta property="twitter:description" content="Chat AI uncensored, privado e sem filtros. Sua alternativa de ChatGPT livre e soberano." />
+    <meta property="twitter:image" content={new URL('/og-image.png', Astro.site)} />
+    <ClientRouter />
+
+    <script is:inline define:vars={{ isProd: import.meta.env.PROD }}>
+      if (isProd && 'serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            // Detecta atualizações no Service Worker
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'activated') {
+                  // Força o reload para carregar a nova versão do app
+                  window.location.reload();
+                }
+              });
+            });
+          }).catch(err => {
+            console.error('SW registration failed: ', err);
+          });
+        });
+      }
+    </script>
+
+    <script is:inline>
+      (() => {
+        const root = document.documentElement;
+        const keyboardThreshold = 120;
+        let stableViewportHeight = Math.max(window.innerHeight, window.visualViewport?.height || 0);
+        let lastViewportWidth = window.innerWidth;
+
+        const isEditable = (element) => {
+          if (!(element instanceof HTMLElement)) return false;
+          return Boolean(
+            element.matches('input, textarea, select') ||
+            element.isContentEditable
+          );
+        };
+
+        const syncViewport = () => {
+          const viewport = window.visualViewport;
+          const viewportHeight = viewport?.height || window.innerHeight;
+          const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+          const widthChanged = window.innerWidth !== lastViewportWidth;
+          const keyboardInset = Math.max(0, Math.round(stableViewportHeight - viewportBottom));
+          const keyboardLikelyOpen = Boolean(
+            viewport &&
+            (stableViewportHeight - viewportHeight > keyboardThreshold || keyboardInset > keyboardThreshold)
+          );
+          const keyboardOpen = isEditable(document.activeElement) && keyboardLikelyOpen;
+
+          if (widthChanged || !keyboardLikelyOpen) {
+            stableViewportHeight = Math.max(window.innerHeight, viewportHeight);
+            lastViewportWidth = window.innerWidth;
+          }
+
+          root.style.setProperty('--app-viewport-height', `${Math.round(stableViewportHeight)}px`);
+          root.style.setProperty('--keyboard-inset', `${keyboardOpen ? keyboardInset : 0}px`);
+          document.body?.classList.toggle('keyboard-open', keyboardOpen);
+        };
+
+        window.__noxSyncViewport = syncViewport;
+
+        // Evita forced layout warning rodando na próxima frame se o documento ainda estiver carregando
+        if (document.readyState === 'loading') {
+          window.addEventListener('DOMContentLoaded', () => {
+            requestAnimationFrame(syncViewport);
+          });
+        } else {
+          requestAnimationFrame(syncViewport);
+        }
+
+        window.visualViewport?.addEventListener('resize', syncViewport);
+        window.visualViewport?.addEventListener('scroll', syncViewport);
+        window.addEventListener('resize', syncViewport);
+        window.addEventListener('orientationchange', () => window.setTimeout(syncViewport, 240));
+        document.addEventListener('focusin', syncViewport);
+        document.addEventListener('focusout', () => window.setTimeout(syncViewport, 120));
+        document.addEventListener('visibilitychange', syncViewport);
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="app-container">
+      <slot />
+    </div>
+  </body>
+</html>
+
+<style is:global>
+  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+  :root {
+    --bg-dark: #181923;
+    --text-strong: #f4f5f8;
+    --text-soft: #c8c9cf;
+    --text-dim: #a3a4aa;
+    --accent: #b9d631;
+    --glass-border: rgba(255, 255, 255, 0.22);
+    --app-viewport-height: 100dvh;
+    --keyboard-inset: 0px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    height: 100%;
+    min-height: var(--app-viewport-height, 100dvh);
+    overflow: hidden; /* Evita rubber-banding */
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    background: var(--bg-dark);
+    color: var(--text-strong);
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app-container {
+    width: 100%;
+    height: var(--app-viewport-height, 100dvh);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Força a proporção 9:16 e as bordas curvas em telas grandes (Desktop/Tablet) */
+  @media (min-width: 768px) {
+    body {
+      background: #050505; /* Fundo absoluto escuro fora do celular */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .app-container {
+      position: relative;
+      top: auto;
+      left: auto;
+      right: auto;
+      bottom: auto;
+      max-width: 430px;
+      height: 90vh; /* Deixa um espaço no topo e embaixo */
+      border-radius: 40px; /* Bordas imitando o iPhone */
+      box-shadow: 0 0 0 8px #111, 0 0 0 10px rgba(255, 255, 255, 0.1), 0 30px 80px rgba(0,0,0,0.8);
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 0; /* No desktop não precisa de safe-area padding */
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Space Grotesk', 'Manrope', sans-serif;
+    margin: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+</style>

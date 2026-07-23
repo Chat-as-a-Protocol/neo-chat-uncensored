@@ -80,8 +80,8 @@ segurança > estabilidade > legibilidade > performance > estética
 Para mudanças de frontend:
 
 ```bash
-fnm exec --using v25.9.0 pnpm check
-fnm exec --using v25.9.0 pnpm build
+fnm exec --using v25.9.0 pnpm --filter neo-chat-uncensored-frontend check
+fnm exec --using v25.9.0 pnpm --filter neo-chat-uncensored-frontend build
 ```
 
 Para mudanças de backend:

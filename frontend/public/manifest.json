@@ -1,0 +1,42 @@
+{
+  "name": "NØX Chat",
+  "short_name": "NØX",
+  "description": "Chat AI uncensored - Private and unfiltered",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#181923",
+  "theme_color": "#181923",
+  "icons": [
+    {
+      "src": "/pwaicon/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwaicon/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwaicon/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/nox-desktop-wide.png",
+      "sizes": "1280x783",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "NØX desktop interface"
+    },
+    {
+      "src": "/screenshots/nox-mobile-narrow.png",
+      "sizes": "540x1080",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "NØX mobile chat interface"
+    }
+  ]
+}

@@ -38,14 +38,14 @@ Topologia operacional:
 ├─ Responsabilidade
 │  Definir a API pública NØX chamada pelo browser.
 ├─ Consumidores
-│  src/components/AstroChatInterface.astro
-│  src/pages/account.astro
-│  src/pages/login.astro
-│  src/pages/signup.astro
-│  src/pages/success.astro
-│  src/pages/upgrade.astro
-│  src/pages/auth/magic-link.astro
-│  src/pages/auth/reset-password.astro
+│  frontend/src/components/AstroChatInterface.astro
+│  frontend/src/pages/account.astro
+│  frontend/src/pages/login.astro
+│  frontend/src/pages/signup.astro
+│  frontend/src/pages/success.astro
+│  frontend/src/pages/upgrade.astro
+│  frontend/src/pages/auth/magic-link.astro
+│  frontend/src/pages/auth/reset-password.astro
 └─ Regra
    Nunca apontar para FlowPay.
 ```

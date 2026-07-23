@@ -1,0 +1,274 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SceneBackground from '../components/SceneBackground.astro';
+import Card from '../components/ui/Card.astro';
+import Input from '../components/ui/Input.astro';
+import Button from '../components/ui/Button.astro';
+
+if (import.meta.env.ENABLE_AUTH_PAGES === 'false') {
+  return Astro.redirect('/');
+}
+---
+
+<Layout title="Login · NØX">
+  <main class="scene-shell">
+    <SceneBackground />
+
+    <div class="content-container">
+      <Card class="w-full max-w-[440px]" textured>
+        <div class="text-center mb-8">
+          <h1 class="text-3xl font-bold mb-2">Acessar NØX</h1>
+          <p class="text-[var(--text-soft)]">Continuar onde parou...</p>
+        </div>
+
+        <!-- Tab switcher -->
+        <div class="flex rounded-xl bg-white/5 p-1 mb-6 gap-1">
+          <button
+            id="tab-password"
+            class="tab-btn flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 active-tab"
+            type="button"
+          >
+            Senha
+          </button>
+          <button
+            id="tab-magic"
+            class="tab-btn flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
+            type="button"
+          >
+            Magic Link
+          </button>
+        </div>
+
+        <!-- Password login form -->
+        <form id="login-form" class="flex flex-col gap-5">
+          <Input 
+            type="email" 
+            name="email" 
+            id="email" 
+            label="E-mail" 
+            placeholder="seu@email.com" 
+            required 
+            autocomplete="email"
+          />
+          
+          <Input 
+            type="password" 
+            name="password" 
+            id="password" 
+            label="Senha" 
+            placeholder="••••••••" 
+            required 
+            autocomplete="current-password"
+          />
+
+          <Button type="submit" class="mt-2" id="login-submit">
+            Entrar
+          </Button>
+        </form>
+
+        <!-- Magic link form -->
+        <form id="magic-link-form" class="flex flex-col gap-5 hidden">
+          <p class="text-sm text-[var(--text-soft)] text-center -mt-1 mb-1">
+            Receba um link de acesso no seu e-mail. Sem senha necessária.
+          </p>
+          <Input 
+            type="email" 
+            name="magic-email" 
+            id="magic-email" 
+            label="E-mail" 
+            placeholder="seu@email.com" 
+            required 
+            autocomplete="email"
+          />
+
+          <Button type="submit" class="mt-2" id="magic-link-submit">
+            Enviar link de acesso
+          </Button>
+        </form>
+
+        <!-- Magic link success state -->
+        <div id="magic-link-sent" class="hidden flex-col items-center gap-4 py-4 text-center">
+          <div class="text-4xl">⧇</div>
+          <p class="text-base font-semibold text-[var(--text-strong)]">Link enviado!</p>
+          <p class="text-sm text-[var(--text-soft)] leading-relaxed">
+            Verifique sua caixa de entrada. O link expira em <strong class="text-white">10 minutos</strong>.
+          </p>
+          <button
+            id="magic-link-resend"
+            class="text-sm text-[var(--accent)] hover:underline mt-2"
+            type="button"
+          >
+            Reenviar link
+          </button>
+        </div>
+
+        <div class="mt-8 text-center text-sm text-[var(--text-dim)]">
+          Não tem uma conta? 
+          <a href="/signup" class="text-[var(--accent)] font-semibold hover:underline ml-1">Crie uma agora</a>
+        </div>
+      </Card>
+
+      <footer class="mt-8 text-center">
+        <a href="/" class="text-sm text-[var(--text-dim)] hover:text-white transition-colors">
+          ← Voltar para o início
+        </a>
+      </footer>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  const productionApiUrl = 'https://api.noxai.chat';
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const configuredApiUrl = String((import.meta as any).env?.PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+  const configuredApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredApiUrl);
+  const apiUrl = configuredApiUrl && (isLocalhost || !configuredApiIsLocal)
+    ? configuredApiUrl
+    : (isLocalhost ? 'http://localhost:3001' : productionApiUrl);
+
+  // ── Tab switching ──────────────────────────────────────────────────────────
+  const tabPassword = document.getElementById('tab-password') as HTMLButtonElement;
+  const tabMagic = document.getElementById('tab-magic') as HTMLButtonElement;
+  const loginForm = document.getElementById('login-form') as HTMLFormElement;
+  const magicLinkForm = document.getElementById('magic-link-form') as HTMLFormElement;
+  const magicLinkSent = document.getElementById('magic-link-sent') as HTMLDivElement;
+
+  function showTab(tab: 'password' | 'magic') {
+    const isPassword = tab === 'password';
+    tabPassword.classList.toggle('active-tab', isPassword);
+    tabMagic.classList.toggle('active-tab', !isPassword);
+    loginForm.classList.toggle('hidden', !isPassword);
+    magicLinkForm.classList.toggle('hidden', isPassword);
+    magicLinkSent.classList.add('hidden');
+    magicLinkSent.classList.remove('flex');
+    if (!isPassword) magicLinkForm.classList.remove('hidden');
+  }
+
+  tabPassword?.addEventListener('click', () => showTab('password'));
+  tabMagic?.addEventListener('click', () => showTab('magic'));
+
+  // ── Password login ─────────────────────────────────────────────────────────
+  const submitBtn = document.getElementById('login-submit') as HTMLButtonElement;
+
+  loginForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!loginForm || !submitBtn) return;
+
+    const formData = new FormData(loginForm);
+    const data = Object.fromEntries(formData.entries());
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Autenticando...';
+
+    try {
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.token) {
+        localStorage.setItem('nox_token', result.token);
+        document.cookie = `nox_token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        window.location.href = '/';
+      } else {
+        alert(result.error || 'Erro ao fazer login. Verifique suas credenciais.');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      const isTimeout = error.name === 'AbortError' || error.message?.toLowerCase().includes('timeout');
+      alert(isTimeout ? 'O servidor demorou muito para responder. Tente novamente.' : 'Erro de conexão. Verifique sua internet.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Entrar';
+    }
+  });
+
+  // ── Magic link request ─────────────────────────────────────────────────────
+  const magicSubmitBtn = document.getElementById('magic-link-submit') as HTMLButtonElement;
+  const magicEmailInput = document.getElementById('magic-email') as HTMLInputElement;
+  const resendBtn = document.getElementById('magic-link-resend') as HTMLButtonElement;
+
+  async function requestMagicLink(email: string) {
+    magicSubmitBtn.disabled = true;
+    magicSubmitBtn.innerText = 'Enviando...';
+
+    try {
+      const response = await fetch(`${apiUrl}/api/auth/magic-link/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        magicLinkForm.classList.add('hidden');
+        magicLinkSent.classList.remove('hidden');
+        magicLinkSent.classList.add('flex');
+      } else {
+        alert(result.error || 'Erro ao enviar o link. Tente novamente.');
+      }
+    } catch (error: any) {
+      console.error('Magic link error:', error);
+      const isTimeout = error.name === 'AbortError' || error.message?.toLowerCase().includes('timeout');
+      alert(isTimeout ? 'O servidor demorou muito para responder. Tente novamente.' : 'Erro de conexão. Verifique sua internet.');
+    } finally {
+      magicSubmitBtn.disabled = false;
+      magicSubmitBtn.innerText = 'Enviar link de acesso';
+    }
+  }
+
+  magicLinkForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = magicEmailInput?.value?.trim();
+    if (!email) return;
+    await requestMagicLink(email);
+  });
+
+  resendBtn?.addEventListener('click', async () => {
+    const email = magicEmailInput?.value?.trim();
+    if (!email) {
+      showTab('magic');
+      return;
+    }
+    magicLinkSent.classList.add('hidden');
+    magicLinkSent.classList.remove('flex');
+    magicLinkForm.classList.remove('hidden');
+    await requestMagicLink(email);
+  });
+</script>
+
+<style>
+  .scene-shell {
+    position: relative;
+    isolation: isolate;
+    min-height: 100svh;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 12vh;
+    overflow: hidden;
+  }
+
+  .content-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+  }
+
+  .tab-btn {
+    color: var(--text-dim);
+  }
+
+  .tab-btn.active-tab {
+    background: rgba(185, 214, 49, 0.12);
+    color: var(--accent);
+  }
+</style>
