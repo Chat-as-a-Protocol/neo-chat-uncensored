@@ -3,7 +3,7 @@ FROM node:22.20.0-slim AS builder
 RUN corepack enable
 WORKDIR /app
 
-# Copy frontend files only
+# When rootDirectory is ./frontend, context is the frontend folder
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
@@ -15,11 +15,11 @@ FROM node:22.20.0-slim
 RUN corepack enable
 WORKDIR /app
 
-# Copy only what's needed
+# Copy package files
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
-# Copy built frontend
+# Copy built dist
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 8080
