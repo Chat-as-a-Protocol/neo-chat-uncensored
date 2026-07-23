@@ -2,7 +2,7 @@
 # NΞØ PROTOCOL · NØX WORKSPACE ORCHESTRATOR
 # ==============================================================================
 
-.PHONY: help init install dev dev-fe dev-be check build test clean
+.PHONY: help init install dev dev-fe dev-be check build build-waf test clean
 
 # Colors
 CYAN    := \033[0;36m
@@ -26,24 +26,26 @@ help: ## Exibe os comandos disponíveis no workspace
 	@printf "$(DIM) ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░$(RESET)\n\n"
 	@printf "$(DIM)  ·─── AMBIENTE & SETUP ─────────────────────$(RESET)\n"
 	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "install" "Instala dependências de todos os workspaces"
-	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "init" "Cria .env local se necessário e instala deps"
+	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "init" "Inicializa os .env dos módulos e instala deps"
 	@printf "\n$(DIM)  ·─── DESENVOLVIMENTO ──────────────────────$(RESET)\n"
 	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "dev" "Inicia servidor de dev do frontend Astro"
-	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "dev-fe" "Inicia frontend Astro SSR (:4321)"
+	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "dev-fe" "Inicia frontend Astro SSR (:3000)"
 	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "dev-be" "Inicia backend Express API (:3001)"
 	@printf "\n$(DIM)  ·─── QUALIDADE & BUILD ────────────────────$(RESET)\n"
-	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "check" "Executa verificação de tipos e testes do workspace"
+	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "check" "Executa checagem de tipos do frontend e backend"
 	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "build" "Gera build de produção do frontend"
+	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "build-waf" "Compila a imagem Docker do Nginx WAF"
 	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "test" "Roda testes unitários do backend"
-	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "clean" "Limpa caches e artefatos de build"
+	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "clean" "Limpa caches e artefatos dos módulos"
 	@printf "\n$(DIM) ─────────────────────────────────────────────$(RESET)\n"
 	@printf "$(DIM) ⬡ NΞØ Protocol // Ecosystem // neo-chat-uncensored$(RESET)\n\n"
 
-init: ## Inicializa o ambiente local
+init: ## Inicializa o ambiente local dos módulos
 	@printf "$(CYAN)╭──────────────────────────────────────────╮$(RESET)\n"
 	@printf "$(CYAN)│$(RESET)  $(WHITE)⚡  INITIALIZE WORKSPACE$(RESET)                $(CYAN)│$(RESET)\n"
 	@printf "$(CYAN)╰──────────────────────────────────────────╯$(RESET)\n"
-	@if [ ! -f .env ]; then cp .env.example .env; fi
+	@if [ ! -f frontend/.env ] && [ -f frontend/.env.example ]; then cp frontend/.env.example frontend/.env; fi
+	@if [ ! -f backend/.env ] && [ -f backend/.env.example ]; then cp backend/.env.example backend/.env; fi
 	pnpm install
 
 install: ## Instala dependências do workspace
@@ -79,14 +81,20 @@ build: ## Gera o build do frontend
 	@printf "$(CYAN)╰──────────────────────────────────────────╯$(RESET)\n"
 	pnpm --filter neo-chat-uncensored-frontend build
 
+build-waf: ## Compila a imagem do Nginx WAF
+	@printf "$(CYAN)╭──────────────────────────────────────────╮$(RESET)\n"
+	@printf "$(CYAN)│$(RESET)  $(WHITE)🛡️   BUILD NGINX WAF IMAGE$(RESET)               $(CYAN)│$(RESET)\n"
+	@printf "$(CYAN)╰──────────────────────────────────────────╯$(RESET)\n"
+	$(MAKE) -C nginx build
+
 test: ## Executa testes do backend
 	@printf "$(CYAN)╭──────────────────────────────────────────╮$(RESET)\n"
 	@printf "$(CYAN)│$(RESET)  $(WHITE)🧪  RUN BACKEND TESTS$(RESET)                   $(CYAN)│$(RESET)\n"
 	@printf "$(CYAN)╰──────────────────────────────────────────╯$(RESET)\n"
 	pnpm --filter chat-api-backend test
 
-clean: ## Limpa artefatos de build
+clean: ## Limpa artefatos de build de todos os módulos
 	@printf "$(CYAN)╭──────────────────────────────────────────╮$(RESET)\n"
 	@printf "$(CYAN)│$(RESET)  $(WHITE)🧹  CLEAN WORKSPACE ARTIFACTS$(RESET)           $(CYAN)│$(RESET)\n"
 	@printf "$(CYAN)╰──────────────────────────────────────────╯$(RESET)\n"
-	rm -rf frontend/dist frontend/.astro node_modules/.cache
+	rm -rf frontend/dist frontend/.astro backend/app.log node_modules/.cache
