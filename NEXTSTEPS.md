@@ -44,10 +44,9 @@ Compra PIX ainda precisa de teste real via Nexus
 - Validações locais passaram:
 
 ```bash
-node --check backend/src/server.js
-pnpm --dir backend test
-pnpm check
-pnpm build
+make check
+make build
+pnpm --filter chat-api-backend test
 ```
 
 - Paths de webhook aceitos no chat:

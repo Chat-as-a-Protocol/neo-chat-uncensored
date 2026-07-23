@@ -36,17 +36,23 @@ FlowPay externo, Resend e ledger auditável.
 
 ```text
 neo-chat-uncensored/
-├── src/                    Astro SSR app
-├── public/                 assets públicos e PWA
-├── backend/
-│   ├── src/server.js       API Express
+├── frontend/               Astro 5 SSR app, assets públicos e PWA
+│   ├── src/                rotas Astro SSR e componentes UI
+│   ├── public/             assets estáticos e favicon.ico
+│   ├── Dockerfile          build isolado do frontend
+│   └── Makefile            metas de automação do frontend
+├── backend/                API Express, ledger, FlowPay e schema.sql
+│   ├── src/server.js       servidor Express e webhooks
 │   ├── src/services/       ledger, FlowPay, e-mail, pagamentos
-│   └── schema.sql          Postgres HA schema
-├── shared/
-│   ├── plans.json          planos, limites, tokens e preços
-│   └── runtime-prompt.md   prompt runtime mínimo
+│   ├── Dockerfile          build isolado do backend
+│   └── Makefile            metas de automação do backend
+├── nginx/                  Nginx WAF Firewall (Porta 3000 -> 3001)
+│   ├── nginx.conf          configuração do WAF e proxy reverso
+│   ├── Dockerfile          imagem Alpine do WAF
+│   └── Makefile            metas de automação do WAF
+├── shared/                 planos, limites, tokens e prompt runtime
 ├── docs/                   standards para documentação
-└── .github/prompts/        prompts de colaboração
+└── scripts/                scripts de infra e apoio
 ```
 
 ```text

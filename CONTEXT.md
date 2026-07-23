@@ -48,7 +48,7 @@ através de duas ações críticas executadas:
 
 ```text
 Repo      Gitea (https://gitea.com/noxia/changeman.git)
-Frontend  Astro 6 SSR + @astrojs/node
+Frontend  Astro 5 SSR + @astrojs/node
 Backend   Express + Redis + Postgres HA
 LLM       Venice (Uncensored)
 Payment   FlowPay via api.flowpay.cash
@@ -140,11 +140,13 @@ O NØX (`neo-chat-uncensored`) é o core de produção ativo do
 Chat-as-a-Protocol.
 
 O root do workspace atua como control plane leve.
-O PNPM workspace ativo foi reduzido ao NØX:
+O PNPM workspace ativo é composto pelos módulos soberanos do NØX:
 
 ```text
-neo-chat-uncensored
-neo-chat-uncensored/backend
+frontend/               (Astro 5 SSR app, PWA e UI)
+backend/                (Express API, Ledger e FlowPay)
+nginx/                  (Nginx WAF Firewall)
+shared/                 (Planos, limites e prompt runtime)
 ```
 
 Os demais nós permanecem como topologia/submodules,
