@@ -1,15 +1,15 @@
-import node from '@astrojs/node';
-import sitemap from '@astrojs/sitemap';
-import tailwind from '@astrojs/tailwind';
-import { defineConfig } from 'astro/config';
+import node from "@astrojs/node";
+import sitemap from "@astrojs/sitemap";
+import tailwind from "@astrojs/tailwind";
+import { defineConfig } from "astro/config";
 
 export default defineConfig({
-  site: 'https://noxai.chat',
+  site: "https://noxai.chat",
 
-  output: 'server',
+  output: "server",
 
   adapter: node({
-    mode: 'standalone',
+    mode: "standalone",
   }),
 
   integrations: [
@@ -20,15 +20,15 @@ export default defineConfig({
         const { pathname } = new URL(page);
 
         const blockedRoutes = [
-          '/account/',
-          '/success/',
-          '/login/',
-          '/signup/',
-          '/upgrade/',
+          "/account/",
+          "/success/",
+          "/login/",
+          "/signup/",
+          "/upgrade/",
         ];
 
         return (
-          !pathname.startsWith('/auth/') && !blockedRoutes.includes(pathname)
+          !pathname.startsWith("/auth/") && !blockedRoutes.includes(pathname)
         );
       },
     }),
@@ -41,7 +41,7 @@ export default defineConfig({
   vite: {
     build: {
       sourcemap: false,
-      minify: 'terser',
+      minify: "terser",
 
       terserOptions: {
         compress: {
@@ -52,7 +52,10 @@ export default defineConfig({
   },
 
   server: {
-    host: process.env.HOST ?? '0.0.0.0',
-    port: Number.parseInt((process.env.ASTRO_PORT = 4321), 10),
+    host: process.env.HOST ?? "0.0.0.0",
+    port: Number.parseInt(
+      process.env.PORT || process.env.ASTRO_PORT || "4321",
+      10,
+    ),
   },
 });
