@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import plans from '../../../shared/plans.json';
+import plans from '../../shared/plans.json';
 
 const packages = Object.entries((plans as any).packages || {}).map(([id, pkg]: [string, any]) => ({ id, ...pkg }));
 

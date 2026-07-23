@@ -1,0 +1,95 @@
+{
+  "tiers": {
+    "guest": {
+      "name": "Guest",
+      "initialBalance": 700,
+      "maxOutputTokens": 512,
+      "benefits": [
+        "Acesso sem cadastro",
+        "700 tokens iniciais",
+        "Respostas compactas",
+        "Histórico não persistido"
+      ]
+    },
+    "free": {
+      "name": "Identified",
+      "initialBalance": 2000,
+      "maxOutputTokens": 1024,
+      "benefits": [
+        "Cadastro confirmado",
+        "2.000 tokens de boas-vindas",
+        "Histórico salvo em conta",
+        "Acesso a Personas básicas"
+      ]
+    },
+    "paid_basic": {
+      "name": "Paid Basic",
+      "initialBalance": 0,
+      "maxOutputTokens": 1536,
+      "benefits": [
+        "Créditos acumulativos via Ledger",
+        "Limite de saída expandido para 1536 tokens"
+      ]
+    },
+    "paid_pro": {
+      "name": "Paid Pro",
+      "initialBalance": 0,
+      "maxOutputTokens": 4096,
+      "benefits": [
+        "Acesso ao arquiteto de NØX.ai",
+        "Maior limite de saída quando solicitado"
+      ]
+    }
+  },
+  "packages": {
+    "1k": {
+      "name": "† NEØ †",
+      "tokens": 1000,
+      "price": 49,
+      "tier": "paid_basic",
+      "maxOutputTokens": 768,
+      "benefits": [
+        "1.000 tokens de créditos",
+        "Histórico do chat salvo",
+        "Respostas detalhadas sob demanda"
+      ]
+    },
+    "5k": {
+      "name": "× VOID.ᴇxᴇ ×",
+      "tokens": 5000,
+      "price": 79,
+      "tier": "paid_basic",
+      "maxOutputTokens": 1200,
+      "benefits": [
+        "5.000 tokens de créditos",
+        "Histórico do chat salvo",
+        "Ideal para projetos de médio prazo"
+      ]
+    },
+    "10k": {
+      "name": "∅ DARKNET ∅",
+      "tokens": 10000,
+      "price": 149,
+      "tier": "paid_basic",
+      "maxOutputTokens": 1536,
+      "benefits": [
+        "10.000 tokens de créditos",
+        "Histórico do chat salvo",
+        "Volume máximo para projetos completos"
+      ]
+    },
+    "40k": {
+      "name": "P.R.Ø",
+      "tokens": 40000,
+      "price": 499,
+      "tier": "paid_pro",
+      "maxOutputTokens": 4096,
+      "benefits": [
+        "Acesso ao arquiteto de NØX.ai",
+        "Leitura fria de risco, ROI e oportunidade",
+        "Diagnóstico estratégico de movimentos",
+        "Para enxergar o mapa antes de mover a peça"
+      ]
+    }
+  }
+}
