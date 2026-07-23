@@ -31,10 +31,7 @@ COPY frontend/package.json ./frontend/
 RUN pnpm install --prod --frozen-lockfile
 
 # Copy built frontend from builder
-COPY --from=builder /app/frontend/dist ./frontend/dist
-
-# Use the built files
-WORKDIR /app/frontend
+COPY --from=builder /app/frontend/dist ./dist
 
 EXPOSE 8080
 CMD ["node", "dist/server/entry.mjs"]
