@@ -4,7 +4,7 @@
     "dockerfilePath": "frontend/Dockerfile"
   },
   "deploy": {
-    "startCommand": "node dist/server/entry.mjs",
+    "startCommand": "node frontend/dist/server/entry.mjs",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
