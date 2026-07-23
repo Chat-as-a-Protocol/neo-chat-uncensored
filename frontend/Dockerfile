@@ -1,26 +1,30 @@
-# Build Stage
+# Build Stage - work from monorepo root
 FROM node:22.20.0-slim AS builder
 RUN corepack enable
-WORKDIR /app
+WORKDIR /workspace
 
-# When rootDirectory is ./frontend, context is the frontend folder
-COPY package.json pnpm-lock.yaml ./
+# Copy monorepo root files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy frontend module
+COPY frontend/package.json ./frontend/
+
+# Install all workspace dependencies
 RUN pnpm install --frozen-lockfile
 
-COPY . .
-RUN pnpm run build
+# Copy all frontend source
+COPY frontend ./frontend
+
+# Build only frontend
+RUN cd frontend && pnpm run build
 
 # Runtime Stage
 FROM node:22.20.0-slim
 RUN corepack enable
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod --frozen-lockfile
-
-# Copy built dist
-COPY --from=builder /app/dist ./dist
+# Copy only frontend dist
+COPY --from=builder /workspace/frontend/dist ./dist
 
 EXPOSE 8080
 CMD ["node", "dist/server/entry.mjs"]
