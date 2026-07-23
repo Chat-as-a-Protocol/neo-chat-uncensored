@@ -77,18 +77,25 @@ segurança > estabilidade > legibilidade > performance > estética
 
 ## ⧖ Validação
 
+Para validação completa do workspace (executar na raiz):
+
+```bash
+make check
+make build
+```
+
 Para mudanças de frontend:
 
 ```bash
-fnm exec --using v25.9.0 pnpm --filter neo-chat-uncensored-frontend check
-fnm exec --using v25.9.0 pnpm --filter neo-chat-uncensored-frontend build
+pnpm --filter neo-chat-uncensored-frontend check
+pnpm --filter neo-chat-uncensored-frontend build
 ```
 
 Para mudanças de backend:
 
 ```bash
 node --check backend/src/server.js
-fnm exec --using v25.9.0 pnpm --filter chat-api-backend test
+pnpm --filter chat-api-backend test
 ```
 
 Para migração de schema (Postgres HA de prod via proxy; `psql` não está instalado — usar o cliente `pg` do backend):
