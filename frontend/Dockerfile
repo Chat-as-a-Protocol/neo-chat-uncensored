@@ -5,7 +5,10 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
+# Copy source
 COPY . .
+
+# Build
 RUN pnpm run build
 
 FROM node:22-slim
