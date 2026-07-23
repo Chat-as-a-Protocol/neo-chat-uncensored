@@ -2,13 +2,11 @@ FROM node:22-slim
 RUN corepack enable
 WORKDIR /app
 
-COPY package.json ./
-RUN pnpm install --prod --no-frozen-lockfile
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
 
-# Selective copy for lean production image
-COPY src ./src
-COPY schema.sql ./
-COPY shared ./shared
+COPY . .
 
 EXPOSE 3001
 CMD ["node", "src/server.js"]
+
