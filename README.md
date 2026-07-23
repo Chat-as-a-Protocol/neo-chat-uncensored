@@ -109,14 +109,14 @@ Ele não é exibido como plano gratuito em `/upgrade`.
 
 ## ⨷ Componentes
 
-- `src/pages/`: rotas Astro SSR.
-- `src/components/AstroChatInterface.astro`: chat principal.
+- `frontend/src/pages/`: rotas Astro SSR.
+- `frontend/src/components/AstroChatInterface.astro`: chat principal.
 - `backend/src/server.js`: API Express, auth, chat, FlowPay e webhooks.
 - `backend/src/services/ledger.js`: ledger de créditos e consumo.
 - `backend/src/services/flowpay.js`: cliente seguro da API FlowPay.
 - `backend/src/services/email.js`: envio HTTP via Resend (template dark on-brand + List-Unsubscribe em marketing).
 - `backend/src/utils/unsubscribe.js`: token HMAC e URL de opt-out (`/api/unsubscribe`).
-- `src/pages/health/deep.ts`: deep health check (frontend → backend via `BACKEND_URL`).
+- `frontend/src/pages/health/deep.ts`: deep health check (frontend → backend via `BACKEND_URL`).
 - `shared/plans.json`: fonte de verdade de planos, tokens e preços.
 - `shared/runtime-prompt.md`: contrato mínimo injetado no runtime.
 

@@ -2,7 +2,7 @@
 # NΞØ PROTOCOL · NØX FRONTEND MODULE
 # ==============================================================================
 
-.PHONY: help dev check build preview clean
+.PHONY: help install dev check build preview clean
 
 # Colors
 CYAN    := \033[0;36m
@@ -25,6 +25,7 @@ help: ## Exibe os comandos do módulo Frontend
 	@printf "$(CYAN)╚══════════════════════════════════════════╝$(RESET)\n"
 	@printf "$(DIM) ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░$(RESET)\n\n"
 	@printf "$(DIM)  ·─── OPERAÇÕES ────────────────────────────$(RESET)\n"
+	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "install" "Instala dependências do pacote frontend"
 	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "dev" "Inicia servidor de desenvolvimento Astro (:4321)"
 	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "check" "Roda diagnóstico de tipos com astro check"
 	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "build" "Gera o build de produção (SSR Node standalone)"
@@ -32,6 +33,12 @@ help: ## Exibe os comandos do módulo Frontend
 	@printf "  $(CYAN)◆ %-16s$(RESET) $(DIM)%s$(RESET)\n" "clean" "Remove pastas .astro e dist"
 	@printf "\n$(DIM) ─────────────────────────────────────────────$(RESET)\n"
 	@printf "$(DIM) ⬡ NΞØ Protocol // Node // frontend$(RESET)\n\n"
+
+install: ## Instala dependências do módulo
+	@printf "$(CYAN)╭──────────────────────────────────────────╮$(RESET)\n"
+	@printf "$(CYAN)│$(RESET)  $(WHITE)📦  INSTALL FRONTEND DEPENDENCIES$(RESET)       $(CYAN)│$(RESET)\n"
+	@printf "$(CYAN)╰──────────────────────────────────────────╯$(RESET)\n"
+	pnpm install
 
 dev: ## Inicia o servidor Astro em dev
 	@printf "$(CYAN)╭──────────────────────────────────────────╮$(RESET)\n"

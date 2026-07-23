@@ -16,9 +16,9 @@
     "check": "astro check"
   },
   "dependencies": {
-    "@astrojs/node": "^9.4.6",
+    "@astrojs/node": "^9.5.5",
     "@astrojs/sitemap": "^3.7.3",
-    "astro": "^5.14.3",
+    "astro": "^5.18.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {

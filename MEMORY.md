@@ -306,7 +306,7 @@ Causa:
   `List-Unsubscribe` (Resend Broadcasts/página hospedada só servem Audiences).
 
 Correção:
-- Frontend: `src/pages/health/deep.ts` — pinga `BACKEND_URL/health` (rede
+- Frontend: `frontend/src/pages/health/deep.ts` — pinga `BACKEND_URL/health` (rede
   privada, timeout 5s); 200 ok/ok, 503 degraded. `BACKEND_URL` é server-side only.
 - E-mail (`services/email/template.js`): cor `#b9d631` (logo+CTA), meta
   `color-scheme: dark only`, ícone novo `public/email/nox-icon.png`.
