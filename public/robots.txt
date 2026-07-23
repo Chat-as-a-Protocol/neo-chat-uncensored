@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /*?*
-
-Sitemap: https://noxai.chat/sitemap-index.xml
